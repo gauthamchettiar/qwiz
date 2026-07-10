@@ -87,6 +87,27 @@ function cacheRepoQuizData(result: RepoQuizResult): void {
   localStorage.setItem(cacheKey(result.owner, result.repo), JSON.stringify(result));
 }
 
+const BROWSED_REPOS_KEY = 'qwiz:browsed-repos';
+
+/** Repos the user has loaded on the Browse page, most-recently-added first — lets that page
+ * restore what was on screen after a refresh instead of starting empty. */
+export function getBrowsedRepos(): string[] {
+  if (typeof localStorage === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(BROWSED_REPOS_KEY);
+    return raw ? (JSON.parse(raw) as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function addBrowsedRepo(owner: string, repo: string): void {
+  if (typeof localStorage === 'undefined') return;
+  const key = `${owner}/${repo}`;
+  const rest = getBrowsedRepos().filter((r) => r !== key);
+  localStorage.setItem(BROWSED_REPOS_KEY, JSON.stringify([key, ...rest]));
+}
+
 /** Fetches and groups every valid trivia JSON under quiz-data/ in a public GitHub repo. */
 export async function fetchRepoQuizData(
   owner: string,

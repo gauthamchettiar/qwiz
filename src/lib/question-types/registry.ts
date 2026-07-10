@@ -1,5 +1,6 @@
 import type { QuestionTypeDefinition } from './types';
-import { choiceType } from './choice';
+import { multipleType } from './multiple';
+import { singleType } from './single';
 
 /**
  * Every question type registers itself here. To add a new type:
@@ -7,7 +8,7 @@ import { choiceType } from './choice';
  * 2. Import its definition and add it to this list.
  * No other file needs to change.
  */
-const definitions: QuestionTypeDefinition[] = [choiceType];
+const definitions: QuestionTypeDefinition[] = [singleType, multipleType];
 
 export const questionTypeRegistry: Record<string, QuestionTypeDefinition> = Object.fromEntries(
   definitions.map((d) => [d.type, d])

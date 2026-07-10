@@ -7,3 +7,9 @@
 body {
   @apply bg-slate-50 text-slate-900;
 }
+
+/* Tailwind's preflight resets <button> to the browser default (cursor: default) — restore the
+   pointer cursor so every clickable button gives the same hover feedback as links. */
+button:not(:disabled) {
+  cursor: pointer;
+}

@@ -11,25 +11,50 @@
   let fileName = $state('');
   let errors = $state<string[]>([]);
   let importing = $state(false);
+  let dragging = $state(false);
 
   function openDialog() {
     errors = [];
     jsonText = '';
     fileName = '';
+    dragging = false;
     if (fileInputEl) fileInputEl.value = '';
     dialogEl.showModal();
+    // showModal() auto-focuses the first focusable element (the JSON Schema link) — focus the
+    // dialog itself instead so nothing inside it shows a focus ring on open.
+    dialogEl.focus();
   }
 
   function closeDialog() {
     dialogEl.close();
   }
 
+  async function readFile(file: File) {
+    fileName = file.name;
+    jsonText = await file.text();
+  }
+
   async function onFileChange(e: Event) {
     const input = e.currentTarget as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
-    fileName = file.name;
-    jsonText = await file.text();
+    await readFile(file);
+  }
+
+  function onDragOver(e: DragEvent) {
+    e.preventDefault();
+    dragging = true;
+  }
+
+  function onDragLeave() {
+    dragging = false;
+  }
+
+  async function onDrop(e: DragEvent) {
+    e.preventDefault();
+    dragging = false;
+    const file = e.dataTransfer?.files?.[0];
+    if (file) await readFile(file);
   }
 
   function importTrivia() {
@@ -71,10 +96,20 @@
 
 <dialog
   bind:this={dialogEl}
-  class="fixed inset-0 m-auto w-full max-w-lg rounded-xl border border-slate-200 p-0 shadow-xl backdrop:bg-slate-900/40"
+  tabindex="-1"
+  class="fixed inset-0 m-auto w-full max-w-lg rounded-xl border border-slate-200 p-0 shadow-xl backdrop:bg-slate-900/40 focus:outline-none"
 >
   <div class="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-    <h2 class="text-base font-semibold text-slate-900">Import trivia from JSON</h2>
+    <div class="flex items-center gap-2">
+      <h2 class="text-base font-semibold text-slate-900">Import trivia from JSON</h2>
+      <button
+        type="button"
+        class="flex items-center gap-1 text-xs text-indigo-600 hover:underline"
+        onclick={() => downloadJson('qwiz-trivia.schema.json', buildTriviaImportSchema())}
+      >
+        <Download size={12} /> JSON Schema
+      </button>
+    </div>
     <button
       type="button"
       class="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
@@ -86,21 +121,23 @@
   </div>
 
   <div class="space-y-4 px-5 py-4">
-    <div class="flex items-center justify-between gap-2">
-      <button
-        type="button"
-        class="flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-        onclick={() => fileInputEl.click()}
-      >
-        <FileUp size={15} /> Choose file
-      </button>
-      <button
-        type="button"
-        class="flex items-center gap-1 text-xs text-indigo-600 hover:underline"
-        onclick={() => downloadJson('qwiz-trivia.schema.json', buildTriviaImportSchema())}
-      >
-        <Download size={12} /> JSON Schema
-      </button>
+    <div
+      role="button"
+      tabindex="0"
+      class="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed p-6 text-center transition-colors {dragging
+        ? 'border-indigo-400 bg-indigo-50'
+        : 'border-slate-300 bg-slate-50 hover:border-indigo-300 hover:bg-indigo-50/50'}"
+      onclick={() => fileInputEl.click()}
+      onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && fileInputEl.click()}
+      ondragover={onDragOver}
+      ondragleave={onDragLeave}
+      ondrop={onDrop}
+    >
+      <FileUp size={22} class="text-slate-400" />
+      <p class="text-sm font-medium text-slate-600">Drop a JSON file here, or click to browse</p>
+      {#if fileName}
+        <p class="text-xs text-slate-500">Selected: <span class="font-medium text-slate-700">{fileName}</span></p>
+      {/if}
     </div>
     <input
       bind:this={fileInputEl}
@@ -109,9 +146,6 @@
       onchange={onFileChange}
       class="hidden"
     />
-    {#if fileName}
-      <p class="text-xs text-slate-500">Selected: <span class="font-medium text-slate-700">{fileName}</span></p>
-    {/if}
 
     <div class="flex items-center gap-3 text-xs text-slate-400">
       <div class="h-px flex-1 bg-slate-200"></div>

@@ -1,7 +1,8 @@
 <script lang="ts">
   import { ChevronUp, ChevronDown, Trash2, Lock, LockOpen } from '@lucide/svelte';
   import type { QuestionInstance } from '../types';
-  import { getQuestionType } from '../question-types/registry';
+  import { getQuestionType, questionTypeList } from '../question-types/registry';
+  import QuestionTypePicker from './QuestionTypePicker.svelte';
 
   let {
     question,
@@ -16,7 +17,8 @@
     onMoveDown,
     onToggleLock,
     onEnterEdit,
-    onFocusHandled
+    onFocusHandled,
+    onSwitchType
   }: {
     question: QuestionInstance;
     index: number;
@@ -31,9 +33,17 @@
     onToggleLock: () => void;
     onEnterEdit: (target: unknown) => void;
     onFocusHandled: () => void;
+    onSwitchType: (type: string) => void;
   } = $props();
 
   const def = $derived(getQuestionType(question.type));
+  let showTypeMenu = $state(false);
+
+  function selectType(type: string) {
+    showTypeMenu = false;
+    if (type === question.type) return;
+    onSwitchType(type);
+  }
 </script>
 
 <div
@@ -43,10 +53,24 @@
     : ''} {locked ? 'border-indigo-400 ring-1 ring-indigo-200' : 'border-slate-200'}"
 >
   <div class="mb-3 flex items-center justify-between">
-    <div>
+    <div class="flex items-center gap-2">
       <span class="text-sm font-semibold text-indigo-600">Question {index + 1}</span>
+      <div class="relative">
+        <button
+          type="button"
+          class="rounded-full border border-slate-200 px-2 py-0.5 text-xs font-medium text-slate-500 hover:bg-slate-50"
+          onclick={() => (showTypeMenu = !showTypeMenu)}
+        >
+          {def.label}
+        </button>
+        {#if showTypeMenu}
+          <div class="absolute z-10 mt-1 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
+            <QuestionTypePicker types={questionTypeList} onSelect={selectType} />
+          </div>
+        {/if}
+      </div>
       {#if locked}
-        <span class="ml-2 text-xs font-medium text-indigo-500">Locked — new questions use this format</span>
+        <span class="text-xs font-medium text-indigo-500">Locked — new questions use this format</span>
       {/if}
     </div>
     <div class="flex items-center gap-1">

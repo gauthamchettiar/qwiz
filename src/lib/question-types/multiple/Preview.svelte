@@ -1,15 +1,13 @@
 <script lang="ts">
   import ContentBlockView from '../../components/ContentBlockView.svelte';
-  import { containerClasses, type ChoiceData, type ChoiceFocusTarget, type ChoiceOption } from './index';
+  import { containerClasses, type MultipleData, type MultipleFocusTarget, type AnswerOption } from './index';
 
-  let { data, onFocus }: { data: ChoiceData; onFocus: (target: ChoiceFocusTarget) => void } = $props();
+  let { data, onFocus }: { data: MultipleData; onFocus: (target: MultipleFocusTarget) => void } = $props();
 
-  const isGraded = $derived(data.variant === 'single-graded' || data.variant === 'multiple-graded');
   const optionsContainerClass = $derived(containerClasses[data.displayMode ?? 'list']);
 
-  function rowClass(option: ChoiceOption): string {
-    const highlighted = isGraded ? option.points > 0 : option.correct;
-    return highlighted ? 'border-green-300 border-dashed bg-white' : 'border-slate-200';
+  function rowClass(option: AnswerOption): string {
+    return option.points > 0 ? 'border-green-300 border-dashed bg-white' : 'border-slate-200';
   }
 
   function focusPrompt() {
@@ -44,6 +42,11 @@
           <p class="mb-1 text-xs font-medium text-slate-500">{extra.label}</p>
         {/if}
         <ContentBlockView block={extra.revealContent ?? { kind: 'text', text: '' }} />
+        {#if extra.points}
+          <p class="mt-1 text-xs font-medium {extra.points > 0 ? 'text-green-700' : 'text-red-600'}">
+            {extra.points > 0 ? '+' : ''}{extra.points} pts on reveal
+          </p>
+        {/if}
       </div>
     {:else if extra.content}
       <ContentBlockView block={extra.content} />
@@ -59,27 +62,9 @@
         onclick={(e) => focusOption(e, option.id)}
         onkeydown={(e) => e.key === 'Enter' && focusOption(e, option.id)}
       >
-        {#if option.kind === 'input'}
-          {#if option.label}
-            <p class="text-xs font-medium text-slate-500">{option.label}</p>
-          {/if}
-          <p class="text-sm italic text-slate-400">Type your answer</p>
-          <p class="mt-1 text-xs text-green-700">
-            Accepted: {(option.validAnswers ?? []).filter(Boolean).join(', ') || '—'}
-          </p>
-        {:else if option.kind === 'reveal'}
-          {#if option.label}
-            <p class="mb-1 text-xs font-medium text-slate-500">{option.label}</p>
-          {/if}
-          <ContentBlockView block={option.revealContent ?? { kind: 'text', text: '' }} />
-        {:else if option.content}
-          <ContentBlockView block={option.content} />
-        {/if}
-
-        {#if isGraded && option.points > 0}
+        <ContentBlockView block={option.content} />
+        {#if option.points > 0}
           <p class="mt-1 text-xs font-medium text-green-700">Worth {option.points} pts</p>
-        {:else if !isGraded && option.correct}
-          <p class="mt-1 text-xs font-medium text-green-700">Correct answer</p>
         {/if}
       </div>
     {/each}

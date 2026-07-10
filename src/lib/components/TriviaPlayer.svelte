@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import type { QuestionInstance, Trivia } from '../types';
+  import { defaultTriviaSettings, type QuestionInstance, type Trivia } from '../types';
   import { getQuestionType } from '../question-types/registry';
   import { shuffledArray } from '../shuffle';
   import { recordScore } from '../bestScore';
@@ -18,7 +18,9 @@
     return qs;
   }
 
-  const settings = untrack(() => trivia.settings);
+  // Merged with defaults so a trivia saved before a settings field existed (e.g. the new theme
+  // colors) still plays with sensible values instead of leaving CSS vars undefined.
+  const settings = untrack(() => ({ ...defaultTriviaSettings(), ...trivia.settings }));
 
   let orderedQuestions = $state<QuestionInstance[]>(untrack(() => prepareQuestions()));
   let index = $state(0);
@@ -36,6 +38,10 @@
   const current = $derived(orderedQuestions[index]);
   const currentDef = $derived(current ? getQuestionType(current.type) : undefined);
   const currentGrade = $derived(current && currentDef ? currentDef.grade(current.data, responses[current.id]) : null);
+  // Types without isAnswerComplete (nothing to gate) are always submittable.
+  const currentAnswerComplete = $derived(
+    current && currentDef ? (currentDef.isAnswerComplete?.(current.data, responses[current.id]) ?? true) : true
+  );
   const isLast = $derived(index === orderedQuestions.length - 1);
   const needsReveal = settings.revealAnswers === 'after-question' || settings.revealScore === 'after-question';
   // Flips false -> true exactly once per attempt (when Start is clicked, or immediately if
@@ -193,16 +199,18 @@
   });
 </script>
 
-<div style={`--accent: ${settings.accentColor}`}>
+<div
+  style={`--color-primary:${settings.primaryColor};--color-secondary:${settings.secondaryColor};--accent:${settings.accentColor};--color-correct:${settings.correctColor};--color-wrong:${settings.wrongColor};--color-partial:${settings.partialColor};--color-neutral:${settings.neutralColor};--color-text:${settings.textColor};--color-bg:${settings.bgColor};color:var(--color-text)`}
+>
   {#if orderedQuestions.length === 0}
     <p class="rounded-md border border-dashed border-slate-300 p-6 text-center text-sm text-slate-400">
       This trivia has no questions yet.
     </p>
   {:else if step === 'intro'}
     <div class="space-y-6 text-center">
-      <div class="rounded-lg border border-slate-200 bg-white p-8">
+      <div class="rounded-lg border border-slate-200 bg-[var(--color-bg)] p-8">
         {#if trivia.description}
-          <p class="text-slate-600">{trivia.description}</p>
+          <p>{trivia.description}</p>
         {/if}
         <div class="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-slate-500">
           <span>{orderedQuestions.length} question{orderedQuestions.length === 1 ? '' : 's'}</span>
@@ -219,7 +227,7 @@
       </div>
       <button
         type="button"
-        class="rounded-md bg-[var(--accent)] px-6 py-2 text-sm font-medium text-white hover:brightness-90"
+        class="rounded-md bg-[var(--color-primary)] px-6 py-2 text-sm font-medium text-white hover:brightness-90"
         onclick={startTrivia}
       >
         Start
@@ -230,7 +238,7 @@
       {#if settings.revealScore !== 'never'}
         <div class="rounded-lg border border-[var(--accent)]/30 bg-[var(--accent)]/10 p-6 text-center">
           <p class="text-sm font-medium text-[var(--accent)]">Your score</p>
-          <p class="text-3xl font-bold text-slate-900">
+          <p class="text-3xl font-bold">
             {totalMax > 0 ? `${totalEarned} / ${totalMax} pts` : 'Complete'}
           </p>
           {#if bestScoreResult}
@@ -241,15 +249,17 @@
         </div>
       {:else}
         <div class="rounded-lg border border-slate-200 bg-slate-50 p-6 text-center">
-          <p class="text-lg font-semibold text-slate-700">Trivia complete!</p>
+          <p class="text-lg font-semibold">Trivia complete!</p>
         </div>
       {/if}
 
       {#if hasWinCondition && settings.revealWin === 'end'}
         <div
-          class="rounded-lg border p-4 text-center {won ? 'border-green-300 bg-green-50' : 'border-red-200 bg-red-50'}"
+          class="rounded-lg border p-4 text-center {won
+            ? 'border-[var(--color-correct)]/40 bg-[var(--color-correct)]/10'
+            : 'border-[var(--color-wrong)]/40 bg-[var(--color-wrong)]/10'}"
         >
-          <p class="text-lg font-semibold {won ? 'text-green-700' : 'text-red-700'}">
+          <p class="text-lg font-semibold {won ? 'text-[var(--color-correct)]' : 'text-[var(--color-wrong)]'}">
             {chosenMessage}
           </p>
         </div>
@@ -260,25 +270,25 @@
           {#each results as r, i (r.question.id)}
             <div
               class="rounded-md border p-3 {r.grade.max === 0
-                ? 'border-slate-200'
+                ? 'border-[var(--color-neutral)]/30'
                 : r.grade.earned >= r.grade.max
-                  ? 'border-green-200 bg-green-50'
+                  ? 'border-[var(--color-correct)]/40 bg-[var(--color-correct)]/10'
                   : r.grade.earned > 0
-                    ? 'border-amber-200 bg-amber-50'
-                    : 'border-red-200 bg-red-50'}"
+                    ? 'border-[var(--color-partial)]/40 bg-[var(--color-partial)]/10'
+                    : 'border-[var(--color-wrong)]/40 bg-[var(--color-wrong)]/10'}"
             >
               <div class="flex items-center justify-between">
-                <span class="text-sm text-slate-700">Question {i + 1}</span>
+                <span class="text-sm">Question {i + 1}</span>
                 {#if settings.revealScore !== 'never'}
                   {#if r.grade.max === 0}
-                    <span class="text-xs font-medium text-slate-400">Not scored</span>
+                    <span class="text-xs font-medium text-[var(--color-neutral)]">Not scored</span>
                   {:else}
                     <span
                       class="text-xs font-medium {r.grade.earned >= r.grade.max
-                        ? 'text-green-700'
+                        ? 'text-[var(--color-correct)]'
                         : r.grade.earned > 0
-                          ? 'text-amber-700'
-                          : 'text-red-700'}"
+                          ? 'text-[var(--color-partial)]'
+                          : 'text-[var(--color-wrong)]'}"
                     >
                       {r.grade.earned} / {r.grade.max} pts
                     </span>
@@ -298,7 +308,7 @@
       <div class="flex justify-center">
         <button
           type="button"
-          class="rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:brightness-90"
+          class="rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white hover:brightness-90"
           onclick={restart}
         >
           Play again
@@ -311,7 +321,7 @@
         <span>Question {index + 1} of {orderedQuestions.length}</span>
       </div>
 
-      <div class="space-y-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <div class="space-y-4 rounded-lg border border-slate-200 bg-[var(--color-bg)] p-5 shadow-sm">
         {#if settings.revealAnswers !== 'never' && currentDef.AnswerSummary}
           <div>
             <p class="mb-2 text-xs font-medium text-slate-500">Review</p>
@@ -321,7 +331,7 @@
         {#if settings.revealScore !== 'never' && currentGrade}
           <div class="rounded-md border border-[var(--accent)]/30 bg-[var(--accent)]/10 p-3 text-center">
             <p class="text-xs font-medium text-[var(--accent)]">Points earned</p>
-            <p class="text-xl font-bold text-slate-900">
+            <p class="text-xl font-bold">
               {currentGrade.max > 0 ? `${currentGrade.earned} / ${currentGrade.max} pts` : 'Not scored'}
             </p>
           </div>
@@ -331,7 +341,7 @@
       <div class="flex justify-end">
         <button
           type="button"
-          class="rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:brightness-90"
+          class="rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white hover:brightness-90"
           onclick={continueAfterReveal}
         >
           {isLast ? 'See results' : 'Continue'}
@@ -359,12 +369,16 @@
       </div>
 
       {#if locked}
-        <p class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
+        <p class="rounded-md border border-[var(--color-partial)]/40 bg-[var(--color-partial)]/10 px-3 py-2 text-xs font-medium text-[var(--color-partial)]">
           You've already seen the result for this question, so it's locked from further changes.
         </p>
       {/if}
 
-      <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm {locked ? 'pointer-events-none opacity-60' : ''}">
+      <div
+        class="rounded-lg border border-slate-200 bg-[var(--color-bg)] p-5 shadow-sm {locked
+          ? 'pointer-events-none opacity-60'
+          : ''}"
+      >
         {#key current.id}
           <currentDef.Player
             data={current.data}
@@ -378,7 +392,7 @@
         {#if !settings.disableBack}
           <button
             type="button"
-            class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            class="rounded-md border border-[var(--color-secondary)] px-4 py-2 text-sm font-medium text-[var(--color-secondary)] hover:bg-[var(--color-secondary)]/10 disabled:cursor-not-allowed disabled:opacity-40"
             disabled={index === 0}
             onclick={prev}
           >
@@ -387,7 +401,8 @@
         {/if}
         <button
           type="button"
-          class="rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:brightness-90"
+          class="rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white hover:brightness-90 disabled:cursor-not-allowed disabled:opacity-40"
+          disabled={!currentAnswerComplete}
           onclick={submitAnswer}
         >
           {isLast ? 'Finish' : 'Next'}

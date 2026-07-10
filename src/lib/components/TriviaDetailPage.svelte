@@ -1,8 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { Play, Download, Pencil, Trash2, Copy } from '@lucide/svelte';
   import { resolveTriviaFromParams, type ResolvedTrivia } from '../resolveTrivia';
-  import { deleteTrivia } from '../store';
+  import { deleteTrivia, saveTrivia } from '../store';
   import { downloadJson } from '../download';
+  import type { Trivia } from '../types';
 
   let state = $state<'loading' | 'ready' | 'error'>('loading');
   let resolved = $state<ResolvedTrivia | null>(null);
@@ -39,6 +41,14 @@
   function onDownload() {
     if (!resolved) return;
     downloadJson(`${slugify(resolved.trivia.title)}.json`, resolved.trivia);
+  }
+
+  function onClone() {
+    if (!resolved) return;
+    const now = new Date().toISOString();
+    const cloned: Trivia = { ...resolved.trivia, id: crypto.randomUUID(), createdAt: now, updatedAt: now };
+    saveTrivia(cloned);
+    window.location.href = `/trivia/edit?id=${cloned.id}`;
   }
 
   function pageUrl(suffix: 'play' | 'edit'): string {
@@ -101,48 +111,38 @@
     <div class="flex gap-2">
       <a
         href={pageUrl('play')}
-        class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+        class="flex items-center gap-1.5 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
       >
-        Play
+        <Play size={15} /> Play
       </a>
+      <button
+        type="button"
+        class="flex items-center gap-1.5 rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+        onclick={onDownload}
+      >
+        <Download size={15} /> Download JSON
+      </button>
       {#if resolved.readOnly}
-        <span
-          aria-disabled="true"
-          title="Read-only — cannot be edited"
-          class="cursor-not-allowed rounded-md border border-slate-200 px-4 py-2 text-sm font-medium text-slate-300"
+        <button
+          type="button"
+          class="flex items-center gap-1.5 rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          onclick={onClone}
         >
-          Edit
-        </span>
+          <Copy size={15} /> Clone
+        </button>
       {:else}
         <a
           href={pageUrl('edit')}
-          class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          class="flex items-center gap-1.5 rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
         >
-          Edit
+          <Pencil size={15} /> Edit
         </a>
-      {/if}
-      <button
-        type="button"
-        class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-        onclick={onDownload}
-      >
-        Download JSON
-      </button>
-      {#if resolved.readOnly}
-        <span
-          aria-disabled="true"
-          title="Read-only — cannot be deleted"
-          class="cursor-not-allowed rounded-md border border-red-100 px-4 py-2 text-sm font-medium text-red-200"
-        >
-          Delete
-        </span>
-      {:else}
         <button
           type="button"
-          class="rounded-md border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+          class="flex items-center gap-1.5 rounded-md border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
           onclick={onDelete}
         >
-          Delete
+          <Trash2 size={15} /> Delete
         </button>
       {/if}
     </div>

@@ -6,7 +6,9 @@
   import type { QuestionTypeDefinition } from '../question-types/types';
   import { getDraft, saveDraft, deleteDraft } from '../drafts';
   import { saveTrivia } from '../store';
+  import { validateTriviaImport } from '../triviaSchema';
   import QuestionEditorCard from './QuestionEditorCard.svelte';
+  import QuestionTypePicker from './QuestionTypePicker.svelte';
   import TriviaSettingsEditor from './TriviaSettingsEditor.svelte';
 
   let { initial }: { initial?: Trivia } = $props();
@@ -31,8 +33,10 @@
   let questions = $state<QuestionInstance[]>(
     untrack(() => JSON.parse(JSON.stringify(resumedDraft?.questions ?? initial?.questions ?? [])))
   );
+  // Merged with defaults so editing a trivia saved before a settings field existed (e.g. the
+  // newer theme colors) shows every control populated, ready to save forward.
   let settings = $state<TriviaSettings>(
-    untrack(() => resumedDraft?.settings ?? initial?.settings ?? defaultTriviaSettings())
+    untrack(() => ({ ...defaultTriviaSettings(), ...(resumedDraft?.settings ?? initial?.settings) }))
   );
   let errors = $state<string[]>([]);
   let saving = $state(false);
@@ -99,12 +103,19 @@
   }
 
   function onAddQuestionClick() {
-    if (questionTypeList.length === 1) addQuestion(questionTypeList[0].type);
-    else showAddMenu = !showAddMenu;
+    showAddMenu = !showAddMenu;
   }
 
   function updateQuestion(id: string, data: unknown) {
     questions = questions.map((q) => (q.id === id ? { ...q, data } : q));
+  }
+
+  // Switching an existing question's type is a plain reset to that type's blank default — the
+  // "format lock" clone-as-template feature already covers deliberately carrying structure
+  // forward, so type-switching stays simple and predictable.
+  function switchQuestionType(id: string, newType: string) {
+    const def = getQuestionType(newType);
+    questions = questions.map((q) => (q.id === id ? { id: q.id, type: newType, data: def.createDefault() } : q));
   }
 
   function removeQuestion(id: string) {
@@ -127,27 +138,29 @@
   }
 
   function save() {
-    const collected: string[] = [];
-    if (title.trim().length === 0) collected.push('Trivia title is required.');
-    if (questions.length === 0) collected.push('Add at least one question.');
-    for (const q of questions) {
-      const def = getQuestionType(q.type);
-      collected.push(...def.validate(q.data).map((e) => `${def.label}: ${e}`));
-    }
-    errors = collected;
-    if (errors.length > 0) return;
-
-    saving = true;
     const now = new Date().toISOString();
-    const saved: Trivia = {
+    const draft: Trivia = {
       id: initial?.id ?? crypto.randomUUID(),
       title,
-      description: description || undefined,
+      description,
       createdAt: initial?.createdAt ?? now,
       updatedAt: now,
       questions,
       settings
     };
+    // Round-trip through JSON so this checks exactly what Import JSON checks — the builder's
+    // in-memory question data can carry `undefined` placeholders (e.g. unset optional option
+    // fields) that plain JSON never has, and shouldn't affect validity either way.
+    const saved: Trivia = JSON.parse(JSON.stringify(draft));
+
+    const result = validateTriviaImport(saved);
+    if (!result.valid) {
+      errors = result.errors;
+      return;
+    }
+    errors = [];
+
+    saving = true;
     saveTrivia(saved);
     if (draftId) deleteDraft(draftId);
     window.location.href = `/trivia?id=${saved.id}`;
@@ -202,6 +215,7 @@
         onToggleLock={() => toggleLock(question.id)}
         onEnterEdit={(target) => enterEdit(question.id, target)}
         onFocusHandled={() => (pendingFocus = null)}
+        onSwitchType={(type) => switchQuestionType(question.id, type)}
       />
     {/each}
 
@@ -212,7 +226,13 @@
     {/if}
   </div>
 
-  <div class="relative">
+  <div class="space-y-3">
+    {#if showAddMenu}
+      <div class="rounded-md border border-slate-200 bg-white p-3 shadow-sm">
+        <QuestionTypePicker types={questionTypeList} onSelect={addQuestion} />
+      </div>
+    {/if}
+
     <button
       type="button"
       class="flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
@@ -220,20 +240,6 @@
     >
       <Plus size={15} /> Add question
     </button>
-    {#if showAddMenu && questionTypeList.length > 1}
-      <div class="absolute z-10 mt-1 w-72 rounded-md border border-slate-200 bg-white p-1 shadow-lg">
-        {#each questionTypeList as def (def.type)}
-          <button
-            type="button"
-            class="block w-full rounded px-2 py-2 text-left text-sm hover:bg-slate-100"
-            onclick={() => addQuestion(def.type)}
-          >
-            <span class="font-medium text-slate-800">{def.label}</span>
-            <span class="block text-xs text-slate-500">{def.description}</span>
-          </button>
-        {/each}
-      </div>
-    {/if}
   </div>
 
   <div class="flex items-center justify-end gap-3 border-t border-slate-200 pt-4">

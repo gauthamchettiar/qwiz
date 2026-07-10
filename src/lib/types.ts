@@ -1,7 +1,7 @@
 /** A single unit of question/answer content shared across question types. */
 export type ContentBlock =
   | { kind: 'text'; text: string }
-  | { kind: 'image'; url: string; alt?: string }
+  | { kind: 'image'; url: string; alt: string }
   | { kind: 'video'; videoId: string };
 
 export function emptyTextBlock(): ContentBlock {
@@ -35,8 +35,24 @@ export interface TriviaSettings {
   overallTimeLimit: number | null;
   /** Show a cover screen (description + a Start button) before the first question. */
   showIntro: boolean;
-  /** Hex color theming the player UI's buttons/highlights. Builder UI is unaffected. */
+  /** Main call-to-action buttons (Start, Next, Continue, Play again). */
+  primaryColor: string;
+  /** Back button and other secondary/outline actions. */
+  secondaryColor: string;
+  /** Selection highlight: chosen option border/tint, running score, reveal buttons. Hex color theming the player UI. Builder UI is unaffected. */
   accentColor: string;
+  /** Correct-answer indication. */
+  correctColor: string;
+  /** Wrong-answer indication. */
+  wrongColor: string;
+  /** Partial-credit indication. */
+  partialColor: string;
+  /** Unscored / neutral indication. */
+  neutralColor: string;
+  /** Card heading/body text color. */
+  textColor: string;
+  /** Question/intro/results card background color. */
+  bgColor: string;
   /** Show a running "earned / max so far" tally while answering. No effect if revealScore is 'never'. */
   showRunningScore: boolean;
   /** Hide the Back button so players can't revisit earlier questions. */
@@ -57,7 +73,15 @@ export function defaultTriviaSettings(): TriviaSettings {
     perQuestionTimeLimit: null,
     overallTimeLimit: null,
     showIntro: true,
+    primaryColor: '#4f46e5',
+    secondaryColor: '#64748b',
     accentColor: '#4f46e5',
+    correctColor: '#16a34a',
+    wrongColor: '#dc2626',
+    partialColor: '#d97706',
+    neutralColor: '#64748b',
+    textColor: '#0f172a',
+    bgColor: '#ffffff',
     showRunningScore: false,
     disableBack: false,
     disableEditAfterReveal: false
@@ -67,7 +91,7 @@ export function defaultTriviaSettings(): TriviaSettings {
 export interface Trivia {
   id: string;
   title: string;
-  description?: string;
+  description: string;
   createdAt: string;
   updatedAt: string;
   questions: QuestionInstance[];
@@ -78,7 +102,7 @@ export interface Trivia {
 export interface TriviaSummary {
   id: string;
   title: string;
-  description?: string;
+  description: string;
   createdAt: string;
   updatedAt: string;
   questionCount: number;

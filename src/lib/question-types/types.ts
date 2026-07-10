@@ -16,6 +16,8 @@ export interface QuestionTypeDefinition<TData = any, TResponse = any> {
   type: string;
   label: string;
   description: string;
+  /** Icon shown for this type in the "add question" / "switch type" picker grid. */
+  icon?: Component;
 
   /** Data for a freshly added question of this type. */
   createDefault(): TData;
@@ -34,11 +36,22 @@ export interface QuestionTypeDefinition<TData = any, TResponse = any> {
    */
   cloneAsTemplate?(data: TData): TData;
 
-  /** Returns a list of human-readable problems; empty array means the question is valid. */
-  validate(data: TData): string[];
+  /**
+   * Optional extra structural checks beyond what `dataSchema` already expresses as JSON
+   * Schema. Most types don't need this — the trivia-wide JSON Schema check (run once at save
+   * time, the same check JSON import uses) is the single source of truth for validity. Return
+   * a list of human-readable problems; empty array means no extra problems.
+   */
+  validate?(data: TData): string[];
 
   /** Grades a player's response against the question's data. */
   grade(data: TData, response: TResponse): GradeResult;
+
+  /**
+   * Whether the current response is complete enough to submit (e.g. meets a minimum selection
+   * count). Omit for types where any response (including none at all) is always submittable.
+   */
+  isAnswerComplete?(data: TData, response: TResponse): boolean;
 
   /** Returns a copy of data with answer-option order randomized, for the shuffle-options trivia setting. Omit if the type has no natural "options" concept. */
   shuffleOptions?(data: TData): TData;
