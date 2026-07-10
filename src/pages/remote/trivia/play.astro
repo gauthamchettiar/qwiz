@@ -1,0 +1,8 @@
+---
+import Base from '../../../layouts/Base.astro';
+import RemoteTriviaPlayPage from '../../../lib/components/RemoteTriviaPlayPage.svelte';
+---
+
+<Base title="Play">
+  <RemoteTriviaPlayPage client:only="svelte" />
+</Base>

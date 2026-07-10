@@ -24,14 +24,14 @@ const { title = 'Qwiz' } = Astro.props;
         <a href="/" class="text-xl font-bold text-slate-900">Qwiz</a>
         <div class="flex items-center gap-2">
           <a
-            href="/browse"
+            href="/remote/browse"
             class="flex items-center gap-1.5 rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
             <FolderGit2 size={15} /> Browse
           </a>
           <ImportTriviaDialog client:load />
           <a
-            href="/create"
+            href="/local/create"
             class="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700"
           >
             + New Trivia

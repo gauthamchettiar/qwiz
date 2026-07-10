@@ -1,29 +1,21 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Play, Download, Pencil, Trash2, Copy } from '@lucide/svelte';
-  import { resolveTriviaFromParams, type ResolvedTrivia } from '../resolveTrivia';
-  import { deleteTrivia, saveTrivia } from '../store';
+  import { Play, Download, Pencil, Trash2 } from '@lucide/svelte';
+  import { getTrivia, deleteTrivia } from '../store';
   import { downloadJson } from '../download';
   import type { Trivia } from '../types';
 
-  let state = $state<'loading' | 'ready' | 'error'>('loading');
-  let resolved = $state<ResolvedTrivia | null>(null);
-  let errorMessage = $state('');
-  let copied = $state(false);
+  let state = $state<'loading' | 'ready'>('loading');
+  let trivia = $state<Trivia | null>(null);
 
-  onMount(async () => {
-    const params = new URLSearchParams(window.location.search);
-    const result = await resolveTriviaFromParams(params);
-    if (!result) {
+  onMount(() => {
+    const id = new URLSearchParams(window.location.search).get('id');
+    const found = id ? getTrivia(id) : null;
+    if (!found) {
       window.location.href = '/';
       return;
     }
-    if (!result.trivia) {
-      errorMessage = result.error;
-      state = 'error';
-      return;
-    }
-    resolved = result;
+    trivia = found;
     state = 'ready';
   });
 
@@ -32,85 +24,34 @@
   }
 
   function onDelete() {
-    if (!resolved || resolved.readOnly) return;
+    if (!trivia) return;
     if (!confirm('Delete this trivia? This cannot be undone.')) return;
-    deleteTrivia(resolved.trivia.id);
+    deleteTrivia(trivia.id);
     window.location.href = '/';
   }
 
   function onDownload() {
-    if (!resolved) return;
-    downloadJson(`${slugify(resolved.trivia.title)}.json`, resolved.trivia);
-  }
-
-  function onClone() {
-    if (!resolved) return;
-    const now = new Date().toISOString();
-    const cloned: Trivia = { ...resolved.trivia, id: crypto.randomUUID(), createdAt: now, updatedAt: now };
-    saveTrivia(cloned);
-    window.location.href = `/trivia/edit?id=${cloned.id}`;
-  }
-
-  function pageUrl(suffix: 'play' | 'edit'): string {
-    if (!resolved) return '#';
-    if (resolved.source === 'local') return `/trivia/${suffix}?id=${resolved.trivia.id}`;
-    const repo = `${resolved.owner}/${resolved.repo}`;
-    // Includes `ref` as a fast path (already resolved, skips a lookup on the next page).
-    return `/trivia/${suffix}?github=${encodeURIComponent(repo)}&id=${encodeURIComponent(resolved.path)}&ref=${encodeURIComponent(resolved.ref)}`;
-  }
-
-  async function copyShareLink() {
-    if (!resolved || resolved.source !== 'github') return;
-    // Deliberately omits `ref` — a durable link that re-resolves the branch fresh each time,
-    // so it keeps working even if the repo's default branch is later renamed.
-    const repo = `${resolved.owner}/${resolved.repo}`;
-    const url = `${window.location.origin}/trivia/play?github=${encodeURIComponent(repo)}&id=${encodeURIComponent(resolved.path)}`;
-    await navigator.clipboard.writeText(url);
-    copied = true;
-    setTimeout(() => (copied = false), 2000);
+    if (!trivia) return;
+    downloadJson(`${slugify(trivia.title)}.json`, trivia);
   }
 </script>
 
 {#if state === 'loading'}
   <p class="text-sm text-slate-400">Loading…</p>
-{:else if state === 'error'}
-  <div class="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-    <p>{errorMessage}</p>
-    <a href="/browse" class="mt-2 inline-block text-indigo-600 hover:underline">Back to Browse</a>
-  </div>
-{:else if resolved && resolved.trivia}
+{:else if trivia}
   <div class="space-y-4">
     <div>
-      <div class="flex items-center gap-2">
-        <h1 class="text-2xl font-bold text-slate-900">{resolved.trivia.title}</h1>
-        {#if resolved.source === 'github'}
-          <a
-            href={`https://github.com/${resolved.owner}/${resolved.repo}/blob/${resolved.ref}/${resolved.path}`}
-            target="_blank"
-            rel="noreferrer"
-            class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500 hover:bg-slate-200"
-          >
-            {resolved.owner}/{resolved.repo} · read-only
-          </a>
-          <button
-            type="button"
-            class="rounded-full border border-slate-200 px-2 py-0.5 text-xs font-medium text-slate-500 hover:bg-slate-50"
-            onclick={copyShareLink}
-          >
-            {copied ? 'Link copied!' : 'Copy share link'}
-          </button>
-        {/if}
-      </div>
-      {#if resolved.trivia.description}
-        <p class="mt-1 text-slate-500">{resolved.trivia.description}</p>
+      <h1 class="text-2xl font-bold text-slate-900">{trivia.title}</h1>
+      {#if trivia.description}
+        <p class="mt-1 text-slate-500">{trivia.description}</p>
       {/if}
       <p class="mt-1 text-xs text-slate-400">
-        {resolved.trivia.questions.length} question{resolved.trivia.questions.length === 1 ? '' : 's'}
+        {trivia.questions.length} question{trivia.questions.length === 1 ? '' : 's'}
       </p>
     </div>
     <div class="flex gap-2">
       <a
-        href={pageUrl('play')}
+        href={`/local/trivia/play?id=${trivia.id}`}
         class="flex items-center gap-1.5 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
       >
         <Play size={15} /> Play
@@ -122,29 +63,19 @@
       >
         <Download size={15} /> Download JSON
       </button>
-      {#if resolved.readOnly}
-        <button
-          type="button"
-          class="flex items-center gap-1.5 rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          onclick={onClone}
-        >
-          <Copy size={15} /> Clone
-        </button>
-      {:else}
-        <a
-          href={pageUrl('edit')}
-          class="flex items-center gap-1.5 rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-        >
-          <Pencil size={15} /> Edit
-        </a>
-        <button
-          type="button"
-          class="flex items-center gap-1.5 rounded-md border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
-          onclick={onDelete}
-        >
-          <Trash2 size={15} /> Delete
-        </button>
-      {/if}
+      <a
+        href={`/local/trivia/edit?id=${trivia.id}`}
+        class="flex items-center gap-1.5 rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+      >
+        <Pencil size={15} /> Edit
+      </a>
+      <button
+        type="button"
+        class="flex items-center gap-1.5 rounded-md border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+        onclick={onDelete}
+      >
+        <Trash2 size={15} /> Delete
+      </button>
     </div>
   </div>
 {/if}

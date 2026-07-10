@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { getTrivia } from '../store';
-  import TriviaBuilder from './TriviaBuilder.svelte';
+  import TriviaPlayer from './TriviaPlayer.svelte';
   import type { Trivia } from '../types';
 
   let trivia = $state<Trivia | null>(null);
@@ -18,6 +18,6 @@
 </script>
 
 {#if trivia}
-  <h1 class="mb-6 text-2xl font-bold text-slate-900">Edit trivia</h1>
-  <TriviaBuilder initial={trivia} />
+  <h1 class="mb-6 text-2xl font-bold text-slate-900">{trivia.title}</h1>
+  <TriviaPlayer {trivia} />
 {/if}

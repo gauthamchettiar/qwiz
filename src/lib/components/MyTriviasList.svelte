@@ -15,14 +15,14 @@
 {#if loaded}
   {#if trivias.length === 0}
     <p class="rounded-md border border-dashed border-slate-300 p-8 text-center text-sm text-slate-400">
-      No trivias yet. <a href="/create" class="text-indigo-600 hover:underline">Create your first one</a>.
+      No trivias yet. <a href="/local/create" class="text-indigo-600 hover:underline">Create your first one</a>.
     </p>
   {:else}
     <ul class="space-y-3">
       {#each trivias as t (t.id)}
         <li>
           <a
-            href={`/trivia?id=${t.id}`}
+            href={`/local/trivia?id=${t.id}`}
             class="block rounded-lg border border-slate-200 bg-white p-4 shadow-sm hover:border-indigo-300 hover:shadow"
           >
             <div class="flex items-center justify-between">

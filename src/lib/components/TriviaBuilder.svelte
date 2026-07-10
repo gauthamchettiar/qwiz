@@ -163,7 +163,7 @@
     saving = true;
     saveTrivia(saved);
     if (draftId) deleteDraft(draftId);
-    window.location.href = `/trivia?id=${saved.id}`;
+    window.location.href = `/local/trivia?id=${saved.id}`;
   }
 </script>
 

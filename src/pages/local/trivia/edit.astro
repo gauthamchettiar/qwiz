@@ -1,0 +1,8 @@
+---
+import Base from '../../../layouts/Base.astro';
+import TriviaEditPage from '../../../lib/components/TriviaEditPage.svelte';
+---
+
+<Base title="Edit trivia">
+  <TriviaEditPage client:only="svelte" />
+</Base>

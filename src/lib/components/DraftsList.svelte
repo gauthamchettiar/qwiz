@@ -25,7 +25,7 @@
         <li
           class="flex items-center justify-between rounded-md border border-dashed border-slate-300 bg-white p-3"
         >
-          <a href={`/create?draft=${d.id}`} class="text-sm font-medium text-slate-700 hover:text-indigo-600">
+          <a href={`/local/create?draft=${d.id}`} class="text-sm font-medium text-slate-700 hover:text-indigo-600">
             {d.title || 'Untitled trivia'}
           </a>
           <button
