@@ -19,8 +19,10 @@ export type RevealTiming = 'after-question' | 'end' | 'never';
 export type RevealWinTiming = 'end' | 'never';
 
 export interface TriviaSettings {
-  /** Score threshold to "win". null = no win/lose condition tracked. */
-  pointsToWin: number | null;
+  /** Percentage (0-100) of the played total a player needs to reach to "win". null = no
+   * win/lose condition tracked. Converted to a points threshold at play time, since the
+   * actual total can vary per attempt when `maxQuestions` samples a subset of the pool. */
+  pointsToWinPercent: number | null;
   revealAnswers: RevealTiming;
   revealScore: RevealTiming;
   revealWin: RevealWinTiming;
@@ -29,6 +31,9 @@ export interface TriviaSettings {
   /** Candidate lose messages; one is picked at random when the player doesn't win. */
   loseMessage: string[];
   shuffleQuestions: boolean;
+  /** Only meaningful when shuffleQuestions is true: ask this many random questions from the
+   * pool instead of all of them. null = use every question. */
+  maxQuestions: number | null;
   /** Seconds. null = no limit. */
   perQuestionTimeLimit: number | null;
   /** Seconds. null = no limit. */
@@ -63,13 +68,14 @@ export interface TriviaSettings {
 
 export function defaultTriviaSettings(): TriviaSettings {
   return {
-    pointsToWin: null,
+    pointsToWinPercent: null,
     revealAnswers: 'end',
     revealScore: 'end',
     revealWin: 'end',
     winMessage: ['You win!'],
     loseMessage: ['Better luck next time!'],
     shuffleQuestions: false,
+    maxQuestions: null,
     perQuestionTimeLimit: null,
     overallTimeLimit: null,
     showIntro: true,

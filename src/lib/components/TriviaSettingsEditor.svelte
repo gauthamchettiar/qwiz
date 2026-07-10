@@ -6,14 +6,20 @@
   let {
     settings,
     totalMaxPoints,
+    questionCount,
     invalid = false,
     onChange
   }: {
     settings: TriviaSettings;
     totalMaxPoints: number;
+    questionCount: number;
     invalid?: boolean;
     onChange: (settings: TriviaSettings) => void;
   } = $props();
+
+  const pointsToWinComputed = $derived(
+    settings.pointsToWinPercent !== null ? Math.round((settings.pointsToWinPercent / 100) * totalMaxPoints) : null
+  );
 
   const revealTimingOptions: { value: RevealTiming; label: string }[] = [
     { value: 'after-question', label: 'After every question' },
@@ -29,21 +35,46 @@
     onChange({ ...settings, [key]: value });
   }
 
-  // Switching either reveal timing to "after every question" nudges on the answer-lock
-  // setting too, since revising an answer after seeing the result defeats the point.
+  // Score can only reveal after every question if answers do too (seeing a score with no
+  // answer to explain it is confusing). Switching either reveal timing to "after every
+  // question" also nudges on the answer-lock setting, since revising an answer after seeing
+  // the result defeats the point.
   function setRevealAnswers(value: RevealTiming) {
+    const revealScore = value !== 'after-question' && settings.revealScore === 'after-question' ? 'end' : settings.revealScore;
     onChange({
       ...settings,
       revealAnswers: value,
-      disableEditAfterReveal: value === 'after-question' ? true : settings.disableEditAfterReveal
+      revealScore,
+      disableEditAfterReveal: value === 'after-question' || revealScore === 'after-question' ? true : settings.disableEditAfterReveal
     });
   }
 
   function setRevealScore(value: RevealTiming) {
+    const revealAnswers = value === 'after-question' ? 'after-question' : settings.revealAnswers;
     onChange({
       ...settings,
       revealScore: value,
-      disableEditAfterReveal: value === 'after-question' ? true : settings.disableEditAfterReveal
+      revealAnswers,
+      disableEditAfterReveal: value === 'after-question' || revealAnswers === 'after-question' ? true : settings.disableEditAfterReveal
+    });
+  }
+
+  // Modifying an answer after its reveal only makes sense if the player can navigate back to
+  // it, so the two stay linked: disabling Back forces Modify off, and enabling Modify forces
+  // Back on.
+  function setDisableBack(value: boolean) {
+    onChange({
+      ...settings,
+      disableBack: value,
+      disableEditAfterReveal: value ? true : settings.disableEditAfterReveal
+    });
+  }
+
+  function setDisableEditAfterReveal(value: boolean) {
+    onChange({
+      ...settings,
+      disableEditAfterReveal: value,
+      disableBack: value ? settings.disableBack : false
     });
   }
 
@@ -51,6 +82,11 @@
     if (raw.trim() === '') return null;
     const n = Number(raw);
     return Number.isFinite(n) ? n : null;
+  }
+
+  function toOptionalPercent(raw: string): number | null {
+    const n = toOptionalNumber(raw);
+    return n === null ? null : Math.min(100, Math.max(0, n));
   }
 
   function toLines(raw: string): string[] {
@@ -140,16 +176,21 @@
     {#snippet scoring()}
       <div class="space-y-3">
         <div>
-          {@render label('Points to win', 'The score a player needs to reach to be marked as having won this trivia. Leave blank to skip win/lose tracking entirely.')}
+          {@render label('Points to win (%)', 'The percentage of the played total a player needs to reach to be marked as having won this trivia. Leave blank to skip win/lose tracking entirely.')}
           <div class="flex items-center gap-2">
             <input
               type="number"
-              class="w-24 rounded-md border border-slate-300 px-2 py-1 text-sm"
+              min="0"
+              max="100"
+              class="w-20 rounded-md border border-slate-300 px-2 py-1 text-sm"
               placeholder="None"
-              value={settings.pointsToWin ?? ''}
-              oninput={(e) => set('pointsToWin', toOptionalNumber(e.currentTarget.value))}
+              value={settings.pointsToWinPercent ?? ''}
+              oninput={(e) => set('pointsToWinPercent', toOptionalPercent(e.currentTarget.value))}
             />
-            <span class="text-sm text-slate-400">/ {totalMaxPoints} total</span>
+            <span class="text-sm text-slate-400">%</span>
+            {#if pointsToWinComputed !== null}
+              <span class="text-sm text-slate-400">({pointsToWinComputed} / {totalMaxPoints} pts)</span>
+            {/if}
           </div>
         </div>
         {@render boolSegmented(
@@ -207,10 +248,10 @@
         </div>
         {@render boolSegmented(
           'Modify after answer reveal',
-          "Once a question's answer has been revealed, whether the player can still go back and change their pick.",
+          "Once a question's answer has been revealed, whether the player can still go back and change their pick. Requires the Back button to be enabled.",
           settings.disableEditAfterReveal,
           true,
-          (v) => set('disableEditAfterReveal', v)
+          setDisableEditAfterReveal
         )}
       </div>
     {/snippet}
@@ -219,10 +260,10 @@
       <div class="space-y-3">
         {@render boolSegmented(
           'Back button',
-          'Whether players can navigate to previous questions while answering.',
+          "Whether players can navigate to previous questions while answering. Disabling it also disables Modify after answer reveal, since that relies on being able to go back.",
           settings.disableBack,
           true,
-          (v) => set('disableBack', v)
+          setDisableBack
         )}
         {@render boolSegmented(
           'Shuffle question order',
@@ -231,6 +272,18 @@
           false,
           (v) => set('shuffleQuestions', v)
         )}
+        <div>
+          {@render label('Max questions', 'When shuffling, ask this many random questions from the pool instead of all of them. Leave blank to use every question. Only applies while Shuffle question order is enabled.')}
+          <input
+            type="number"
+            min="1"
+            class="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+            placeholder={`All questions (${questionCount})`}
+            disabled={!settings.shuffleQuestions}
+            value={settings.maxQuestions ?? ''}
+            oninput={(e) => set('maxQuestions', toOptionalNumber(e.currentTarget.value))}
+          />
+        </div>
         {@render boolSegmented(
           'Intro screen before Q1',
           'Shows a cover screen with the description and a Start button before the first question, instead of jumping straight in.',

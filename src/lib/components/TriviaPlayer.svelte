@@ -9,7 +9,13 @@
 
   function prepareQuestions(): QuestionInstance[] {
     let qs = trivia.questions;
-    if (trivia.settings.shuffleQuestions) qs = shuffledArray(qs);
+    if (trivia.settings.shuffleQuestions) {
+      qs = shuffledArray(qs);
+      // maxQuestions only applies alongside shuffling — sampling a subset without shuffling
+      // first would just be "the first N questions" every time, not a random pool draw.
+      const max = trivia.settings.maxQuestions;
+      if (max != null && max > 0 && max < qs.length) qs = qs.slice(0, max);
+    }
     // Each question decides for itself whether its own options get shuffled.
     qs = qs.map((q) => {
       const def = getQuestionType(q.type);
@@ -177,8 +183,13 @@
       { earned: 0, max: 0 }
     )
   );
-  const hasWinCondition = settings.pointsToWin !== null;
-  const won = $derived(hasWinCondition && totalEarned >= (settings.pointsToWin ?? 0));
+  const hasWinCondition = settings.pointsToWinPercent !== null;
+  // Computed from this attempt's actual total, not a fixed points value — the total can vary
+  // between attempts when maxQuestions samples a random subset of the question pool.
+  const pointsToWin = $derived(
+    hasWinCondition ? Math.round(((settings.pointsToWinPercent ?? 0) / 100) * totalMax) : null
+  );
+  const won = $derived(hasWinCondition && totalEarned >= (pointsToWin ?? 0));
 
   // Finalizes the attempt once per finish (reruns each time a "Play again" reaches 'finished'
   // again, since `step` genuinely changes value on each transition): records the score and
@@ -214,8 +225,8 @@
         {/if}
         <div class="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-slate-500">
           <span>{orderedQuestions.length} question{orderedQuestions.length === 1 ? '' : 's'}</span>
-          {#if settings.pointsToWin !== null}
-            <span>Win at {settings.pointsToWin} pts</span>
+          {#if hasWinCondition}
+            <span>Win at {pointsToWin} pts</span>
           {/if}
           {#if settings.perQuestionTimeLimit}
             <span>{settings.perQuestionTimeLimit}s per question</span>

@@ -95,6 +95,16 @@
         {/if}
       {/if}
 
+      <label class="flex items-center gap-2 text-xs font-medium text-slate-500">
+        <input
+          type="checkbox"
+          checked={option.points > 0}
+          disabled
+          class="h-3.5 w-3.5 cursor-not-allowed accent-green-600"
+        />
+        Correct
+      </label>
+
       <label class="flex items-center gap-2 text-xs font-medium text-slate-600">
         Points
         <input

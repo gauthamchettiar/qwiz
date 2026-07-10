@@ -224,7 +224,13 @@
     </div>
 
     <div class="border-t border-slate-100 pt-5">
-      <TriviaSettingsEditor {settings} {totalMaxPoints} invalid={settingsInvalid} onChange={(s) => (settings = s)} />
+      <TriviaSettingsEditor
+        {settings}
+        {totalMaxPoints}
+        questionCount={questions.length}
+        invalid={settingsInvalid}
+        onChange={(s) => (settings = s)}
+      />
     </div>
   </div>
 
