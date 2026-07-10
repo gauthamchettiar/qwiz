@@ -43,7 +43,16 @@
 
 <div class="space-y-2 rounded-md border border-slate-200 p-2">
   <div class="flex items-start gap-2">
-    <KindPicker {kinds} current={option.kind} onSelect={setKind} />
+    <div class="flex shrink-0 flex-col items-center gap-1.5 pt-0.5">
+      <KindPicker {kinds} current={option.kind} onSelect={setKind} />
+      <input
+        type="checkbox"
+        checked={option.points > 0}
+        disabled
+        title="Correct"
+        class="h-3.5 w-3.5 cursor-not-allowed accent-green-600"
+      />
+    </div>
 
     <div class="flex-1 space-y-2">
       {#if option.kind === 'text'}
@@ -94,16 +103,6 @@
           </div>
         {/if}
       {/if}
-
-      <label class="flex items-center gap-2 text-xs font-medium text-slate-500">
-        <input
-          type="checkbox"
-          checked={option.points > 0}
-          disabled
-          class="h-3.5 w-3.5 cursor-not-allowed accent-green-600"
-        />
-        Correct
-      </label>
 
       <label class="flex items-center gap-2 text-xs font-medium text-slate-600">
         Points
