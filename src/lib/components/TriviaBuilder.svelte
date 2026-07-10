@@ -2,13 +2,14 @@
   import { untrack } from 'svelte';
   import { scale } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
-  import { Plus, ChevronDown } from '@lucide/svelte';
+  import { Plus, ChevronDown, Download } from '@lucide/svelte';
   import { defaultTriviaSettings, type QuestionInstance, type Trivia, type TriviaSettings } from '../types';
   import { questionTypeList, getQuestionType } from '../question-types/registry';
   import type { QuestionTypeDefinition } from '../question-types/types';
   import { getDraft, saveDraft, deleteDraft } from '../drafts';
   import { saveTrivia } from '../store';
   import { validateTriviaImport } from '../triviaSchema';
+  import { downloadJson, slugify } from '../download';
   import { clickOutside } from '../clickOutside';
   import QuestionEditorCard from './QuestionEditorCard.svelte';
   import QuestionTypePicker from './QuestionTypePicker.svelte';
@@ -42,7 +43,21 @@
     untrack(() => ({ ...defaultTriviaSettings(), ...(resumedDraft?.settings ?? initial?.settings) }))
   );
   let errors = $state<string[]>([]);
+  let errorPaths = $state<string[]>([]);
   let saving = $state(false);
+
+  // Derived from `errorPaths` so a failed save visibly points at the offending field/card,
+  // instead of just listing messages the user has to cross-reference themselves.
+  const titleInvalid = $derived(errorPaths.includes('/title'));
+  const settingsInvalid = $derived(errorPaths.some((p) => p.startsWith('/settings')));
+  const invalidQuestionIndices = $derived(
+    new Set(
+      errorPaths
+        .filter((p) => p.startsWith('/questions/'))
+        .map((p) => Number(p.split('/')[2]))
+        .filter((n) => Number.isInteger(n))
+    )
+  );
   let showAddMenu = $state(false);
   let lockedQuestionId = $state<string | null>(null);
   // Only one question is ever in edit mode; every other card shows its read-only,
@@ -140,7 +155,7 @@
     lockedQuestionId = lockedQuestionId === id ? null : id;
   }
 
-  function save() {
+  function buildTrivia(): Trivia {
     const now = new Date().toISOString();
     const draft: Trivia = {
       id: initial?.id ?? crypto.randomUUID(),
@@ -154,28 +169,49 @@
     // Round-trip through JSON so this checks exactly what Import JSON checks — the builder's
     // in-memory question data can carry `undefined` placeholders (e.g. unset optional option
     // fields) that plain JSON never has, and shouldn't affect validity either way.
-    const saved: Trivia = JSON.parse(JSON.stringify(draft));
+    return JSON.parse(JSON.stringify(draft));
+  }
 
+  function save() {
+    const saved = buildTrivia();
     const result = validateTriviaImport(saved);
     if (!result.valid) {
       errors = result.errors;
+      errorPaths = result.paths;
       return;
     }
     errors = [];
+    errorPaths = [];
 
     saving = true;
     saveTrivia(saved);
     if (draftId) deleteDraft(draftId);
     window.location.href = `/local/trivia?id=${saved.id}`;
   }
+
+  function downloadCurrent() {
+    downloadJson(`${slugify(title)}.json`, buildTrivia());
+  }
 </script>
 
 <div class="space-y-6" ondblclick={onBackgroundDoubleClick}>
+  {#if errors.length > 0}
+    <div class="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+      <ul class="list-inside list-disc space-y-1">
+        {#each errors as err}
+          <li>{err}</li>
+        {/each}
+      </ul>
+    </div>
+  {/if}
+
   <div class="space-y-5 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
     <div class="-mx-1 space-y-1">
       <input
         type="text"
-        class="w-full rounded-md border-0 bg-transparent px-1 py-1 text-2xl font-bold text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+        class="w-full rounded-md px-1 py-1 text-2xl font-bold text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-100 {titleInvalid
+          ? 'border border-red-300 ring-1 ring-red-100'
+          : 'border-0 bg-transparent'}"
         placeholder="Untitled trivia"
         bind:value={title}
       />
@@ -188,19 +224,9 @@
     </div>
 
     <div class="border-t border-slate-100 pt-5">
-      <TriviaSettingsEditor {settings} {totalMaxPoints} onChange={(s) => (settings = s)} />
+      <TriviaSettingsEditor {settings} {totalMaxPoints} invalid={settingsInvalid} onChange={(s) => (settings = s)} />
     </div>
   </div>
-
-  {#if errors.length > 0}
-    <div class="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-      <ul class="list-inside list-disc space-y-1">
-        {#each errors as err}
-          <li>{err}</li>
-        {/each}
-      </ul>
-    </div>
-  {/if}
 
   <div class="space-y-4">
     {#each questions as question, i (question.id)}
@@ -210,6 +236,7 @@
         total={questions.length}
         locked={lockedQuestionId === question.id}
         editing={editingQuestionId === question.id}
+        invalid={invalidQuestionIndices.has(i)}
         focusTarget={editingQuestionId === question.id ? pendingFocus : null}
         onChange={(data: unknown) => updateQuestion(question.id, data)}
         onRemove={() => removeQuestion(question.id)}
@@ -253,9 +280,13 @@
   </div>
 
   <div class="flex items-center justify-end gap-3 border-t border-slate-200 pt-4">
-    <p class="text-xs text-slate-400">
-      Saved only in this browser — download a JSON copy afterward for a permanent backup.
-    </p>
+    <button
+      type="button"
+      class="flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+      onclick={downloadCurrent}
+    >
+      <Download size={15} /> Download JSON
+    </button>
     <button
       type="button"
       class="shrink-0 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"

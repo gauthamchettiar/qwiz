@@ -6,10 +6,12 @@
   let {
     settings,
     totalMaxPoints,
+    invalid = false,
     onChange
   }: {
     settings: TriviaSettings;
     totalMaxPoints: number;
+    invalid?: boolean;
     onChange: (settings: TriviaSettings) => void;
   } = $props();
 
@@ -126,7 +128,7 @@
   </div>
 {/snippet}
 
-<details class="group">
+<details class="group {invalid ? 'rounded-lg border border-red-300 ring-2 ring-red-100 p-2 -m-2' : ''}" open={invalid}>
   <summary
     class="flex cursor-pointer list-none items-center gap-2 py-1 text-sm font-medium text-slate-700 hover:text-slate-900"
   >

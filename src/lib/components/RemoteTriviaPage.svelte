@@ -10,7 +10,7 @@
     type RepoQuizResult
   } from '../github';
   import { saveTrivia } from '../store';
-  import { downloadJson } from '../download';
+  import { downloadJson, slugify } from '../download';
   import type { Trivia } from '../types';
 
   type PageState =
@@ -53,10 +53,6 @@
     const res = await fetchRepoQuizData(owner, repo);
     refreshing = false;
     state = res.ok ? { kind: 'repo', owner, repo, result: res.result } : { kind: 'error', message: res.error };
-  }
-
-  function slugify(title: string): string {
-    return title.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'trivia';
   }
 
   function onDownload() {

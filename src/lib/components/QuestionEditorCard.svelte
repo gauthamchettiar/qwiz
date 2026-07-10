@@ -13,6 +13,7 @@
     total,
     locked,
     editing,
+    invalid = false,
     focusTarget,
     onChange,
     onRemove,
@@ -28,6 +29,7 @@
     total: number;
     locked: boolean;
     editing: boolean;
+    invalid?: boolean;
     focusTarget?: unknown;
     onChange: (data: unknown) => void;
     onRemove: () => void;
@@ -51,9 +53,13 @@
 
 <div
   data-question-card
-  class="rounded-lg border bg-white p-4 shadow-sm {editing
-    ? 'ring-2 ring-indigo-100'
-    : ''} {locked ? 'border-indigo-400 ring-1 ring-indigo-200' : 'border-slate-200'}"
+  class="rounded-lg border bg-white p-4 shadow-sm {invalid
+    ? 'border-red-300 ring-2 ring-red-100'
+    : editing
+      ? 'border-slate-200 ring-2 ring-indigo-100'
+      : locked
+        ? 'border-indigo-400 ring-1 ring-indigo-200'
+        : 'border-slate-200'}"
 >
   <div class="mb-3 flex items-center justify-between">
     <div class="flex items-center gap-2">

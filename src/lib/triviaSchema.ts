@@ -107,17 +107,27 @@ export function buildTriviaImportSchema() {
 export interface TriviaValidationResult {
   valid: boolean;
   errors: string[];
+  /** Raw Ajv `instancePath` per error, same order as `errors`, deduped alongside it — lets
+   * callers with a live form (e.g. TriviaBuilder) map an error back to the field that caused it. */
+  paths: string[];
 }
 
 export function validateTriviaImport(data: unknown): TriviaValidationResult {
   const ajv = new Ajv2020({ allErrors: true, strict: false });
   const validate = ajv.compile(buildTriviaImportSchema());
   const valid = validate(data);
-  if (valid) return { valid: true, errors: [] };
+  if (valid) return { valid: true, errors: [], paths: [] };
 
-  const errors = (validate.errors ?? []).map((err) => {
+  const seen = new Set<string>();
+  const errors: string[] = [];
+  const paths: string[] = [];
+  for (const err of validate.errors ?? []) {
     const path = err.instancePath || '(root)';
-    return `${path}: ${err.message}`;
-  });
-  return { valid: false, errors: Array.from(new Set(errors)) };
+    const message = `${path}: ${err.message}`;
+    if (seen.has(message)) continue;
+    seen.add(message);
+    errors.push(message);
+    paths.push(err.instancePath);
+  }
+  return { valid: false, errors, paths };
 }

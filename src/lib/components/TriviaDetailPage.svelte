@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { Play, Download, Pencil, Trash2 } from '@lucide/svelte';
   import { getTrivia, deleteTrivia } from '../store';
-  import { downloadJson } from '../download';
+  import { downloadJson, slugify } from '../download';
   import type { Trivia } from '../types';
 
   let state = $state<'loading' | 'ready'>('loading');
@@ -18,10 +18,6 @@
     trivia = found;
     state = 'ready';
   });
-
-  function slugify(title: string): string {
-    return title.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'trivia';
-  }
 
   function onDelete() {
     if (!trivia) return;
