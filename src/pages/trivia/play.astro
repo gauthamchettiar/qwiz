@@ -1,0 +1,8 @@
+---
+import Base from '../../layouts/Base.astro';
+import TriviaPlayPage from '../../lib/components/TriviaPlayPage.svelte';
+---
+
+<Base title="Play">
+  <TriviaPlayPage client:only="svelte" />
+</Base>

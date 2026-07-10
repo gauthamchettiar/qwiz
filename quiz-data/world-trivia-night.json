@@ -1,0 +1,172 @@
+{
+  "id": "demo-world-trivia-night",
+  "title": "World Trivia Night",
+  "description": "A demo covering all four grading variants, mixed answer kinds, and extra content.",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z",
+  "settings": {
+    "pointsToWin": 30,
+    "revealAnswers": "after-question",
+    "revealScore": "end",
+    "revealWin": "end",
+    "winMessage": ["You're a trivia champion!", "Absolutely crushed it!", "Trivia royalty right there."],
+    "loseMessage": ["So close — give it another go!", "Not quite — try again!", "The trivia gods were not kind today."],
+    "shuffleQuestions": false,
+    "perQuestionTimeLimit": null,
+    "overallTimeLimit": null,
+    "showIntro": true,
+    "accentColor": "#059669",
+    "showRunningScore": true,
+    "disableBack": false,
+    "disableEditAfterReveal": true
+  },
+  "questions": [
+    {
+      "id": "demo-q1",
+      "type": "choice",
+      "data": {
+        "variant": "single-one",
+        "prompt": { "kind": "text", "text": "What is the largest ocean on Earth?" },
+        "extras": [
+          {
+            "id": "q1-extra",
+            "kind": "text",
+            "content": { "kind": "text", "text": "Hint: it touches Asia, Australia, the Americas, and Antarctica." }
+          }
+        ],
+        "questionPoints": 10,
+        "displayMode": "grid-2",
+        "shuffleOptions": true,
+        "options": [
+          { "id": "q1-o1", "kind": "text", "correct": true, "points": 0, "content": { "kind": "text", "text": "Pacific Ocean" } },
+          { "id": "q1-o2", "kind": "text", "correct": false, "points": 0, "content": { "kind": "text", "text": "Atlantic Ocean" } },
+          { "id": "q1-o3", "kind": "text", "correct": false, "points": 0, "content": { "kind": "text", "text": "Indian Ocean" } },
+          { "id": "q1-o4", "kind": "text", "correct": false, "points": 0, "content": { "kind": "text", "text": "Arctic Ocean" } }
+        ]
+      }
+    },
+    {
+      "id": "demo-q2",
+      "type": "choice",
+      "data": {
+        "variant": "multiple-many",
+        "prompt": { "kind": "text", "text": "Which of these are programming languages? Select all that apply." },
+        "extras": [],
+        "questionPoints": 10,
+        "options": [
+          { "id": "q2-o1", "kind": "text", "correct": true, "points": 0, "content": { "kind": "text", "text": "Python" } },
+          { "id": "q2-o2", "kind": "text", "correct": true, "points": 0, "content": { "kind": "text", "text": "JavaScript" } },
+          { "id": "q2-o3", "kind": "text", "correct": false, "points": 0, "content": { "kind": "text", "text": "HTML" } },
+          { "id": "q2-o4", "kind": "text", "correct": false, "points": 0, "content": { "kind": "text", "text": "Photoshop" } }
+        ]
+      }
+    },
+    {
+      "id": "demo-q3",
+      "type": "choice",
+      "data": {
+        "variant": "single-graded",
+        "prompt": { "kind": "text", "text": "Which planet is closest to the Sun? (mixes a typed answer with clickable ones)" },
+        "extras": [],
+        "questionPoints": 0,
+        "options": [
+          {
+            "id": "q3-o1",
+            "kind": "input",
+            "correct": false,
+            "points": 10,
+            "label": "Type the planet name",
+            "validAnswers": ["Mercury"]
+          },
+          { "id": "q3-o2", "kind": "text", "correct": false, "points": 3, "content": { "kind": "text", "text": "Venus" } },
+          { "id": "q3-o3", "kind": "text", "correct": false, "points": 0, "content": { "kind": "text", "text": "Mars" } }
+        ]
+      }
+    },
+    {
+      "id": "demo-q4",
+      "type": "choice",
+      "data": {
+        "variant": "multiple-graded",
+        "prompt": { "kind": "text", "text": "Which of these are continents? Pick any number — each correct pick earns points." },
+        "extras": [],
+        "questionPoints": 0,
+        "displayMode": "grid-4",
+        "options": [
+          { "id": "q4-o1", "kind": "text", "correct": false, "points": 5, "content": { "kind": "text", "text": "Asia" } },
+          { "id": "q4-o2", "kind": "text", "correct": false, "points": 5, "content": { "kind": "text", "text": "Europe" } },
+          { "id": "q4-o3", "kind": "text", "correct": false, "points": 5, "content": { "kind": "text", "text": "Australia" } },
+          { "id": "q4-o4", "kind": "text", "correct": false, "points": 0, "content": { "kind": "text", "text": "Greenland" } }
+        ]
+      }
+    },
+    {
+      "id": "demo-q5",
+      "type": "choice",
+      "data": {
+        "variant": "multiple-graded",
+        "prompt": { "kind": "text", "text": "Fun facts about the ocean — click each to reveal (not scored)." },
+        "extras": [],
+        "questionPoints": 0,
+        "options": [
+          {
+            "id": "q5-o1",
+            "kind": "reveal",
+            "correct": false,
+            "points": 0,
+            "label": "Fact 1",
+            "revealContent": { "kind": "text", "text": "The ocean covers 71% of Earth's surface." }
+          },
+          {
+            "id": "q5-o2",
+            "kind": "reveal",
+            "correct": false,
+            "points": 0,
+            "label": "Fact 2",
+            "revealContent": { "kind": "text", "text": "Less than 5% of the ocean has been explored." }
+          },
+          {
+            "id": "q5-o3",
+            "kind": "reveal",
+            "correct": false,
+            "points": 0,
+            "label": "Fact 3",
+            "revealContent": { "kind": "text", "text": "The Pacific Ocean is the largest and deepest ocean." }
+          }
+        ]
+      }
+    },
+    {
+      "id": "demo-q6",
+      "type": "choice",
+      "data": {
+        "variant": "multiple-graded",
+        "prompt": {
+          "kind": "text",
+          "text": "Linked inputs demo: type one fruit and one bear, in either box — just not two from the same category (e.g. two fruits)."
+        },
+        "extras": [],
+        "questionPoints": 0,
+        "linkedInputs": true,
+        "options": [
+          {
+            "id": "q6-o1",
+            "kind": "input",
+            "correct": false,
+            "points": 5,
+            "label": "Box A",
+            "validAnswers": ["Apple", "Banana", "Pear"]
+          },
+          {
+            "id": "q6-o2",
+            "kind": "input",
+            "correct": false,
+            "points": 5,
+            "label": "Box B",
+            "validAnswers": ["Polar", "Grizzly", "Black"]
+          }
+        ]
+      }
+    }
+  ]
+}

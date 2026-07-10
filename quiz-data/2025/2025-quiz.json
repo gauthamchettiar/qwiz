@@ -1,0 +1,239 @@
+{
+  "id": "2025-quiz",
+  "title": "2025 Quiz",
+  "description": "How closely were you paying attention to the year 2025?",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z",
+  "settings": {
+    "pointsToWin": 70,
+    "revealAnswers": "end",
+    "revealScore": "end",
+    "revealWin": "end",
+    "winMessage": ["You were paying attention!", "2025 called — it wants its trivia crown back... on you.", "Front-page-news level knowledge."],
+    "loseMessage": ["Maybe skim the headlines next year.", "Not quite — 2025 was a lot to keep up with.", "So close! Give it another go."],
+    "shuffleQuestions": false,
+    "perQuestionTimeLimit": 45,
+    "overallTimeLimit": null,
+    "showIntro": true,
+    "accentColor": "#2563eb",
+    "showRunningScore": true,
+    "disableBack": false,
+    "disableEditAfterReveal": true
+  },
+  "questions": [
+    {
+      "id": "tq1",
+      "type": "choice",
+      "data": {
+        "variant": "single-one",
+        "prompt": { "kind": "text", "text": "Who was inaugurated as President of the United States on January 20, 2025?" },
+        "extras": [],
+        "questionPoints": 10,
+        "options": [
+          { "id": "tq1-o1", "kind": "text", "correct": true, "points": 0, "content": { "kind": "text", "text": "Donald Trump" } },
+          { "id": "tq1-o2", "kind": "text", "correct": false, "points": 0, "content": { "kind": "text", "text": "Joe Biden" } },
+          { "id": "tq1-o3", "kind": "text", "correct": false, "points": 0, "content": { "kind": "text", "text": "Kamala Harris" } },
+          { "id": "tq1-o4", "kind": "text", "correct": false, "points": 0, "content": { "kind": "text", "text": "Barack Obama" } }
+        ]
+      }
+    },
+    {
+      "id": "tq2",
+      "type": "choice",
+      "data": {
+        "variant": "single-one",
+        "prompt": { "kind": "text", "text": "Which team won Super Bowl LIX in February 2025?" },
+        "extras": [],
+        "questionPoints": 10,
+        "displayMode": "grid-2",
+        "options": [
+          { "id": "tq2-o1", "kind": "text", "correct": true, "points": 0, "content": { "kind": "text", "text": "Philadelphia Eagles" } },
+          { "id": "tq2-o2", "kind": "text", "correct": false, "points": 0, "content": { "kind": "text", "text": "Kansas City Chiefs" } },
+          { "id": "tq2-o3", "kind": "text", "correct": false, "points": 0, "content": { "kind": "text", "text": "San Francisco 49ers" } },
+          { "id": "tq2-o4", "kind": "text", "correct": false, "points": 0, "content": { "kind": "text", "text": "Buffalo Bills" } }
+        ]
+      }
+    },
+    {
+      "id": "tq3",
+      "type": "choice",
+      "data": {
+        "variant": "single-one",
+        "prompt": { "kind": "text", "text": "What day of the week did January 1, 2025 fall on?" },
+        "extras": [
+          { "id": "tq3-extra", "kind": "text", "content": { "kind": "text", "text": "Hint: 2024 was a leap year, and it started on a Monday." } }
+        ],
+        "questionPoints": 10,
+        "options": [
+          { "id": "tq3-o1", "kind": "text", "correct": true, "points": 0, "content": { "kind": "text", "text": "Wednesday" } },
+          { "id": "tq3-o2", "kind": "text", "correct": false, "points": 0, "content": { "kind": "text", "text": "Monday" } },
+          { "id": "tq3-o3", "kind": "text", "correct": false, "points": 0, "content": { "kind": "text", "text": "Friday" } },
+          { "id": "tq3-o4", "kind": "text", "correct": false, "points": 0, "content": { "kind": "text", "text": "Sunday" } }
+        ]
+      }
+    },
+    {
+      "id": "tq4",
+      "type": "choice",
+      "data": {
+        "variant": "single-one",
+        "prompt": { "kind": "text", "text": "Is 2025 a leap year?" },
+        "extras": [],
+        "questionPoints": 10,
+        "options": [
+          { "id": "tq4-o1", "kind": "text", "correct": false, "points": 0, "content": { "kind": "text", "text": "Yes" } },
+          { "id": "tq4-o2", "kind": "text", "correct": true, "points": 0, "content": { "kind": "text", "text": "No" } }
+        ]
+      }
+    },
+    {
+      "id": "tq5",
+      "type": "choice",
+      "data": {
+        "variant": "single-one",
+        "prompt": { "kind": "text", "text": "Who succeeded Pope Francis as Pope in 2025?" },
+        "extras": [],
+        "questionPoints": 10,
+        "options": [
+          { "id": "tq5-o1", "kind": "text", "correct": true, "points": 0, "content": { "kind": "text", "text": "Pope Leo XIV" } },
+          { "id": "tq5-o2", "kind": "text", "correct": false, "points": 0, "content": { "kind": "text", "text": "Pope Benedict XVI" } },
+          { "id": "tq5-o3", "kind": "text", "correct": false, "points": 0, "content": { "kind": "text", "text": "Cardinal Pietro Parolin" } },
+          { "id": "tq5-o4", "kind": "text", "correct": false, "points": 0, "content": { "kind": "text", "text": "Pope John Paul III" } }
+        ]
+      }
+    },
+    {
+      "id": "tq6",
+      "type": "choice",
+      "data": {
+        "variant": "single-one",
+        "prompt": { "kind": "text", "text": "Who won the 2025 Australian Open Men's Singles title?" },
+        "extras": [],
+        "questionPoints": 10,
+        "options": [
+          { "id": "tq6-o1", "kind": "text", "correct": true, "points": 0, "content": { "kind": "text", "text": "Jannik Sinner" } },
+          { "id": "tq6-o2", "kind": "text", "correct": false, "points": 0, "content": { "kind": "text", "text": "Novak Djokovic" } },
+          { "id": "tq6-o3", "kind": "text", "correct": false, "points": 0, "content": { "kind": "text", "text": "Carlos Alcaraz" } },
+          { "id": "tq6-o4", "kind": "text", "correct": false, "points": 0, "content": { "kind": "text", "text": "Alexander Zverev" } }
+        ]
+      }
+    },
+    {
+      "id": "tq7",
+      "type": "choice",
+      "data": {
+        "variant": "multiple-many",
+        "prompt": { "kind": "text", "text": "Which of these companies released a major new AI model in 2025? Select all that apply." },
+        "extras": [],
+        "questionPoints": 10,
+        "displayMode": "grid-2",
+        "options": [
+          { "id": "tq7-o1", "kind": "text", "correct": true, "points": 0, "content": { "kind": "text", "text": "OpenAI" } },
+          { "id": "tq7-o2", "kind": "text", "correct": true, "points": 0, "content": { "kind": "text", "text": "Anthropic" } },
+          { "id": "tq7-o3", "kind": "text", "correct": true, "points": 0, "content": { "kind": "text", "text": "Google" } },
+          { "id": "tq7-o4", "kind": "text", "correct": false, "points": 0, "content": { "kind": "text", "text": "Nike" } }
+        ]
+      }
+    },
+    {
+      "id": "tq8",
+      "type": "choice",
+      "data": {
+        "variant": "multiple-graded",
+        "prompt": { "kind": "text", "text": "A few 2025 fun facts — click each to reveal (not scored)." },
+        "extras": [],
+        "questionPoints": 0,
+        "options": [
+          {
+            "id": "tq8-o1",
+            "kind": "reveal",
+            "correct": false,
+            "points": 0,
+            "label": "Fact 1",
+            "revealContent": { "kind": "text", "text": "2025 marked 80 years since the end of World War II in 1945." }
+          },
+          {
+            "id": "tq8-o2",
+            "kind": "reveal",
+            "correct": false,
+            "points": 0,
+            "label": "Fact 2",
+            "revealContent": { "kind": "text", "text": "The United Nations designated 2025 the International Year of Quantum Science and Technology." }
+          },
+          {
+            "id": "tq8-o3",
+            "kind": "reveal",
+            "correct": false,
+            "points": 0,
+            "label": "Fact 3",
+            "revealContent": { "kind": "text", "text": "2025 wasn't a leap year — the next one is 2028." }
+          }
+        ]
+      }
+    },
+    {
+      "id": "tq9",
+      "type": "choice",
+      "data": {
+        "variant": "single-graded",
+        "prompt": { "kind": "text", "text": "What year is this quiz all about?" },
+        "extras": [],
+        "questionPoints": 0,
+        "options": [
+          { "id": "tq9-o1", "kind": "input", "correct": false, "points": 10, "label": "Type the year", "validAnswers": ["2025"] },
+          { "id": "tq9-o2", "kind": "text", "correct": false, "points": 0, "content": { "kind": "text", "text": "2024" } },
+          { "id": "tq9-o3", "kind": "text", "correct": false, "points": 0, "content": { "kind": "text", "text": "2026" } }
+        ]
+      }
+    },
+    {
+      "id": "tq10",
+      "type": "choice",
+      "data": {
+        "variant": "multiple-graded",
+        "prompt": {
+          "kind": "text",
+          "text": "Type one Super Bowl LIX team and one 2025 Australian Open singles champion, in either box."
+        },
+        "extras": [],
+        "questionPoints": 0,
+        "linkedInputs": true,
+        "options": [
+          {
+            "id": "tq10-o1",
+            "kind": "input",
+            "correct": false,
+            "points": 5,
+            "label": "Box A",
+            "validAnswers": ["Philadelphia Eagles", "Eagles", "Kansas City Chiefs", "Chiefs"]
+          },
+          {
+            "id": "tq10-o2",
+            "kind": "input",
+            "correct": false,
+            "points": 5,
+            "label": "Box B",
+            "validAnswers": ["Jannik Sinner", "Sinner", "Madison Keys", "Keys"]
+          }
+        ]
+      }
+    },
+    {
+      "id": "tq11",
+      "type": "choice",
+      "data": {
+        "variant": "single-one",
+        "prompt": { "kind": "text", "text": "Which film won Best Picture at the Academy Awards ceremony held in March 2025?" },
+        "extras": [],
+        "questionPoints": 10,
+        "displayMode": "grid-2",
+        "options": [
+          { "id": "tq11-o1", "kind": "text", "correct": true, "points": 0, "content": { "kind": "text", "text": "Anora" } },
+          { "id": "tq11-o2", "kind": "text", "correct": false, "points": 0, "content": { "kind": "text", "text": "Oppenheimer" } },
+          { "id": "tq11-o3", "kind": "text", "correct": false, "points": 0, "content": { "kind": "text", "text": "The Brutalist" } },
+          { "id": "tq11-o4", "kind": "text", "correct": false, "points": 0, "content": { "kind": "text", "text": "Wicked" } }
+        ]
+      }
+    }
+  ]
+}

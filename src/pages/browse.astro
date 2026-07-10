@@ -1,0 +1,9 @@
+---
+import Base from '../layouts/Base.astro';
+import BrowseRepoPage from '../lib/components/BrowseRepoPage.svelte';
+---
+
+<Base title="Browse">
+  <h1 class="mb-6 text-2xl font-bold text-slate-900">Browse trivias from GitHub</h1>
+  <BrowseRepoPage client:only="svelte" />
+</Base>

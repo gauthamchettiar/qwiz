@@ -1,0 +1,9 @@
+---
+import Base from '../layouts/Base.astro';
+import TriviaBuilder from '../lib/components/TriviaBuilder.svelte';
+---
+
+<Base title="Create Trivia">
+  <h1 class="mb-6 text-2xl font-bold text-slate-900">Create a new trivia</h1>
+  <TriviaBuilder client:load />
+</Base>
