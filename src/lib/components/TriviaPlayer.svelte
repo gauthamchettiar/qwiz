@@ -300,7 +300,7 @@
                 <span class="text-sm">Question {i + 1}</span>
                 {#if settings.revealScore !== 'never'}
                   {#if r.ungraded}
-                    <span class="text-xs font-medium text-slate-400">Not graded</span>
+                    <span class="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600">Not graded</span>
                   {:else if r.grade.max === 0}
                     <span class="text-xs font-medium text-[var(--color-neutral)]">Not scored</span>
                   {:else}
@@ -340,28 +340,29 @@
     <div class="space-y-6">
       <div class="flex items-center justify-between text-xs text-slate-400">
         <span>Question {index + 1} of {orderedQuestions.length}</span>
+        {#if currentUngraded}
+          <span class="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600">Not graded</span>
+        {/if}
       </div>
 
-      <div class="space-y-4 rounded-lg border border-slate-200 bg-[var(--color-bg)] p-5 shadow-sm">
+      <div
+        class="space-y-4 rounded-lg border p-5 shadow-sm {currentUngraded
+          ? 'border-slate-200 bg-slate-100'
+          : 'border-slate-200 bg-[var(--color-bg)]'}"
+      >
         {#if settings.revealAnswers !== 'never' && currentDef.AnswerSummary}
           <div>
             <p class="mb-2 text-xs font-medium text-slate-500">Review</p>
             <currentDef.AnswerSummary data={current.data} response={responses[current.id]} />
           </div>
         {/if}
-        {#if settings.revealScore !== 'never' && currentGrade}
-          {#if currentUngraded}
-            <div class="rounded-md border border-slate-200 bg-slate-100 p-3 text-center">
-              <p class="text-xs font-medium text-slate-400">Not graded</p>
-            </div>
-          {:else}
-            <div class="rounded-md border border-[var(--accent)]/30 bg-[var(--accent)]/10 p-3 text-center">
-              <p class="text-xs font-medium text-[var(--accent)]">Points earned</p>
-              <p class="text-xl font-bold">
-                {currentGrade.max > 0 ? `${currentGrade.earned} / ${currentGrade.max} pts` : 'Not scored'}
-              </p>
-            </div>
-          {/if}
+        {#if settings.revealScore !== 'never' && currentGrade && !currentUngraded}
+          <div class="rounded-md border border-[var(--accent)]/30 bg-[var(--accent)]/10 p-3 text-center">
+            <p class="text-xs font-medium text-[var(--accent)]">Points earned</p>
+            <p class="text-xl font-bold">
+              {currentGrade.max > 0 ? `${currentGrade.earned} / ${currentGrade.max} pts` : 'Not scored'}
+            </p>
+          </div>
         {/if}
       </div>
 

@@ -44,6 +44,7 @@
   } = $props();
 
   const def = $derived(getQuestionType(question.type));
+  const ungraded = $derived(def.isUngraded?.(question.data) ?? false);
   let showTypeMenu = $state(false);
   let codeDialog: { open: () => void };
 
@@ -56,11 +57,13 @@
 
 <div
   data-question-card
-  class="rounded-lg border bg-white p-4 shadow-sm {invalid
-    ? 'border-red-300 ring-2 ring-red-100'
+  class="rounded-lg border p-4 shadow-sm {invalid
+    ? 'bg-white border-red-300 ring-2 ring-red-100'
     : editing
-      ? 'border-slate-200 ring-2 ring-indigo-100'
-      : 'border-slate-200'}"
+      ? 'bg-white border-slate-200 ring-2 ring-indigo-100'
+      : ungraded
+        ? 'bg-slate-100 border-slate-200'
+        : 'bg-white border-slate-200'}"
 >
   <div class="mb-3 flex items-center justify-between">
     <div class="flex items-center gap-2">
@@ -86,6 +89,9 @@
           </div>
         {/if}
       </div>
+      {#if ungraded}
+        <span class="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600">Not Graded</span>
+      {/if}
     </div>
     <div class="flex items-center gap-1">
       <button
