@@ -64,7 +64,7 @@
           {def.label}
         </button>
         {#if showTypeMenu}
-          <div class="absolute z-10 mt-1 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
+          <div class="absolute z-10 mt-1 w-80 max-w-[90vw] rounded-md border border-slate-200 bg-white p-2 shadow-lg">
             <QuestionTypePicker types={questionTypeList} onSelect={selectType} />
           </div>
         {/if}

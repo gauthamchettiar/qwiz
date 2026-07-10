@@ -45,7 +45,8 @@ export function toMultiple(data: SingleData): MultipleData {
     min: 0,
     max: 1,
     displayMode: data.displayMode,
-    shuffleOptions: data.shuffleOptions
+    shuffleOptions: data.shuffleOptions,
+    allOrNone: false
   };
 }
 

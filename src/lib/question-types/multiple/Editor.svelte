@@ -184,6 +184,15 @@
         />
         Shuffle option order each time this question is played
       </label>
+      <label class="flex items-center gap-2 text-xs font-medium text-slate-600">
+        <input
+          type="checkbox"
+          class="h-4 w-4 accent-indigo-600"
+          checked={data.allOrNone ?? false}
+          onchange={(e) => onChange({ ...data, allOrNone: e.currentTarget.checked })}
+        />
+        All or none — full points only if every correct option is chosen and nothing else; otherwise 0
+      </label>
     </div>
   </details>
 

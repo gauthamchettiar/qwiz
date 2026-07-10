@@ -422,7 +422,8 @@
         "displayMode": "grid-2",
         "min": 1,
         "max": 3,
-        "shuffleOptions": false
+        "shuffleOptions": false,
+        "allOrNone": false
       }
     },
     {
@@ -466,7 +467,8 @@
         "min": 1,
         "max": 1,
         "displayMode": "list",
-        "shuffleOptions": false
+        "shuffleOptions": false,
+        "allOrNone": false
       }
     },
     {
@@ -519,7 +521,8 @@
         "min": 2,
         "max": 2,
         "displayMode": "list",
-        "shuffleOptions": false
+        "shuffleOptions": false,
+        "allOrNone": false
       }
     },
     {

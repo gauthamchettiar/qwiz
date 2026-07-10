@@ -44,6 +44,9 @@ export interface MultipleData {
   displayMode: OptionDisplayMode;
   /** Randomize this question's option order each time it's played. */
   shuffleOptions: boolean;
+  /** If true, the player only earns points by selecting exactly the options with positive
+   * points — no more, no less. Any other combination scores 0 for the options portion. */
+  allOrNone: boolean;
 }
 
 export interface MultipleResponse {
@@ -153,7 +156,7 @@ const promptExtraSchema = {
 /** JSON Schema for MultipleData, used to validate JSON imports (see src/lib/triviaSchema.ts). */
 const multipleDataSchema = {
   type: 'object',
-  required: ['prompt', 'extras', 'options', 'min', 'max', 'displayMode', 'shuffleOptions'],
+  required: ['prompt', 'extras', 'options', 'min', 'max', 'displayMode', 'shuffleOptions', 'allOrNone'],
   properties: {
     prompt: contentBlockSchema,
     extras: { type: 'array', items: promptExtraSchema },
@@ -161,7 +164,8 @@ const multipleDataSchema = {
     min: { type: 'number' },
     max: { type: 'number' },
     displayMode: { enum: ['list', 'grid-2', 'grid-3'] },
-    shuffleOptions: { type: 'boolean' }
+    shuffleOptions: { type: 'boolean' },
+    allOrNone: { type: 'boolean' }
   },
   additionalProperties: false
 };
@@ -180,7 +184,8 @@ export const multipleType: QuestionTypeDefinition<MultipleData, MultipleResponse
       min: 1,
       max: 2,
       displayMode: 'list',
-      shuffleOptions: false
+      shuffleOptions: false,
+      allOrNone: false
     };
   },
 
@@ -196,7 +201,8 @@ export const multipleType: QuestionTypeDefinition<MultipleData, MultipleResponse
       min: data.min,
       max: data.max,
       displayMode: data.displayMode ?? 'list',
-      shuffleOptions: data.shuffleOptions ?? false
+      shuffleOptions: data.shuffleOptions ?? false,
+      allOrNone: data.allOrNone ?? false
     };
   },
 
@@ -217,17 +223,25 @@ export const multipleType: QuestionTypeDefinition<MultipleData, MultipleResponse
       revealedExtras: response?.revealedExtras ?? []
     };
 
-    const optionsEarned = data.options.filter((o) => isChosen(o, resp)).reduce((sum, o) => sum + o.points, 0);
+    const rawOptionsEarned = data.options.filter((o) => isChosen(o, resp)).reduce((sum, o) => sum + o.points, 0);
+    // All-or-none: the player's selection must be exactly the set of positive-points options —
+    // nothing missing, nothing extra — or the options portion scores 0.
+    const isExactCorrectMatch = data.options.every((o) => isChosen(o, resp) === o.points > 0);
+    const optionsEarned = data.allOrNone ? (isExactCorrectMatch ? rawOptionsEarned : 0) : rawOptionsEarned;
+
     const revealExtras = data.extras.filter((e) => e.kind === 'reveal');
     const extraPenalty = revealExtras
       .filter((e) => resp.revealedExtras!.includes(e.id))
       .reduce((sum, e) => sum + (e.points ?? 0), 0);
 
-    // Best achievable score: the top `max` option point values, plus every reveal extra worth
-    // revealing (a rational player reveals positive-value hints and skips negative ones, so
-    // those never cost anything against the max either).
+    // Best achievable score: the top `max` option point values (or, under all-or-none, every
+    // positive-points option, since hitting max requires selecting all of them), plus every
+    // reveal extra worth revealing (a rational player reveals positive-value hints and skips
+    // negative ones, so those never cost anything against the max either).
     const sortedPoints = data.options.map((o) => Math.max(o.points, 0)).sort((a, b) => b - a);
-    const optionsMax = sortedPoints.slice(0, data.max).reduce((sum, p) => sum + p, 0);
+    const optionsMax = data.allOrNone
+      ? data.options.filter((o) => o.points > 0).reduce((sum, o) => sum + o.points, 0)
+      : sortedPoints.slice(0, data.max).reduce((sum, p) => sum + p, 0);
     const extraMax = revealExtras.reduce((sum, e) => sum + Math.max(e.points ?? 0, 0), 0);
 
     return { earned: optionsEarned + extraPenalty, max: optionsMax + extraMax };
