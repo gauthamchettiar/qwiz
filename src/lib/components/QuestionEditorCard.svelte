@@ -1,7 +1,10 @@
 <script lang="ts">
+  import { scale } from 'svelte/transition';
+  import { cubicOut } from 'svelte/easing';
   import { ChevronUp, ChevronDown, Trash2, Lock, LockOpen } from '@lucide/svelte';
   import type { QuestionInstance } from '../types';
   import { getQuestionType, questionTypeList } from '../question-types/registry';
+  import { clickOutside } from '../clickOutside';
   import QuestionTypePicker from './QuestionTypePicker.svelte';
 
   let {
@@ -55,17 +58,24 @@
   <div class="mb-3 flex items-center justify-between">
     <div class="flex items-center gap-2">
       <span class="text-sm font-semibold text-indigo-600">Question {index + 1}</span>
-      <div class="relative">
+      <div class="relative" use:clickOutside={() => (showTypeMenu = false)}>
         <button
           type="button"
-          class="rounded-full border border-slate-200 px-2 py-0.5 text-xs font-medium text-slate-500 hover:bg-slate-50"
+          class="flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium transition-colors {showTypeMenu
+            ? 'border-indigo-300 bg-indigo-50/60 text-indigo-700'
+            : 'border-slate-200 text-slate-500 hover:bg-slate-50'}"
           onclick={() => (showTypeMenu = !showTypeMenu)}
         >
           {def.label}
+          <ChevronDown size={11} class="text-slate-400 transition-transform {showTypeMenu ? 'rotate-180' : ''}" />
         </button>
         {#if showTypeMenu}
-          <div class="absolute z-10 mt-1 w-80 max-w-[90vw] rounded-md border border-slate-200 bg-white p-2 shadow-lg">
+          <div
+            class="absolute z-10 mt-3 w-[26rem] max-w-[90vw] rounded-lg border border-slate-200 bg-white p-3 shadow-lg"
+            transition:scale={{ duration: 120, start: 0.97, opacity: 0, easing: cubicOut }}
+          >
             <QuestionTypePicker types={questionTypeList} onSelect={selectType} />
+            <div class="absolute -top-1.5 left-5 size-3 rotate-45 border-l border-t border-slate-200 bg-white"></div>
           </div>
         {/if}
       </div>

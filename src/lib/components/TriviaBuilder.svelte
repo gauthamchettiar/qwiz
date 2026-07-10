@@ -1,12 +1,15 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { Plus } from '@lucide/svelte';
+  import { scale } from 'svelte/transition';
+  import { cubicOut } from 'svelte/easing';
+  import { Plus, ChevronDown } from '@lucide/svelte';
   import { defaultTriviaSettings, type QuestionInstance, type Trivia, type TriviaSettings } from '../types';
   import { questionTypeList, getQuestionType } from '../question-types/registry';
   import type { QuestionTypeDefinition } from '../question-types/types';
   import { getDraft, saveDraft, deleteDraft } from '../drafts';
   import { saveTrivia } from '../store';
   import { validateTriviaImport } from '../triviaSchema';
+  import { clickOutside } from '../clickOutside';
   import QuestionEditorCard from './QuestionEditorCard.svelte';
   import QuestionTypePicker from './QuestionTypePicker.svelte';
   import TriviaSettingsEditor from './TriviaSettingsEditor.svelte';
@@ -226,19 +229,26 @@
     {/if}
   </div>
 
-  <div class="relative">
+  <div class="relative" use:clickOutside={() => (showAddMenu = false)}>
     {#if showAddMenu}
-      <div class="absolute inset-x-0 bottom-full z-10 mb-2 rounded-md border border-slate-200 bg-white p-3 shadow-lg">
+      <div
+        class="absolute inset-x-0 bottom-full z-10 mb-3 rounded-lg border border-slate-200 bg-white p-3 shadow-lg"
+        transition:scale={{ duration: 120, start: 0.97, opacity: 0, easing: cubicOut }}
+      >
         <QuestionTypePicker types={questionTypeList} onSelect={addQuestion} />
+        <div class="absolute -bottom-1.5 left-5 size-3 rotate-45 border-b border-r border-slate-200 bg-white"></div>
       </div>
     {/if}
 
     <button
       type="button"
-      class="flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+      class="flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition-colors {showAddMenu
+        ? 'border-indigo-300 bg-indigo-50/60 text-indigo-700'
+        : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}"
       onclick={onAddQuestionClick}
     >
       <Plus size={15} /> Add question
+      <ChevronDown size={13} class="text-slate-400 transition-transform {showAddMenu ? 'rotate-180' : ''}" />
     </button>
   </div>
 

@@ -14,11 +14,15 @@
   {#each types as def (def.type)}
     <button
       type="button"
-      class="flex items-start gap-2.5 rounded-md border border-slate-200 bg-white p-3 text-left hover:border-indigo-300 hover:bg-indigo-50/30"
+      class="group flex items-start gap-3 rounded-lg border border-slate-200 bg-white p-3 text-left transition-colors hover:border-indigo-300 hover:bg-indigo-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-200"
       onclick={() => onSelect(def.type)}
     >
       {#if def.icon}
-        <def.icon size={18} class="mt-0.5 shrink-0 text-indigo-500" />
+        <span
+          class="flex size-8 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-500 group-hover:bg-indigo-100"
+        >
+          <def.icon size={16} />
+        </span>
       {/if}
       <span>
         <span class="block text-sm font-semibold text-slate-800">{def.label}</span>
