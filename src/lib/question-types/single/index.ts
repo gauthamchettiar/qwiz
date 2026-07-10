@@ -3,7 +3,6 @@ import type { GradeResult, QuestionTypeDefinition } from '../types';
 import { CircleDot } from '@lucide/svelte';
 import {
   multipleType,
-  blankExtra,
   blankOption,
   type AnswerOption,
   type OptionKind,
@@ -133,16 +132,6 @@ export const singleType: QuestionTypeDefinition<SingleData, SingleResponse> = {
 
   defaultFocusTarget(): SingleFocusTarget {
     return { field: 'prompt' };
-  },
-
-  cloneAsTemplate(data: SingleData): SingleData {
-    return {
-      prompt: { kind: 'text', text: '' },
-      extras: data.extras.map((e) => blankExtra(e.kind)),
-      options: data.options.map((o) => blankOption(o.kind, o.points)),
-      displayMode: data.displayMode ?? 'list',
-      shuffleOptions: data.shuffleOptions ?? false
-    };
   },
 
   shuffleOptions(data: SingleData): SingleData {

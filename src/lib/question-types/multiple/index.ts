@@ -193,19 +193,6 @@ export const multipleType: QuestionTypeDefinition<MultipleData, MultipleResponse
     return { field: 'prompt' };
   },
 
-  cloneAsTemplate(data: MultipleData): MultipleData {
-    return {
-      prompt: { kind: 'text', text: '' },
-      extras: data.extras.map((e) => blankExtra(e.kind)),
-      options: data.options.map((o) => blankOption(o.kind, o.points)),
-      min: data.min,
-      max: data.max,
-      displayMode: data.displayMode ?? 'list',
-      shuffleOptions: data.shuffleOptions ?? false,
-      allOrNone: data.allOrNone ?? false
-    };
-  },
-
   shuffleOptions(data: MultipleData): MultipleData {
     if (!data.shuffleOptions) return data;
     return { ...data, options: shuffledArray(data.options) };

@@ -30,13 +30,6 @@ export interface QuestionTypeDefinition<TData = any, TResponse = any> {
   defaultFocusTarget?(): unknown;
 
   /**
-   * Derives a blank-content question from an existing one for the "format lock" feature:
-   * keeps structural choices (variant, option kinds/count, point values) but clears
-   * text/media/answer content. Falls back to createDefault() if not implemented.
-   */
-  cloneAsTemplate?(data: TData): TData;
-
-  /**
    * Optional extra structural checks beyond what `dataSchema` already expresses as JSON
    * Schema. Most types don't need this — the trivia-wide JSON Schema check (run once at save
    * time, the same check JSON import uses) is the single source of truth for validity. Return

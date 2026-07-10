@@ -1,10 +1,16 @@
+import type { ErrorObject } from 'ajv';
 import Ajv2020 from 'ajv/dist/2020';
 import { questionTypeList } from './question-types/registry';
 
 const REVEAL_TIMING = ['after-question', 'end', 'never'];
 const REVEAL_WIN_TIMING = ['end', 'never'];
 
-function buildQuestionSchema() {
+/**
+ * JSON Schema for a single `{ id, type, data }` question — the same fragment used inside
+ * `buildTriviaImportSchema`'s `questions` array, exported so a single question (e.g. from the
+ * per-question "Edit JSON" dialog) can be validated standalone.
+ */
+export function buildQuestionSchema() {
   return {
     type: 'object',
     required: ['id', 'type', 'data'],
@@ -112,16 +118,11 @@ export interface TriviaValidationResult {
   paths: string[];
 }
 
-export function validateTriviaImport(data: unknown): TriviaValidationResult {
-  const ajv = new Ajv2020({ allErrors: true, strict: false });
-  const validate = ajv.compile(buildTriviaImportSchema());
-  const valid = validate(data);
-  if (valid) return { valid: true, errors: [], paths: [] };
-
+function formatValidationErrors(rawErrors: ErrorObject[] | null | undefined): Pick<TriviaValidationResult, 'errors' | 'paths'> {
   const seen = new Set<string>();
   const errors: string[] = [];
   const paths: string[] = [];
-  for (const err of validate.errors ?? []) {
+  for (const err of rawErrors ?? []) {
     const path = err.instancePath || '(root)';
     const message = `${path}: ${err.message}`;
     if (seen.has(message)) continue;
@@ -129,5 +130,20 @@ export function validateTriviaImport(data: unknown): TriviaValidationResult {
     errors.push(message);
     paths.push(err.instancePath);
   }
-  return { valid: false, errors, paths };
+  return { errors, paths };
+}
+
+export function validateTriviaImport(data: unknown): TriviaValidationResult {
+  const ajv = new Ajv2020({ allErrors: true, strict: false });
+  const validate = ajv.compile(buildTriviaImportSchema());
+  if (validate(data)) return { valid: true, errors: [], paths: [] };
+  return { valid: false, ...formatValidationErrors(validate.errors) };
+}
+
+/** Validates a single `{ id, type, data }` question, e.g. from the per-question "Edit JSON" dialog. */
+export function validateQuestionImport(data: unknown): TriviaValidationResult {
+  const ajv = new Ajv2020({ allErrors: true, strict: false });
+  const validate = ajv.compile(buildQuestionSchema());
+  if (validate(data)) return { valid: true, errors: [], paths: [] };
+  return { valid: false, ...formatValidationErrors(validate.errors) };
 }

@@ -5,7 +5,6 @@
   import { Plus, ChevronDown, Download } from '@lucide/svelte';
   import { defaultTriviaSettings, type QuestionInstance, type Trivia, type TriviaSettings } from '../types';
   import { questionTypeList, getQuestionType } from '../question-types/registry';
-  import type { QuestionTypeDefinition } from '../question-types/types';
   import { getDraft, saveDraft, deleteDraft } from '../drafts';
   import { saveTrivia } from '../store';
   import { validateTriviaImport } from '../triviaSchema';
@@ -59,7 +58,6 @@
     )
   );
   let showAddMenu = $state(false);
-  let lockedQuestionId = $state<string | null>(null);
   // Only one question is ever in edit mode; every other card shows its read-only,
   // player-styled Preview. `pendingFocus` is opaque here — only the owning type's Editor
   // interprets it (see the QuestionTypeDefinition.Preview/Editor contract).
@@ -86,18 +84,10 @@
     }, 0)
   );
 
-  function buildNewQuestionData(def: QuestionTypeDefinition): unknown {
-    const lockedQuestion = lockedQuestionId ? questions.find((q) => q.id === lockedQuestionId) : undefined;
-    if (lockedQuestion && lockedQuestion.type === def.type && def.cloneAsTemplate) {
-      return def.cloneAsTemplate(lockedQuestion.data);
-    }
-    return def.createDefault();
-  }
-
   function addQuestion(type: string) {
     const def = getQuestionType(type);
     const id = crypto.randomUUID();
-    questions = [...questions, { id, type, data: buildNewQuestionData(def) }];
+    questions = [...questions, { id, type, data: def.createDefault() }];
     showAddMenu = false;
     // New questions open straight into edit mode, focused per the type's own default.
     editingQuestionId = id;
@@ -128,17 +118,31 @@
     questions = questions.map((q) => (q.id === id ? { ...q, data } : q));
   }
 
-  // Switching an existing question's type is a plain reset to that type's blank default — the
-  // "format lock" clone-as-template feature already covers deliberately carrying structure
-  // forward, so type-switching stays simple and predictable.
+  // Switching an existing question's type is a plain reset to that type's blank default —
+  // keeps type-switching simple and predictable rather than trying to carry structure forward.
   function switchQuestionType(id: string, newType: string) {
     const def = getQuestionType(newType);
     questions = questions.map((q) => (q.id === id ? { id: q.id, type: newType, data: def.createDefault() } : q));
   }
 
+  // Replaces a question wholesale (id kept, type and data taken as-is) — used by the per-question
+  // "Edit JSON" dialog, which can change type as well as data.
+  function replaceQuestion(question: QuestionInstance) {
+    questions = questions.map((q) => (q.id === question.id ? question : q));
+  }
+
+  // Deep-copies a question (including its options, points, extras — everything) into a new
+  // question right after the original, so duplicating a mostly-similar question is one click.
+  function cloneQuestion(id: string) {
+    const idx = questions.findIndex((q) => q.id === id);
+    if (idx === -1) return;
+    const source = questions[idx];
+    const cloned: QuestionInstance = { id: crypto.randomUUID(), type: source.type, data: JSON.parse(JSON.stringify(source.data)) };
+    questions = [...questions.slice(0, idx + 1), cloned, ...questions.slice(idx + 1)];
+  }
+
   function removeQuestion(id: string) {
     questions = questions.filter((q) => q.id !== id);
-    if (lockedQuestionId === id) lockedQuestionId = null;
     if (editingQuestionId === id) editingQuestionId = null;
   }
 
@@ -149,10 +153,6 @@
     const copy = [...questions];
     [copy[idx], copy[newIdx]] = [copy[newIdx], copy[idx]];
     questions = copy;
-  }
-
-  function toggleLock(id: string) {
-    lockedQuestionId = lockedQuestionId === id ? null : id;
   }
 
   function buildTrivia(): Trivia {
@@ -234,7 +234,6 @@
         {question}
         index={i}
         total={questions.length}
-        locked={lockedQuestionId === question.id}
         editing={editingQuestionId === question.id}
         invalid={invalidQuestionIndices.has(i)}
         focusTarget={editingQuestionId === question.id ? pendingFocus : null}
@@ -242,7 +241,8 @@
         onRemove={() => removeQuestion(question.id)}
         onMoveUp={() => moveQuestion(question.id, -1)}
         onMoveDown={() => moveQuestion(question.id, 1)}
-        onToggleLock={() => toggleLock(question.id)}
+        onReplace={replaceQuestion}
+        onClone={() => cloneQuestion(question.id)}
         onEnterEdit={(target) => enterEdit(question.id, target)}
         onFocusHandled={() => (pendingFocus = null)}
         onSwitchType={(type) => switchQuestionType(question.id, type)}
