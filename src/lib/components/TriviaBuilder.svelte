@@ -2,7 +2,7 @@
   import { untrack } from 'svelte';
   import { scale } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
-  import { Plus, ChevronDown, Download } from '@lucide/svelte';
+  import { Plus, ChevronDown, Download, Play, X } from '@lucide/svelte';
   import { defaultTriviaSettings, type QuestionInstance, type Trivia, type TriviaSettings } from '../types';
   import { questionTypeList, getQuestionType } from '../question-types/registry';
   import { getDraft, saveDraft, deleteDraft } from '../drafts';
@@ -13,8 +13,9 @@
   import QuestionEditorCard from './QuestionEditorCard.svelte';
   import QuestionTypePicker from './QuestionTypePicker.svelte';
   import TriviaSettingsEditor from './TriviaSettingsEditor.svelte';
+  import TriviaPlayer from './TriviaPlayer.svelte';
 
-  let { initial }: { initial?: Trivia } = $props();
+  let { initial, heading }: { initial?: Trivia; heading: string } = $props();
 
   // `initial` only ever supplies the starting value (Astro passes it once, pre-hydration);
   // untrack documents that we intentionally don't want this to stay reactively bound to it.
@@ -198,9 +199,33 @@
   function downloadCurrent() {
     downloadJson(`${slugify(title)}.json`, buildTrivia());
   }
+
+  // Lets the current draft/saved trivia be played as-is, without saving first. Snapshotting
+  // into its own state (rather than handing the player a live reference) means editing while
+  // the dialog is closed can't reach into an in-progress play session.
+  let playSnapshot = $state<Trivia | null>(null);
+
+  function openPlay() {
+    playSnapshot = buildTrivia();
+  }
+
+  function closePlay() {
+    playSnapshot = null;
+  }
 </script>
 
 <div class="space-y-6">
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-slate-900">{heading}</h1>
+    <button
+      type="button"
+      class="flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+      onclick={openPlay}
+    >
+      <Play size={15} /> Play
+    </button>
+  </div>
+
   {#if errors.length > 0}
     <div class="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
       <ul class="list-inside list-disc space-y-1">
@@ -309,3 +334,22 @@
     </button>
   </div>
 </div>
+
+{#if playSnapshot}
+  <div class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/40 p-4">
+    <div class="mx-auto max-w-2xl rounded-xl bg-white p-6 shadow-xl">
+      <div class="mb-4 flex items-center justify-between">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Playing draft</p>
+        <button
+          type="button"
+          class="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          onclick={closePlay}
+          aria-label="Close"
+        >
+          <X size={16} />
+        </button>
+      </div>
+      <TriviaPlayer trivia={playSnapshot} />
+    </div>
+  </div>
+{/if}

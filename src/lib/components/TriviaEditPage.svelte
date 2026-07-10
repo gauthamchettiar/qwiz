@@ -18,6 +18,5 @@
 </script>
 
 {#if trivia}
-  <h1 class="mb-6 text-2xl font-bold text-slate-900">Edit trivia</h1>
-  <TriviaBuilder initial={trivia} />
+  <TriviaBuilder initial={trivia} heading="Edit trivia" />
 {/if}

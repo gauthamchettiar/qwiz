@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { Save } from '@lucide/svelte';
   import { listTrivias } from '../store';
   import type { TriviaSummary } from '../types';
 
@@ -18,25 +19,30 @@
       No trivias yet. <a href="/local/create" class="text-indigo-600 hover:underline">Create your first one</a>.
     </p>
   {:else}
-    <ul class="space-y-3">
-      {#each trivias as t (t.id)}
-        <li>
-          <a
-            href={`/local/trivia?id=${t.id}`}
-            class="block rounded-lg border border-slate-200 bg-white p-4 shadow-sm hover:border-indigo-300 hover:shadow"
-          >
-            <div class="flex items-center justify-between">
-              <h2 class="font-semibold text-slate-900">{t.title}</h2>
-              <span class="text-xs text-slate-400">
-                {t.questionCount} question{t.questionCount === 1 ? '' : 's'}
-              </span>
-            </div>
-            {#if t.description}
-              <p class="mt-1 text-sm text-slate-500">{t.description}</p>
-            {/if}
-          </a>
-        </li>
-      {/each}
-    </ul>
+    <div class="rounded-lg border border-slate-300 p-4">
+      <h2 class="mb-3 flex items-center gap-1.5 text-sm font-semibold text-slate-500">
+        <Save size={14} /> Saved (in browser)
+      </h2>
+      <ul class="space-y-3">
+        {#each trivias as t (t.id)}
+          <li>
+            <a
+              href={`/local/trivia?id=${t.id}`}
+              class="block rounded-lg border border-slate-200 bg-white p-4 shadow-sm hover:border-indigo-300 hover:shadow"
+            >
+              <div class="flex items-center justify-between">
+                <h2 class="font-semibold text-slate-900">{t.title}</h2>
+                <span class="text-xs text-slate-400">
+                  {t.questionCount} question{t.questionCount === 1 ? '' : 's'}
+                </span>
+              </div>
+              {#if t.description}
+                <p class="mt-1 text-sm text-slate-500">{t.description}</p>
+              {/if}
+            </a>
+          </li>
+        {/each}
+      </ul>
+    </div>
   {/if}
 {/if}
