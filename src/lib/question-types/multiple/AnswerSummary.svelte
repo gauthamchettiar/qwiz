@@ -12,10 +12,30 @@
   });
   const optionsContainerClass = $derived(containerClasses[data.displayMode ?? 'list']);
 
+  // Ungraded: the card itself is already greyed out (see QuestionEditorCard/TriviaPlayer), so
+  // every option's background stays flat grey here too — only the border color is left to
+  // signify correct/wrong/picked, no green/red tint underneath.
   function rowClass(isPicked: boolean, points: number): string {
+    if (data.ungraded) {
+      if (isPicked && points > 0) return 'border-[var(--color-correct)] bg-slate-100';
+      if (isPicked) return 'border-[var(--color-wrong)] bg-slate-100';
+      if (points > 0) return 'border-[var(--color-correct)] border-dashed bg-slate-100';
+      return 'border-slate-200 bg-slate-100';
+    }
     if (isPicked && points > 0) return 'border-[var(--color-correct)] bg-[var(--color-correct)]/10';
     if (isPicked) return 'border-[var(--color-wrong)] bg-[var(--color-wrong)]/10';
     if (points > 0) return 'border-[var(--color-correct)] border-dashed bg-[var(--color-bg)]';
+    return 'border-slate-200';
+  }
+
+  function extraRowClass(wasRevealed: boolean, points: number): string {
+    if (data.ungraded) {
+      if (wasRevealed && points < 0) return 'border-[var(--color-wrong)] bg-slate-100';
+      if (wasRevealed && points > 0) return 'border-[var(--color-correct)] bg-slate-100';
+      return 'border-slate-200 bg-slate-100';
+    }
+    if (wasRevealed && points < 0) return 'border-[var(--color-wrong)] bg-[var(--color-wrong)]/10';
+    if (wasRevealed && points > 0) return 'border-[var(--color-correct)] bg-[var(--color-correct)]/10';
     return 'border-slate-200';
   }
 </script>
@@ -41,13 +61,7 @@
     {#if extra.kind === 'reveal'}
       {@const wasRevealed = resp.revealedExtras!.includes(extra.id)}
       {@const points = extra.points ?? 0}
-      <div
-        class="rounded-md border p-3 {wasRevealed && points < 0
-          ? 'border-[var(--color-wrong)] bg-[var(--color-wrong)]/10'
-          : wasRevealed && points > 0
-            ? 'border-[var(--color-correct)] bg-[var(--color-correct)]/10'
-            : 'border-slate-200'}"
-      >
+      <div class="rounded-md border p-3 {extraRowClass(wasRevealed, points)}">
         {#if extra.label}
           <p class="mb-1 text-xs font-medium text-slate-500">{extra.label}</p>
         {/if}

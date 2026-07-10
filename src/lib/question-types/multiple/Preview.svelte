@@ -11,11 +11,19 @@
   // same — minus any "player picked this" coloring, since there's no player here. Every option
   // and reveal-extra just shows whether it's correct/wrong and worth what, using static colors
   // (the player's --color-correct/--color-wrong CSS vars are only ever set by TriviaPlayer).
+  // Ungraded: the card itself is already greyed out (see QuestionEditorCard), so every row's
+  // background stays flat grey here too — only the border color signifies correct/wrong.
   function rowClass(points: number): string {
+    if (data.ungraded) return points > 0 ? 'border-green-400 border-dashed bg-slate-100' : 'border-slate-200 bg-slate-100';
     return points > 0 ? 'border-green-400 border-dashed bg-white' : 'border-slate-200';
   }
 
   function extraRowClass(points: number): string {
+    if (data.ungraded) {
+      if (points > 0) return 'border-green-400 bg-slate-100';
+      if (points < 0) return 'border-red-400 bg-slate-100';
+      return 'border-slate-200 bg-slate-100';
+    }
     if (points > 0) return 'border-green-400 bg-green-50';
     if (points < 0) return 'border-red-400 bg-red-50';
     return 'border-slate-200';
