@@ -13,6 +13,7 @@
   const optionsContainerClass = $derived(containerClasses[data.displayMode ?? 'list']);
 
   function rowClass(isPicked: boolean, points: number): string {
+    if (data.ungraded) return isPicked ? 'border-slate-300 bg-slate-100' : 'border-slate-200 bg-slate-50';
     if (isPicked && points > 0) return 'border-[var(--color-correct)] bg-[var(--color-correct)]/10';
     if (isPicked) return 'border-[var(--color-wrong)] bg-[var(--color-wrong)]/10';
     if (points > 0) return 'border-[var(--color-correct)] border-dashed bg-[var(--color-bg)]';
@@ -35,24 +36,31 @@
 {/snippet}
 
 <div class="space-y-4">
-  <ContentBlockView block={data.prompt} />
+  <div class="flex items-center gap-2">
+    <ContentBlockView block={data.prompt} />
+    {#if data.ungraded}
+      <span class="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">Not graded</span>
+    {/if}
+  </div>
 
   {#each data.extras as extra (extra.id)}
     {#if extra.kind === 'reveal'}
       {@const wasRevealed = resp.revealedExtras!.includes(extra.id)}
       {@const points = extra.points ?? 0}
       <div
-        class="rounded-md border p-3 {wasRevealed && points < 0
-          ? 'border-[var(--color-wrong)] bg-[var(--color-wrong)]/10'
-          : wasRevealed && points > 0
-            ? 'border-[var(--color-correct)] bg-[var(--color-correct)]/10'
-            : 'border-slate-200'}"
+        class="rounded-md border p-3 {data.ungraded
+          ? 'border-slate-200 bg-slate-50'
+          : wasRevealed && points < 0
+            ? 'border-[var(--color-wrong)] bg-[var(--color-wrong)]/10'
+            : wasRevealed && points > 0
+              ? 'border-[var(--color-correct)] bg-[var(--color-correct)]/10'
+              : 'border-slate-200'}"
       >
         {#if extra.label}
           <p class="mb-1 text-xs font-medium text-slate-500">{extra.label}</p>
         {/if}
         <ContentBlockView block={extra.revealContent ?? { kind: 'text', text: '' }} />
-        {#if wasRevealed && points !== 0}
+        {#if !data.ungraded && wasRevealed && points !== 0}
           <span
             class="mt-1 inline-flex items-center gap-1 text-xs font-semibold {points > 0
               ? 'text-[var(--color-correct)]'
@@ -73,7 +81,9 @@
       {@const isPicked = isChosen(option, resp)}
       <div class="rounded-md border p-3 {rowClass(isPicked, option.points)}">
         <ContentBlockView block={option.content} />
-        {@render badge(isPicked, option.points)}
+        {#if !data.ungraded}
+          {@render badge(isPicked, option.points)}
+        {/if}
       </div>
     {/each}
   </div>

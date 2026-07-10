@@ -41,6 +41,13 @@ export interface QuestionTypeDefinition<TData = any, TResponse = any> {
   grade(data: TData, response: TResponse): GradeResult;
 
   /**
+   * Whether this question is marked as a practice/trial question that's answered but never
+   * scored — its grade() always returns { earned: 0, max: 0 }, and reveal screens grey it out
+   * instead of coloring it correct/wrong. Omit (or return false) for types with no such concept.
+   */
+  isUngraded?(data: TData): boolean;
+
+  /**
    * Whether the current response is complete enough to submit (e.g. meets a minimum selection
    * count). Omit for types where any response (including none at all) is always submittable.
    */

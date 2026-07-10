@@ -134,7 +134,7 @@
       Question settings
       <ChevronDown size={13} class="ml-auto text-slate-400 transition-transform group-open:rotate-180" />
     </summary>
-    <div class="border-t border-slate-100 px-3 py-3">
+    <div class="space-y-3 border-t border-slate-100 px-3 py-3">
       <label class="flex items-center gap-2 text-xs font-medium text-slate-600">
         <input
           type="checkbox"
@@ -143,6 +143,15 @@
           onchange={(e) => onChange({ ...data, shuffleOptions: e.currentTarget.checked })}
         />
         Shuffle option order each time this question is played
+      </label>
+      <label class="flex items-center gap-2 text-xs font-medium text-slate-600">
+        <input
+          type="checkbox"
+          class="h-4 w-4 accent-indigo-600"
+          checked={data.ungraded ?? false}
+          onchange={(e) => onChange({ ...data, ungraded: e.currentTarget.checked })}
+        />
+        Do not grade this question — answered but not scored; a practice/trial question only
       </label>
     </div>
   </details>

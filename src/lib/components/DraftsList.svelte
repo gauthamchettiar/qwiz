@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { FilePen, Trash2 } from '@lucide/svelte';
+  import { FilePen } from '@lucide/svelte';
   import { listDrafts, deleteDraft, type DraftRecord } from '../drafts';
+  import ConfirmDeleteButton from './ConfirmDeleteButton.svelte';
 
   let drafts = $state<DraftRecord[]>([]);
 
@@ -26,14 +27,7 @@
           <a href={`/local/create?draft=${d.id}`} class="text-sm font-medium text-slate-700 hover:text-indigo-600">
             {d.title || 'Untitled trivia'}
           </a>
-          <button
-            type="button"
-            class="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-500"
-            onclick={() => discard(d.id)}
-            aria-label="Discard draft"
-          >
-            <Trash2 size={15} />
-          </button>
+          <ConfirmDeleteButton onConfirm={() => discard(d.id)} ariaLabel="Discard draft" />
         </li>
       {/each}
     </ul>

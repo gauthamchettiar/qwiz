@@ -12,10 +12,12 @@
   // and reveal-extra just shows whether it's correct/wrong and worth what, using static colors
   // (the player's --color-correct/--color-wrong CSS vars are only ever set by TriviaPlayer).
   function rowClass(points: number): string {
+    if (data.ungraded) return 'border-slate-200 bg-slate-50';
     return points > 0 ? 'border-green-400 border-dashed bg-white' : 'border-slate-200';
   }
 
   function extraRowClass(points: number): string {
+    if (data.ungraded) return 'border-slate-200 bg-slate-50';
     if (points > 0) return 'border-green-400 bg-green-50';
     if (points < 0) return 'border-red-400 bg-red-50';
     return 'border-slate-200';
@@ -60,7 +62,12 @@
     }}
     onkeydown={(e) => e.key === 'Enter' && focusPrompt()}
   >
-    <ContentBlockView block={data.prompt} />
+    <div class="flex items-center gap-2">
+      <ContentBlockView block={data.prompt} />
+      {#if data.ungraded}
+        <span class="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">Not graded</span>
+      {/if}
+    </div>
   </div>
 
   {#each data.extras as extra (extra.id)}
@@ -77,7 +84,7 @@
           <p class="mb-1 text-xs font-medium text-slate-500">{extra.label}</p>
         {/if}
         <ContentBlockView block={extra.revealContent ?? { kind: 'text', text: '' }} />
-        {#if points !== 0}
+        {#if !data.ungraded && points !== 0}
           {@render badge(points)}
         {/if}
       </div>
@@ -104,7 +111,9 @@
         onkeydown={(e) => e.key === 'Enter' && focusOption(e, option.id)}
       >
         <ContentBlockView block={option.content} />
-        {@render badge(option.points)}
+        {#if !data.ungraded}
+          {@render badge(option.points)}
+        {/if}
       </div>
     {/each}
   </div>

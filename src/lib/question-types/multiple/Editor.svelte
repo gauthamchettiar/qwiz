@@ -209,6 +209,15 @@
         />
         All or none — full points only if every correct option is chosen and nothing else; otherwise 0
       </label>
+      <label class="flex items-center gap-2 text-xs font-medium text-slate-600">
+        <input
+          type="checkbox"
+          class="h-4 w-4 accent-indigo-600"
+          checked={data.ungraded ?? false}
+          onchange={(e) => onChange({ ...data, ungraded: e.currentTarget.checked })}
+        />
+        Do not grade this question — answered but not scored; a practice/trial question only
+      </label>
     </div>
   </details>
 

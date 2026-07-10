@@ -47,6 +47,9 @@ export interface MultipleData {
   /** If true, the player only earns points by selecting exactly the options with positive
    * points — no more, no less. Any other combination scores 0 for the options portion. */
   allOrNone: boolean;
+  /** Practice/trial question: still answerable, but grade() always returns 0/0 and reveal
+   * screens grey it out instead of showing correct/wrong. */
+  ungraded: boolean;
 }
 
 export interface MultipleResponse {
@@ -159,7 +162,7 @@ const promptExtraSchema = {
 /** JSON Schema for MultipleData, used to validate JSON imports (see src/lib/triviaSchema.ts). */
 const multipleDataSchema = {
   type: 'object',
-  required: ['prompt', 'extras', 'options', 'min', 'max', 'displayMode', 'shuffleOptions', 'allOrNone'],
+  required: ['prompt', 'extras', 'options', 'min', 'max', 'displayMode', 'shuffleOptions', 'allOrNone', 'ungraded'],
   properties: {
     prompt: contentBlockSchema,
     extras: { type: 'array', items: promptExtraSchema },
@@ -168,7 +171,8 @@ const multipleDataSchema = {
     max: { type: 'number' },
     displayMode: { enum: ['list', 'grid-2', 'grid-3'] },
     shuffleOptions: { type: 'boolean' },
-    allOrNone: { type: 'boolean' }
+    allOrNone: { type: 'boolean' },
+    ungraded: { type: 'boolean' }
   },
   additionalProperties: false
 };
@@ -188,7 +192,8 @@ export const multipleType: QuestionTypeDefinition<MultipleData, MultipleResponse
       max: 2,
       displayMode: 'list',
       shuffleOptions: false,
-      allOrNone: false
+      allOrNone: false,
+      ungraded: false
     };
   },
 
@@ -206,7 +211,15 @@ export const multipleType: QuestionTypeDefinition<MultipleData, MultipleResponse
     return chosenCount(data, resp) >= data.min;
   },
 
+  isUngraded(data): boolean {
+    return data.ungraded === true;
+  },
+
   grade(data, response): GradeResult {
+    // Practice/trial question: still answerable, but never scored — short-circuit before any
+    // of the normal points math so it can never contribute to a total.
+    if (data.ungraded) return { earned: 0, max: 0 };
+
     const resp: MultipleResponse = {
       selected: response?.selected ?? [],
       typed: response?.typed ?? {},

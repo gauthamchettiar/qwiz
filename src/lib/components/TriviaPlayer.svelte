@@ -44,6 +44,7 @@
   const current = $derived(orderedQuestions[index]);
   const currentDef = $derived(current ? getQuestionType(current.type) : undefined);
   const currentGrade = $derived(current && currentDef ? currentDef.grade(current.data, responses[current.id]) : null);
+  const currentUngraded = $derived(current && currentDef ? (currentDef.isUngraded?.(current.data) ?? false) : false);
   // Types without isAnswerComplete (nothing to gate) are always submittable.
   const currentAnswerComplete = $derived(
     current && currentDef ? (currentDef.isAnswerComplete?.(current.data, responses[current.id]) ?? true) : true
@@ -171,7 +172,12 @@
   const results = $derived(
     orderedQuestions.map((q) => {
       const def = getQuestionType(q.type);
-      return { question: q, def, grade: def.grade(q.data, responses[q.id]) };
+      return {
+        question: q,
+        def,
+        grade: def.grade(q.data, responses[q.id]),
+        ungraded: def.isUngraded?.(q.data) ?? false
+      };
     })
   );
   const totalEarned = $derived(results.reduce((sum, r) => sum + r.grade.earned, 0));
@@ -280,18 +286,22 @@
         <div class="space-y-3">
           {#each results as r, i (r.question.id)}
             <div
-              class="rounded-md border p-3 {r.grade.max === 0
-                ? 'border-[var(--color-neutral)]/30'
-                : r.grade.earned >= r.grade.max
-                  ? 'border-[var(--color-correct)]/40 bg-[var(--color-correct)]/10'
-                  : r.grade.earned > 0
-                    ? 'border-[var(--color-partial)]/40 bg-[var(--color-partial)]/10'
-                    : 'border-[var(--color-wrong)]/40 bg-[var(--color-wrong)]/10'}"
+              class="rounded-md border p-3 {r.ungraded
+                ? 'border-slate-200 bg-slate-100'
+                : r.grade.max === 0
+                  ? 'border-[var(--color-neutral)]/30'
+                  : r.grade.earned >= r.grade.max
+                    ? 'border-[var(--color-correct)]/40 bg-[var(--color-correct)]/10'
+                    : r.grade.earned > 0
+                      ? 'border-[var(--color-partial)]/40 bg-[var(--color-partial)]/10'
+                      : 'border-[var(--color-wrong)]/40 bg-[var(--color-wrong)]/10'}"
             >
               <div class="flex items-center justify-between">
                 <span class="text-sm">Question {i + 1}</span>
                 {#if settings.revealScore !== 'never'}
-                  {#if r.grade.max === 0}
+                  {#if r.ungraded}
+                    <span class="text-xs font-medium text-slate-400">Not graded</span>
+                  {:else if r.grade.max === 0}
                     <span class="text-xs font-medium text-[var(--color-neutral)]">Not scored</span>
                   {:else}
                     <span
@@ -340,12 +350,18 @@
           </div>
         {/if}
         {#if settings.revealScore !== 'never' && currentGrade}
-          <div class="rounded-md border border-[var(--accent)]/30 bg-[var(--accent)]/10 p-3 text-center">
-            <p class="text-xs font-medium text-[var(--accent)]">Points earned</p>
-            <p class="text-xl font-bold">
-              {currentGrade.max > 0 ? `${currentGrade.earned} / ${currentGrade.max} pts` : 'Not scored'}
-            </p>
-          </div>
+          {#if currentUngraded}
+            <div class="rounded-md border border-slate-200 bg-slate-100 p-3 text-center">
+              <p class="text-xs font-medium text-slate-400">Not graded</p>
+            </div>
+          {:else}
+            <div class="rounded-md border border-[var(--accent)]/30 bg-[var(--accent)]/10 p-3 text-center">
+              <p class="text-xs font-medium text-[var(--accent)]">Points earned</p>
+              <p class="text-xl font-bold">
+                {currentGrade.max > 0 ? `${currentGrade.earned} / ${currentGrade.max} pts` : 'Not scored'}
+              </p>
+            </div>
+          {/if}
         {/if}
       </div>
 

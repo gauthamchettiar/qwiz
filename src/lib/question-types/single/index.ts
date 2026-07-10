@@ -27,6 +27,9 @@ export interface SingleData {
   displayMode: OptionDisplayMode;
   shuffleOptions: boolean;
   // min=0, max=1 are implicit for this type — not stored, always true by definition.
+  /** Practice/trial question: still answerable, but grade() always returns 0/0 and reveal
+   * screens grey it out instead of showing correct/wrong. */
+  ungraded: boolean;
 }
 
 export type SingleResponse = MultipleResponse;
@@ -48,7 +51,8 @@ export function toMultiple(data: SingleData): MultipleData {
     max: 1,
     displayMode: data.displayMode,
     shuffleOptions: data.shuffleOptions,
-    allOrNone: false
+    allOrNone: false,
+    ungraded: data.ungraded
   };
 }
 
@@ -106,13 +110,14 @@ const promptExtraSchema = {
 /** JSON Schema for SingleData, used to validate JSON imports (see src/lib/triviaSchema.ts). */
 const singleDataSchema = {
   type: 'object',
-  required: ['prompt', 'extras', 'options', 'displayMode', 'shuffleOptions'],
+  required: ['prompt', 'extras', 'options', 'displayMode', 'shuffleOptions', 'ungraded'],
   properties: {
     prompt: contentBlockSchema,
     extras: { type: 'array', items: promptExtraSchema },
     options: { type: 'array', minItems: 2, maxItems: 25, items: singleOptionSchema },
     displayMode: { enum: ['list', 'grid-2', 'grid-3'] },
-    shuffleOptions: { type: 'boolean' }
+    shuffleOptions: { type: 'boolean' },
+    ungraded: { type: 'boolean' }
   },
   additionalProperties: false
 };
@@ -129,7 +134,8 @@ export const singleType: QuestionTypeDefinition<SingleData, SingleResponse> = {
       extras: [],
       options: [blankOption('text'), blankOption('text')],
       displayMode: 'list',
-      shuffleOptions: false
+      shuffleOptions: false,
+      ungraded: false
     };
   },
 
@@ -148,6 +154,10 @@ export const singleType: QuestionTypeDefinition<SingleData, SingleResponse> = {
 
   grade(data, response): GradeResult {
     return multipleType.grade(toMultiple(data), response);
+  },
+
+  isUngraded(data): boolean {
+    return multipleType.isUngraded!(toMultiple(data));
   },
 
   Editor,
