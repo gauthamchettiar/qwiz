@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Settings, ChevronDown, Trophy, Timer, Settings2, Palette } from '@lucide/svelte';
+  import { Settings, ChevronDown, Trophy, Timer, Settings2, Palette, Eye } from '@lucide/svelte';
   import HelpTooltip from './HelpTooltip.svelte';
   import type { RevealTiming, RevealWinTiming, TriviaSettings } from '../types';
 
@@ -159,10 +159,8 @@
         )}
       </div>
     {/snippet}
-    {@render group(Trophy, 'Scoring', scoring)}
-
     {#snippet timers()}
-      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div class="space-y-3">
         <div>
           {@render label('Per-question limit (seconds)', 'Seconds allowed per question before it auto-submits and moves on. Leave blank for no limit.')}
           <input
@@ -185,9 +183,13 @@
         </div>
       </div>
     {/snippet}
-    {@render group(Timer, 'Timers', timers)}
 
-    {#snippet behavior()}
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      {@render group(Trophy, 'Scoring', scoring)}
+      {@render group(Timer, 'Timing', timers)}
+    </div>
+
+    {#snippet reveal()}
       <div class="space-y-3">
         <div>
           {@render label('Reveal answers', 'When the correct answer (and how each option scored) is shown to the player: after every question, only once at the end, or never.')}
@@ -208,6 +210,11 @@
           true,
           (v) => set('disableEditAfterReveal', v)
         )}
+      </div>
+    {/snippet}
+
+    {#snippet behavior()}
+      <div class="space-y-3">
         {@render boolSegmented(
           'Back button',
           'Whether players can navigate to previous questions while answering.',
@@ -222,9 +229,20 @@
           false,
           (v) => set('shuffleQuestions', v)
         )}
+        {@render boolSegmented(
+          'Intro screen before Q1',
+          'Shows a cover screen with the description and a Start button before the first question, instead of jumping straight in.',
+          settings.showIntro,
+          false,
+          (v) => set('showIntro', v)
+        )}
       </div>
     {/snippet}
-    {@render group(Settings2, 'Behavior', behavior)}
+
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      {@render group(Eye, 'Reveal', reveal)}
+      {@render group(Settings2, 'Behavior', behavior)}
+    </div>
 
     {#snippet primaryPreview()}
       <button
@@ -363,13 +381,6 @@
           </div>
         </div>
 
-        {@render boolSegmented(
-          'Intro screen before Q1',
-          'Shows a cover screen with the description and a Start button before the first question, instead of jumping straight in.',
-          settings.showIntro,
-          false,
-          (v) => set('showIntro', v)
-        )}
         <div>
           {@render label('Win messages (one per line)', 'One or more messages shown when the player wins (meets Points to win). A random one is picked each time.')}
           <textarea
