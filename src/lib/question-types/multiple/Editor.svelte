@@ -31,12 +31,14 @@
 
   let promptRef: { focus: () => void } | undefined = $state();
   let optionRefs: Record<string, { focus: () => void }> = $state({});
+  let extraRefs: Record<string, { focus: () => void }> = $state({});
 
   $effect(() => {
     const target = focusTarget as MultipleFocusTarget | null | undefined;
     if (!target) return;
     if (target.field === 'prompt') promptRef?.focus();
     else if (target.field === 'option') optionRefs[target.optionId]?.focus();
+    else if (target.field === 'extra') extraRefs[target.extraId]?.focus();
     onFocusHandled?.();
   });
 
@@ -83,6 +85,15 @@
     onChange({ ...data, options, min, max });
   }
 
+  function moveOption(id: string, dir: -1 | 1) {
+    const idx = data.options.findIndex((o) => o.id === id);
+    const newIdx = idx + dir;
+    if (idx < 0 || newIdx < 0 || newIdx >= data.options.length) return;
+    const options = [...data.options];
+    [options[idx], options[newIdx]] = [options[newIdx], options[idx]];
+    onChange({ ...data, options });
+  }
+
   function setMin(raw: string) {
     const { min, max } = clampMinMax(Number(raw) || 0, data.max, data.options.length);
     onChange({ ...data, min, max });
@@ -115,7 +126,12 @@
 
   <div class="space-y-2">
     {#each data.extras as extra (extra.id)}
-      <ExtraEditor {extra} onChange={(e) => updateExtra(extra.id, e)} onRemove={() => removeExtra(extra.id)} />
+      <ExtraEditor
+        bind:this={extraRefs[extra.id]}
+        {extra}
+        onChange={(e) => updateExtra(extra.id, e)}
+        onRemove={() => removeExtra(extra.id)}
+      />
     {/each}
     <div class="relative">
       <button
@@ -220,13 +236,17 @@
       </div>
     </div>
 
-    {#each data.options as option (option.id)}
+    {#each data.options as option, i (option.id)}
       <OptionEditor
         bind:this={optionRefs[option.id]}
         {option}
+        index={i}
+        total={data.options.length}
         canRemove={data.options.length > 2}
         onChange={(o) => updateOption(option.id, o)}
         onRemove={() => removeOption(option.id)}
+        onMoveUp={() => moveOption(option.id, -1)}
+        onMoveDown={() => moveOption(option.id, 1)}
       />
     {/each}
 

@@ -1,8 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Play, Download, Pencil, Trash2 } from '@lucide/svelte';
+  import { Play, Download, Pencil } from '@lucide/svelte';
   import { getTrivia, deleteTrivia } from '../store';
   import { downloadJson, slugify } from '../download';
+  import ConfirmDeleteButton from './ConfirmDeleteButton.svelte';
   import type { Trivia } from '../types';
 
   let state = $state<'loading' | 'ready'>('loading');
@@ -21,7 +22,6 @@
 
   function onDelete() {
     if (!trivia) return;
-    if (!confirm('Delete this trivia? This cannot be undone.')) return;
     deleteTrivia(trivia.id);
     window.location.href = '/';
   }
@@ -65,13 +65,7 @@
       >
         <Pencil size={15} /> Edit
       </a>
-      <button
-        type="button"
-        class="flex items-center gap-1.5 rounded-md border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
-        onclick={onDelete}
-      >
-        <Trash2 size={15} /> Delete
-      </button>
+      <ConfirmDeleteButton onConfirm={onDelete} variant="button" label="Delete" />
     </div>
   </div>
 {/if}

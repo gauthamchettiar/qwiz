@@ -32,7 +32,10 @@ export interface SingleData {
 export type SingleResponse = MultipleResponse;
 
 /** This type's own focus-target shape for the Preview -> Editor click-to-edit flow. */
-export type SingleFocusTarget = { field: 'prompt' } | { field: 'option'; optionId: string };
+export type SingleFocusTarget =
+  | { field: 'prompt' }
+  | { field: 'option'; optionId: string }
+  | { field: 'extra'; extraId: string };
 
 /** Single is "Multiple with min=0, max=1" — this is the wrapper's one conversion point, reused
  * by grading, completeness-checking, shuffling, and every rendering component. */

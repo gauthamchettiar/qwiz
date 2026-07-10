@@ -100,15 +100,21 @@
   }
 
   // Double-clicking anywhere that isn't inside a question card collapses whichever one is
-  // being edited back to its read-only preview.
-  function onBackgroundDoubleClick(e: MouseEvent) {
-    if (!editingQuestionId) return;
-    const target = e.target as HTMLElement;
-    if (!target.closest('[data-question-card]')) {
-      editingQuestionId = null;
-      pendingFocus = null;
+  // being edited back to its read-only preview. Bound to the window (not a template
+  // ondblclick) so it also fires in the blank margins outside the centered column, not just
+  // within this component's own content div.
+  $effect(() => {
+    function onBackgroundDoubleClick(e: MouseEvent) {
+      if (!editingQuestionId) return;
+      const target = e.target as HTMLElement;
+      if (!target.closest('[data-question-card]')) {
+        editingQuestionId = null;
+        pendingFocus = null;
+      }
     }
-  }
+    window.addEventListener('dblclick', onBackgroundDoubleClick);
+    return () => window.removeEventListener('dblclick', onBackgroundDoubleClick);
+  });
 
   function onAddQuestionClick() {
     showAddMenu = !showAddMenu;
@@ -194,7 +200,7 @@
   }
 </script>
 
-<div class="space-y-6" ondblclick={onBackgroundDoubleClick}>
+<div class="space-y-6">
   {#if errors.length > 0}
     <div class="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
       <ul class="list-inside list-disc space-y-1">

@@ -56,7 +56,10 @@ export interface MultipleResponse {
 }
 
 /** This type's own focus-target shape for the Preview -> Editor click-to-edit flow. */
-export type MultipleFocusTarget = { field: 'prompt' } | { field: 'option'; optionId: string };
+export type MultipleFocusTarget =
+  | { field: 'prompt' }
+  | { field: 'option'; optionId: string }
+  | { field: 'extra'; extraId: string };
 
 const MAX_OPTIONS = 25;
 

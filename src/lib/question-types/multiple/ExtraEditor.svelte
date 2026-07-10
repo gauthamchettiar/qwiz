@@ -15,6 +15,11 @@
     onRemove: () => void;
   } = $props();
 
+  let primaryFieldEl: HTMLInputElement | undefined = $state();
+  export function focus() {
+    primaryFieldEl?.focus();
+  }
+
   const kinds: { kind: PromptExtraKind; label: string; icon: typeof Type }[] = [
     { kind: 'text', label: 'Text', icon: Type },
     { kind: 'image', label: 'Image', icon: ImageIcon },
@@ -45,6 +50,7 @@
       {#if extra.kind === 'text'}
         <input
           type="text"
+          bind:this={primaryFieldEl}
           class="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
           placeholder="Extra text"
           value={extra.content?.kind === 'text' ? extra.content.text : ''}
@@ -53,6 +59,7 @@
       {:else if extra.kind === 'image'}
         <input
           type="text"
+          bind:this={primaryFieldEl}
           class="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
           placeholder="Image URL"
           value={extra.content?.kind === 'image' ? extra.content.url : ''}
@@ -64,6 +71,7 @@
       {:else if extra.kind === 'video'}
         <input
           type="text"
+          bind:this={primaryFieldEl}
           class="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
           placeholder="YouTube URL or video ID"
           value={extra.content?.kind === 'video' ? extra.content.videoId : ''}
@@ -72,6 +80,7 @@
       {:else if extra.kind === 'reveal'}
         <input
           type="text"
+          bind:this={primaryFieldEl}
           class="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
           placeholder="Reveal button label (optional)"
           value={extra.label ?? ''}

@@ -1,19 +1,28 @@
 <script lang="ts">
-  import { Type, Image as ImageIcon, Video as VideoIcon, Trash2 } from '@lucide/svelte';
+  import { Type, Image as ImageIcon, Video as VideoIcon, ChevronUp, ChevronDown } from '@lucide/svelte';
   import KindPicker from '../../components/KindPicker.svelte';
+  import ConfirmDeleteButton from '../../components/ConfirmDeleteButton.svelte';
   import { extractYoutubeId } from '../../youtube';
   import { blankOption, type AnswerOption, type OptionKind } from './index';
 
   let {
     option,
+    index,
+    total,
     canRemove,
     onChange,
-    onRemove
+    onRemove,
+    onMoveUp,
+    onMoveDown
   }: {
     option: AnswerOption;
+    index: number;
+    total: number;
     canRemove: boolean;
     onChange: (option: AnswerOption) => void;
     onRemove: () => void;
+    onMoveUp: () => void;
+    onMoveDown: () => void;
   } = $props();
 
   let primaryFieldEl: HTMLInputElement | undefined = $state();
@@ -106,25 +115,39 @@
           class="h-3.5 w-3.5 cursor-not-allowed accent-green-600"
         />
       </div>
-      <label class="flex items-center gap-2 text-xs font-medium text-slate-600">
-        Points
-        <input
-          type="number"
-          class="w-20 rounded-md border border-slate-300 px-2 py-1 text-sm"
-          value={option.points}
-          oninput={(e) => onChange({ ...option, points: Number(e.currentTarget.value) || 0 })}
-        />
-      </label>
+      <div class="flex items-center justify-between">
+        <label class="flex items-center gap-2 text-xs font-medium text-slate-600">
+          Points
+          <input
+            type="number"
+            class="w-20 rounded-md border border-slate-300 px-2 py-1 text-sm"
+            value={option.points}
+            oninput={(e) => onChange({ ...option, points: Number(e.currentTarget.value) || 0 })}
+          />
+        </label>
+        <div class="flex items-center gap-0.5">
+          <button
+            type="button"
+            class="rounded p-1 text-slate-400 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30"
+            disabled={index === 0}
+            onclick={onMoveUp}
+            aria-label="Move option up"
+          >
+            <ChevronUp size={14} />
+          </button>
+          <button
+            type="button"
+            class="rounded p-1 text-slate-400 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30"
+            disabled={index === total - 1}
+            onclick={onMoveDown}
+            aria-label="Move option down"
+          >
+            <ChevronDown size={14} />
+          </button>
+        </div>
+      </div>
     </div>
 
-    <button
-      type="button"
-      class="shrink-0 rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-30"
-      disabled={!canRemove}
-      onclick={onRemove}
-      aria-label="Remove option"
-    >
-      <Trash2 size={15} />
-    </button>
+    <ConfirmDeleteButton onConfirm={onRemove} disabled={!canRemove} ariaLabel="Remove option" />
   </div>
 </div>

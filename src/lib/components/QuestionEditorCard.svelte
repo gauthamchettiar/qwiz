@@ -1,12 +1,13 @@
 <script lang="ts">
   import { scale } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
-  import { ChevronUp, ChevronDown, Trash2, Code2, Copy } from '@lucide/svelte';
+  import { ChevronUp, ChevronDown, Code2, Copy } from '@lucide/svelte';
   import type { QuestionInstance } from '../types';
   import { getQuestionType, questionTypeList } from '../question-types/registry';
   import { clickOutside } from '../clickOutside';
   import QuestionTypePicker from './QuestionTypePicker.svelte';
   import QuestionCodeDialog from './QuestionCodeDialog.svelte';
+  import ConfirmDeleteButton from './ConfirmDeleteButton.svelte';
 
   let {
     question,
@@ -123,14 +124,7 @@
       >
         <ChevronDown size={15} />
       </button>
-      <button
-        type="button"
-        class="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500"
-        onclick={onRemove}
-        aria-label="Delete question"
-      >
-        <Trash2 size={15} />
-      </button>
+      <ConfirmDeleteButton onConfirm={onRemove} ariaLabel="Delete question" />
     </div>
   </div>
 
