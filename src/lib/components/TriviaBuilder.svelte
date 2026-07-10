@@ -226,9 +226,9 @@
     {/if}
   </div>
 
-  <div class="space-y-3">
+  <div class="relative">
     {#if showAddMenu}
-      <div class="rounded-md border border-slate-200 bg-white p-3 shadow-sm">
+      <div class="absolute inset-x-0 bottom-full z-10 mb-2 rounded-md border border-slate-200 bg-white p-3 shadow-lg">
         <QuestionTypePicker types={questionTypeList} onSelect={addQuestion} />
       </div>
     {/if}
