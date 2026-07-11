@@ -1,0 +1,8 @@
+---
+import Base from '../layouts/Base.astro';
+import SharedTriviaPage from '../lib/components/SharedTriviaPage.svelte';
+---
+
+<Base title="Shared trivia" minimal>
+  <SharedTriviaPage client:only="svelte" />
+</Base>

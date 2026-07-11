@@ -1,14 +1,16 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Play, Download, Pencil } from '@lucide/svelte';
+  import { Play, Download, Pencil, Share2 } from '@lucide/svelte';
   import { getTrivia, deleteTrivia } from '../store';
   import { downloadJson, slugify } from '../download';
+  import { buildShareUrl } from '../share';
   import ConfirmDeleteButton from './ConfirmDeleteButton.svelte';
   import Button from './Button.svelte';
   import type { Trivia } from '../types';
 
   let state = $state<'loading' | 'ready'>('loading');
   let trivia = $state<Trivia | null>(null);
+  let shareState = $state<'idle' | 'copied' | 'toobig'>('idle');
 
   onMount(() => {
     const id = new URLSearchParams(window.location.search).get('id');
@@ -30,6 +32,19 @@
   function onDownload() {
     if (!trivia) return;
     downloadJson(`${slugify(trivia.title)}.json`, trivia);
+  }
+
+  async function onShare() {
+    if (!trivia) return;
+    const { url } = await buildShareUrl(trivia);
+    if (!url) {
+      shareState = 'toobig';
+      setTimeout(() => (shareState = 'idle'), 4000);
+      return;
+    }
+    await navigator.clipboard.writeText(url);
+    shareState = 'copied';
+    setTimeout(() => (shareState = 'idle'), 2000);
   }
 </script>
 
@@ -56,7 +71,14 @@
       <Button href={`/local/trivia/edit?id=${trivia.id}`}>
         <Pencil size={15} /> Edit
       </Button>
+      <Button onclick={onShare}>
+        <Share2 size={15} />
+        {shareState === 'copied' ? 'Link copied!' : shareState === 'toobig' ? 'Too big — use Download' : 'Share link'}
+      </Button>
       <ConfirmDeleteButton onConfirm={onDelete} variant="button" label="Delete" />
     </div>
+    {#if shareState === 'toobig'}
+      <p class="text-xs text-slate-400">This trivia is too large to pack into a link. Share the downloaded JSON instead.</p>
+    {/if}
   </div>
 {/if}
