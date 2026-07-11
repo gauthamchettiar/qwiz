@@ -12,6 +12,7 @@ import {
   type PromptExtraKind,
   type OptionDisplayMode
 } from '../multiple';
+import { contentBlockSchema, answerOptionSchema, promptExtraSchema } from '../optionSchema';
 import Editor from './Editor.svelte';
 import Player from './Player.svelte';
 import AnswerSummary from './AnswerSummary.svelte';
@@ -56,57 +57,6 @@ export function toMultiple(data: SingleData): MultipleData {
   };
 }
 
-const contentBlockSchema = {
-  oneOf: [
-    {
-      type: 'object',
-      required: ['kind', 'text'],
-      properties: { kind: { const: 'text' }, text: { type: 'string' } },
-      additionalProperties: false
-    },
-    {
-      type: 'object',
-      required: ['kind', 'url', 'alt'],
-      properties: { kind: { const: 'image' }, url: { type: 'string' }, alt: { type: 'string' } },
-      additionalProperties: false
-    },
-    {
-      type: 'object',
-      required: ['kind', 'videoId'],
-      properties: { kind: { const: 'video' }, videoId: { type: 'string' } },
-      additionalProperties: false
-    }
-  ]
-};
-
-const nullableContentBlockSchema = { oneOf: [contentBlockSchema, { type: 'null' }] };
-
-const singleOptionSchema = {
-  type: 'object',
-  required: ['id', 'kind', 'content', 'points'],
-  properties: {
-    id: { type: 'string', minLength: 1 },
-    kind: { enum: ['text', 'image', 'video'] },
-    content: contentBlockSchema,
-    points: { type: 'number' }
-  },
-  additionalProperties: false
-};
-
-const promptExtraSchema = {
-  type: 'object',
-  required: ['id', 'kind', 'content', 'label', 'revealContent', 'points'],
-  properties: {
-    id: { type: 'string', minLength: 1 },
-    kind: { enum: ['text', 'image', 'video', 'reveal'] },
-    content: nullableContentBlockSchema,
-    label: { type: ['string', 'null'] },
-    revealContent: nullableContentBlockSchema,
-    points: { type: ['number', 'null'] }
-  },
-  additionalProperties: false
-};
-
 /** JSON Schema for SingleData, used to validate JSON imports (see src/lib/triviaSchema.ts). */
 const singleDataSchema = {
   type: 'object',
@@ -114,7 +64,7 @@ const singleDataSchema = {
   properties: {
     prompt: contentBlockSchema,
     extras: { type: 'array', items: promptExtraSchema },
-    options: { type: 'array', minItems: 2, maxItems: 25, items: singleOptionSchema },
+    options: { type: 'array', minItems: 2, maxItems: 25, items: answerOptionSchema },
     displayMode: { enum: ['list', 'grid-2', 'grid-3'] },
     shuffleOptions: { type: 'boolean' },
     ungraded: { type: 'boolean' }

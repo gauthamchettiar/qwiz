@@ -2,6 +2,7 @@ import type { ContentBlock } from '../../types';
 import type { GradeResult, QuestionTypeDefinition } from '../types';
 import { genId } from '../shared';
 import { shuffledArray } from '../../shuffle';
+import { contentBlockSchema, answerOptionSchema, promptExtraSchema } from '../optionSchema';
 import { ListChecks } from '@lucide/svelte';
 import Editor from './Editor.svelte';
 import Player from './Player.svelte';
@@ -106,57 +107,6 @@ export const containerClasses: Record<OptionDisplayMode, string> = {
   list: 'space-y-2',
   'grid-2': 'grid grid-cols-2 gap-2',
   'grid-3': 'grid grid-cols-2 sm:grid-cols-3 gap-2'
-};
-
-const contentBlockSchema = {
-  oneOf: [
-    {
-      type: 'object',
-      required: ['kind', 'text'],
-      properties: { kind: { const: 'text' }, text: { type: 'string' } },
-      additionalProperties: false
-    },
-    {
-      type: 'object',
-      required: ['kind', 'url', 'alt'],
-      properties: { kind: { const: 'image' }, url: { type: 'string' }, alt: { type: 'string' } },
-      additionalProperties: false
-    },
-    {
-      type: 'object',
-      required: ['kind', 'videoId'],
-      properties: { kind: { const: 'video' }, videoId: { type: 'string' } },
-      additionalProperties: false
-    }
-  ]
-};
-
-const nullableContentBlockSchema = { oneOf: [contentBlockSchema, { type: 'null' }] };
-
-const answerOptionSchema = {
-  type: 'object',
-  required: ['id', 'kind', 'content', 'points'],
-  properties: {
-    id: { type: 'string', minLength: 1 },
-    kind: { enum: ['text', 'image', 'video'] },
-    content: contentBlockSchema,
-    points: { type: 'number' }
-  },
-  additionalProperties: false
-};
-
-const promptExtraSchema = {
-  type: 'object',
-  required: ['id', 'kind', 'content', 'label', 'revealContent', 'points'],
-  properties: {
-    id: { type: 'string', minLength: 1 },
-    kind: { enum: ['text', 'image', 'video', 'reveal'] },
-    content: nullableContentBlockSchema,
-    label: { type: ['string', 'null'] },
-    revealContent: nullableContentBlockSchema,
-    points: { type: ['number', 'null'] }
-  },
-  additionalProperties: false
 };
 
 /** JSON Schema for MultipleData, used to validate JSON imports (see src/lib/triviaSchema.ts). */
