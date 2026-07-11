@@ -1,0 +1,369 @@
+{
+  "id": "ex-capitals",
+  "title": "Around the World: Capitals",
+  "description": "A tour of world capitals — and a look at grid layout, where answers sit in a tidy 2-column grid instead of a list.",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z",
+  "questions": [
+    {
+      "id": "c1",
+      "type": "single",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "What is the capital of France?"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "c1o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Paris"
+            },
+            "points": 10
+          },
+          {
+            "id": "c1o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "London"
+            },
+            "points": 0
+          },
+          {
+            "id": "c1o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Berlin"
+            },
+            "points": 0
+          },
+          {
+            "id": "c1o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Madrid"
+            },
+            "points": 0
+          }
+        ],
+        "displayMode": "grid-2",
+        "shuffleOptions": false,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "c2",
+      "type": "single",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "What is the capital of Japan?"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "c2o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Tokyo"
+            },
+            "points": 10
+          },
+          {
+            "id": "c2o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Beijing"
+            },
+            "points": 0
+          },
+          {
+            "id": "c2o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Seoul"
+            },
+            "points": 0
+          },
+          {
+            "id": "c2o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Bangkok"
+            },
+            "points": 0
+          }
+        ],
+        "displayMode": "grid-2",
+        "shuffleOptions": false,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "c3",
+      "type": "single",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "What is the capital of Canada?"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "c3o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Ottawa"
+            },
+            "points": 10
+          },
+          {
+            "id": "c3o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Toronto"
+            },
+            "points": 0
+          },
+          {
+            "id": "c3o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Vancouver"
+            },
+            "points": 0
+          },
+          {
+            "id": "c3o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Montreal"
+            },
+            "points": 0
+          }
+        ],
+        "displayMode": "grid-2",
+        "shuffleOptions": false,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "c4",
+      "type": "single",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "What is the capital of Egypt?"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "c4o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Cairo"
+            },
+            "points": 10
+          },
+          {
+            "id": "c4o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Alexandria"
+            },
+            "points": 0
+          },
+          {
+            "id": "c4o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Giza"
+            },
+            "points": 0
+          },
+          {
+            "id": "c4o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Luxor"
+            },
+            "points": 0
+          }
+        ],
+        "displayMode": "grid-2",
+        "shuffleOptions": false,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "c5",
+      "type": "single",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "What is the capital of Australia?"
+        },
+        "extras": [
+          {
+            "id": "c5r",
+            "kind": "reveal",
+            "content": null,
+            "label": "Hint",
+            "revealContent": {
+              "kind": "text",
+              "text": "It's not the biggest city — it was purpose-built to settle a rivalry between two of them."
+            },
+            "points": 0
+          }
+        ],
+        "options": [
+          {
+            "id": "c5o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Canberra"
+            },
+            "points": 10
+          },
+          {
+            "id": "c5o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Sydney"
+            },
+            "points": 0
+          },
+          {
+            "id": "c5o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Melbourne"
+            },
+            "points": 0
+          },
+          {
+            "id": "c5o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Perth"
+            },
+            "points": 0
+          }
+        ],
+        "displayMode": "grid-2",
+        "shuffleOptions": false,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "c6",
+      "type": "single",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "What is the capital of Brazil?"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "c6o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Brasília"
+            },
+            "points": 10
+          },
+          {
+            "id": "c6o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Rio de Janeiro"
+            },
+            "points": 0
+          },
+          {
+            "id": "c6o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "São Paulo"
+            },
+            "points": 0
+          },
+          {
+            "id": "c6o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Salvador"
+            },
+            "points": 0
+          }
+        ],
+        "displayMode": "grid-2",
+        "shuffleOptions": false,
+        "ungraded": false
+      }
+    }
+  ],
+  "settings": {
+    "pointsToWinPercent": null,
+    "maxWrongAnswers": null,
+    "revealAnswers": "end",
+    "revealScore": "end",
+    "revealWin": "end",
+    "winMessage": [
+      "You win!"
+    ],
+    "loseMessage": [
+      "Better luck next time!"
+    ],
+    "shuffleQuestions": false,
+    "maxQuestions": null,
+    "perQuestionTimeLimit": null,
+    "overallTimeLimit": null,
+    "showIntro": true,
+    "primaryColor": "#4f46e5",
+    "secondaryColor": "#64748b",
+    "accentColor": "#4f46e5",
+    "correctColor": "#16a34a",
+    "wrongColor": "#dc2626",
+    "partialColor": "#d97706",
+    "neutralColor": "#64748b",
+    "textColor": "#0f172a",
+    "bgColor": "#ffffff",
+    "fontFamily": "sans",
+    "showRunningScore": false,
+    "disableBack": false,
+    "disableEditAfterReveal": false
+  },
+  "tags": [
+    "geography",
+    "easy",
+    "grid layout"
+  ]
+}

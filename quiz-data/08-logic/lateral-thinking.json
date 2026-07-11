@@ -1,0 +1,321 @@
+{
+  "id": "ex-logic",
+  "title": "Lateral Thinking",
+  "description": "Riddles and wordplay. The first question is just a warm-up — answered but never scored. Later, live-typed answers turn green or red the instant you enter them, and wrong guesses cost you.",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z",
+  "questions": [
+    {
+      "id": "l0",
+      "type": "typed",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "Warm-up (not scored): what is 2 + 2? Type it and press Next."
+        },
+        "extras": [],
+        "mode": "single",
+        "inputStyle": "text",
+        "answers": [
+          {
+            "id": "l0a1",
+            "text": "4",
+            "points": 10
+          },
+          {
+            "id": "l0a2",
+            "text": "four",
+            "points": 10
+          }
+        ],
+        "maxGuesses": null,
+        "grading": "correct-only",
+        "wrongPenalty": 0,
+        "ungraded": true
+      }
+    },
+    {
+      "id": "l1",
+      "type": "typed",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "I have keys but open no locks. I have space but no room. You can enter, but can't go outside. What am I?"
+        },
+        "extras": [],
+        "mode": "single",
+        "inputStyle": "text",
+        "answers": [
+          {
+            "id": "l1a1",
+            "text": "keyboard",
+            "points": 10
+          },
+          {
+            "id": "l1a2",
+            "text": "a keyboard",
+            "points": 10
+          }
+        ],
+        "maxGuesses": null,
+        "grading": "correct-only",
+        "wrongPenalty": 0,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "l2",
+      "type": "typed",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "I'm tall when I'm young and short when I'm old. What am I?"
+        },
+        "extras": [],
+        "mode": "single",
+        "inputStyle": "text",
+        "answers": [
+          {
+            "id": "l2a1",
+            "text": "candle",
+            "points": 10
+          },
+          {
+            "id": "l2a2",
+            "text": "a candle",
+            "points": 10
+          }
+        ],
+        "maxGuesses": null,
+        "grading": "correct-only",
+        "wrongPenalty": 0,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "l3",
+      "type": "typed",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "Live round! Type 3 words that rhyme with “cat.” Wrong guesses cost 3 points."
+        },
+        "extras": [],
+        "mode": "multi-realtime",
+        "inputStyle": "text",
+        "answers": [
+          {
+            "id": "l3a1",
+            "text": "hat",
+            "points": 5
+          },
+          {
+            "id": "l3a2",
+            "text": "bat",
+            "points": 5
+          },
+          {
+            "id": "l3a3",
+            "text": "mat",
+            "points": 5
+          },
+          {
+            "id": "l3a4",
+            "text": "rat",
+            "points": 5
+          },
+          {
+            "id": "l3a5",
+            "text": "sat",
+            "points": 5
+          },
+          {
+            "id": "l3a6",
+            "text": "fat",
+            "points": 5
+          },
+          {
+            "id": "l3a7",
+            "text": "pat",
+            "points": 5
+          },
+          {
+            "id": "l3a8",
+            "text": "chat",
+            "points": 5
+          },
+          {
+            "id": "l3a9",
+            "text": "flat",
+            "points": 5
+          },
+          {
+            "id": "l3a10",
+            "text": "that",
+            "points": 5
+          },
+          {
+            "id": "l3a11",
+            "text": "vat",
+            "points": 5
+          }
+        ],
+        "maxGuesses": 4,
+        "grading": "penalize",
+        "wrongPenalty": 3,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "l4",
+      "type": "typed",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "What five-letter word becomes shorter when you add two letters to it?"
+        },
+        "extras": [],
+        "mode": "single",
+        "inputStyle": "text",
+        "answers": [
+          {
+            "id": "l4a1",
+            "text": "short",
+            "points": 10
+          },
+          {
+            "id": "l4a2",
+            "text": "shorter",
+            "points": 10
+          }
+        ],
+        "maxGuesses": null,
+        "grading": "correct-only",
+        "wrongPenalty": 0,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "l5",
+      "type": "typed",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "Live round! Find 3 real words hidden inside “STARDUST.” Wrong guesses cost 2 points."
+        },
+        "extras": [],
+        "mode": "multi-realtime",
+        "inputStyle": "text",
+        "answers": [
+          {
+            "id": "l5a1",
+            "text": "star",
+            "points": 5
+          },
+          {
+            "id": "l5a2",
+            "text": "dust",
+            "points": 5
+          },
+          {
+            "id": "l5a3",
+            "text": "art",
+            "points": 5
+          },
+          {
+            "id": "l5a4",
+            "text": "rust",
+            "points": 5
+          },
+          {
+            "id": "l5a5",
+            "text": "tar",
+            "points": 5
+          },
+          {
+            "id": "l5a6",
+            "text": "us",
+            "points": 5
+          },
+          {
+            "id": "l5a7",
+            "text": "arts",
+            "points": 5
+          }
+        ],
+        "maxGuesses": 4,
+        "grading": "penalize",
+        "wrongPenalty": 2,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "l6",
+      "type": "typed",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "What gets wetter and wetter the more it dries?"
+        },
+        "extras": [],
+        "mode": "single",
+        "inputStyle": "text",
+        "answers": [
+          {
+            "id": "l6a1",
+            "text": "towel",
+            "points": 10
+          },
+          {
+            "id": "l6a2",
+            "text": "a towel",
+            "points": 10
+          }
+        ],
+        "maxGuesses": null,
+        "grading": "correct-only",
+        "wrongPenalty": 0,
+        "ungraded": false
+      }
+    }
+  ],
+  "settings": {
+    "pointsToWinPercent": null,
+    "maxWrongAnswers": null,
+    "revealAnswers": "after-question",
+    "revealScore": "after-question",
+    "revealWin": "end",
+    "winMessage": [
+      "You win!"
+    ],
+    "loseMessage": [
+      "Better luck next time!"
+    ],
+    "shuffleQuestions": false,
+    "maxQuestions": null,
+    "perQuestionTimeLimit": null,
+    "overallTimeLimit": null,
+    "showIntro": true,
+    "primaryColor": "#4f46e5",
+    "secondaryColor": "#64748b",
+    "accentColor": "#4f46e5",
+    "correctColor": "#16a34a",
+    "wrongColor": "#dc2626",
+    "partialColor": "#d97706",
+    "neutralColor": "#64748b",
+    "textColor": "#0f172a",
+    "bgColor": "#ffffff",
+    "fontFamily": "sans",
+    "showRunningScore": true,
+    "disableBack": false,
+    "disableEditAfterReveal": true
+  },
+  "tags": [
+    "logic",
+    "riddles",
+    "hard",
+    "typed live",
+    "penalize",
+    "practice question"
+  ]
+}

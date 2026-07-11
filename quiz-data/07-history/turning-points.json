@@ -1,0 +1,413 @@
+{
+  "id": "ex-history",
+  "title": "History's Turning Points",
+  "description": "The stakes are real now. You've got 3 lives, 20 seconds per question, and you need 70% to win. Three wrong answers and the run is over — no matter your score.",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z",
+  "questions": [
+    {
+      "id": "h1",
+      "type": "single",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "In which year did the Berlin Wall fall?"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "h1o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "1989"
+            },
+            "points": 10
+          },
+          {
+            "id": "h1o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "1991"
+            },
+            "points": 0
+          },
+          {
+            "id": "h1o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "1987"
+            },
+            "points": 0
+          },
+          {
+            "id": "h1o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "1985"
+            },
+            "points": 0
+          }
+        ],
+        "displayMode": "list",
+        "shuffleOptions": false,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "h2",
+      "type": "single",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "Who was the first person to walk on the Moon?"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "h2o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Neil Armstrong"
+            },
+            "points": 10
+          },
+          {
+            "id": "h2o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Buzz Aldrin"
+            },
+            "points": 0
+          },
+          {
+            "id": "h2o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Yuri Gagarin"
+            },
+            "points": 0
+          },
+          {
+            "id": "h2o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "John Glenn"
+            },
+            "points": 0
+          }
+        ],
+        "displayMode": "list",
+        "shuffleOptions": false,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "h3",
+      "type": "single",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "In which century was the Magna Carta sealed?"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "h3o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "13th century"
+            },
+            "points": 10
+          },
+          {
+            "id": "h3o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "12th century"
+            },
+            "points": 0
+          },
+          {
+            "id": "h3o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "14th century"
+            },
+            "points": 0
+          },
+          {
+            "id": "h3o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "15th century"
+            },
+            "points": 0
+          }
+        ],
+        "displayMode": "list",
+        "shuffleOptions": false,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "h4",
+      "type": "single",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "Which vast empire was founded by Genghis Khan?"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "h4o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Mongol Empire"
+            },
+            "points": 10
+          },
+          {
+            "id": "h4o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Ottoman Empire"
+            },
+            "points": 0
+          },
+          {
+            "id": "h4o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Roman Empire"
+            },
+            "points": 0
+          },
+          {
+            "id": "h4o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Persian Empire"
+            },
+            "points": 0
+          }
+        ],
+        "displayMode": "list",
+        "shuffleOptions": false,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "h5",
+      "type": "single",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "In which year did the French Revolution begin?"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "h5o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "1789"
+            },
+            "points": 10
+          },
+          {
+            "id": "h5o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "1776"
+            },
+            "points": 0
+          },
+          {
+            "id": "h5o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "1804"
+            },
+            "points": 0
+          },
+          {
+            "id": "h5o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "1799"
+            },
+            "points": 0
+          }
+        ],
+        "displayMode": "list",
+        "shuffleOptions": false,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "h6",
+      "type": "single",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "Who painted the ceiling of the Sistine Chapel?"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "h6o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Michelangelo"
+            },
+            "points": 10
+          },
+          {
+            "id": "h6o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Leonardo da Vinci"
+            },
+            "points": 0
+          },
+          {
+            "id": "h6o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Raphael"
+            },
+            "points": 0
+          },
+          {
+            "id": "h6o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Donatello"
+            },
+            "points": 0
+          }
+        ],
+        "displayMode": "list",
+        "shuffleOptions": false,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "h7",
+      "type": "single",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "The movable-type printing press in Europe is credited to whom?"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "h7o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Johannes Gutenberg"
+            },
+            "points": 10
+          },
+          {
+            "id": "h7o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Benjamin Franklin"
+            },
+            "points": 0
+          },
+          {
+            "id": "h7o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Thomas Edison"
+            },
+            "points": 0
+          },
+          {
+            "id": "h7o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Leonardo da Vinci"
+            },
+            "points": 0
+          }
+        ],
+        "displayMode": "list",
+        "shuffleOptions": false,
+        "ungraded": false
+      }
+    }
+  ],
+  "settings": {
+    "pointsToWinPercent": 70,
+    "maxWrongAnswers": 3,
+    "revealAnswers": "end",
+    "revealScore": "end",
+    "revealWin": "end",
+    "winMessage": [
+      "A scholar of the ages! 🏛️",
+      "History is yours to command."
+    ],
+    "loseMessage": [
+      "The past keeps its secrets... for now.",
+      "Regroup and try the timeline again."
+    ],
+    "shuffleQuestions": false,
+    "maxQuestions": null,
+    "perQuestionTimeLimit": 20,
+    "overallTimeLimit": null,
+    "showIntro": true,
+    "primaryColor": "#4f46e5",
+    "secondaryColor": "#64748b",
+    "accentColor": "#4f46e5",
+    "correctColor": "#16a34a",
+    "wrongColor": "#dc2626",
+    "partialColor": "#d97706",
+    "neutralColor": "#64748b",
+    "textColor": "#0f172a",
+    "bgColor": "#ffffff",
+    "fontFamily": "sans",
+    "showRunningScore": true,
+    "disableBack": false,
+    "disableEditAfterReveal": false
+  },
+  "tags": [
+    "history",
+    "hard",
+    "lives",
+    "timer",
+    "points to win"
+  ]
+}

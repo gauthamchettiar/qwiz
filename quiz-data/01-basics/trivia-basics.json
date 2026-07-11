@@ -1,0 +1,357 @@
+{
+  "id": "ex-basics",
+  "title": "Trivia Basics: General Knowledge",
+  "description": "New here? Start with the essentials. This one shows you the answer right after each question — the gentlest way to learn how Qwiz plays.",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z",
+  "questions": [
+    {
+      "id": "b1",
+      "type": "single",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "How many days are there in a week?"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "b1o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "7"
+            },
+            "points": 10
+          },
+          {
+            "id": "b1o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "5"
+            },
+            "points": 0
+          },
+          {
+            "id": "b1o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "10"
+            },
+            "points": 0
+          },
+          {
+            "id": "b1o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "12"
+            },
+            "points": 0
+          }
+        ],
+        "displayMode": "list",
+        "shuffleOptions": false,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "b2",
+      "type": "single",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "Mixing blue and yellow paint gives you which colour?"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "b2o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Green"
+            },
+            "points": 10
+          },
+          {
+            "id": "b2o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Purple"
+            },
+            "points": 0
+          },
+          {
+            "id": "b2o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Orange"
+            },
+            "points": 0
+          },
+          {
+            "id": "b2o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Brown"
+            },
+            "points": 0
+          }
+        ],
+        "displayMode": "list",
+        "shuffleOptions": false,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "b3",
+      "type": "single",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "Which planet do we live on?"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "b3o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Earth"
+            },
+            "points": 10
+          },
+          {
+            "id": "b3o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Mars"
+            },
+            "points": 0
+          },
+          {
+            "id": "b3o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Venus"
+            },
+            "points": 0
+          },
+          {
+            "id": "b3o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Jupiter"
+            },
+            "points": 0
+          }
+        ],
+        "displayMode": "list",
+        "shuffleOptions": false,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "b4",
+      "type": "single",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "How many legs does a spider have?"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "b4o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "8"
+            },
+            "points": 10
+          },
+          {
+            "id": "b4o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "6"
+            },
+            "points": 0
+          },
+          {
+            "id": "b4o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "4"
+            },
+            "points": 0
+          },
+          {
+            "id": "b4o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "10"
+            },
+            "points": 0
+          }
+        ],
+        "displayMode": "list",
+        "shuffleOptions": false,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "b5",
+      "type": "single",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "What is the opposite of “hot”?"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "b5o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Cold"
+            },
+            "points": 10
+          },
+          {
+            "id": "b5o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Warm"
+            },
+            "points": 0
+          },
+          {
+            "id": "b5o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Wet"
+            },
+            "points": 0
+          },
+          {
+            "id": "b5o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Fast"
+            },
+            "points": 0
+          }
+        ],
+        "displayMode": "list",
+        "shuffleOptions": false,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "b6",
+      "type": "single",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "Which animal is often called “man’s best friend”?"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "b6o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Dog"
+            },
+            "points": 10
+          },
+          {
+            "id": "b6o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Cat"
+            },
+            "points": 0
+          },
+          {
+            "id": "b6o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Horse"
+            },
+            "points": 0
+          },
+          {
+            "id": "b6o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Goldfish"
+            },
+            "points": 0
+          }
+        ],
+        "displayMode": "list",
+        "shuffleOptions": false,
+        "ungraded": false
+      }
+    }
+  ],
+  "settings": {
+    "pointsToWinPercent": null,
+    "maxWrongAnswers": null,
+    "revealAnswers": "after-question",
+    "revealScore": "after-question",
+    "revealWin": "end",
+    "winMessage": [
+      "You win!"
+    ],
+    "loseMessage": [
+      "Better luck next time!"
+    ],
+    "shuffleQuestions": false,
+    "maxQuestions": null,
+    "perQuestionTimeLimit": null,
+    "overallTimeLimit": null,
+    "showIntro": true,
+    "primaryColor": "#4f46e5",
+    "secondaryColor": "#64748b",
+    "accentColor": "#4f46e5",
+    "correctColor": "#16a34a",
+    "wrongColor": "#dc2626",
+    "partialColor": "#d97706",
+    "neutralColor": "#64748b",
+    "textColor": "#0f172a",
+    "bgColor": "#ffffff",
+    "fontFamily": "sans",
+    "showRunningScore": false,
+    "disableBack": false,
+    "disableEditAfterReveal": true
+  },
+  "tags": [
+    "basics",
+    "easy",
+    "single choice"
+  ]
+}

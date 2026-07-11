@@ -1,0 +1,442 @@
+{
+  "id": "ex-science",
+  "title": "Science Lab: Pick All That Apply",
+  "description": "Some questions have more than one right answer. Select every correct option — each is worth points on its own. The last one is strict: get the whole set exactly right, or score nothing.",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z",
+  "questions": [
+    {
+      "id": "s1",
+      "type": "multiple",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "Which of these are noble gases? (select all)"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "s1o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Helium"
+            },
+            "points": 5
+          },
+          {
+            "id": "s1o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Neon"
+            },
+            "points": 5
+          },
+          {
+            "id": "s1o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Oxygen"
+            },
+            "points": 0
+          },
+          {
+            "id": "s1o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Argon"
+            },
+            "points": 5
+          },
+          {
+            "id": "s1o5",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Nitrogen"
+            },
+            "points": 0
+          }
+        ],
+        "min": 1,
+        "max": 5,
+        "displayMode": "list",
+        "shuffleOptions": false,
+        "allOrNone": false,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "s2",
+      "type": "multiple",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "Which of these are planets in our solar system?"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "s2o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Mars"
+            },
+            "points": 5
+          },
+          {
+            "id": "s2o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Pluto"
+            },
+            "points": 0
+          },
+          {
+            "id": "s2o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Jupiter"
+            },
+            "points": 5
+          },
+          {
+            "id": "s2o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "The Moon"
+            },
+            "points": 0
+          },
+          {
+            "id": "s2o5",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Venus"
+            },
+            "points": 5
+          }
+        ],
+        "min": 1,
+        "max": 5,
+        "displayMode": "list",
+        "shuffleOptions": false,
+        "allOrNone": false,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "s3",
+      "type": "multiple",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "Which of these animals are mammals?"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "s3o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Dolphin"
+            },
+            "points": 5
+          },
+          {
+            "id": "s3o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Shark"
+            },
+            "points": 0
+          },
+          {
+            "id": "s3o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Bat"
+            },
+            "points": 5
+          },
+          {
+            "id": "s3o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Penguin"
+            },
+            "points": 0
+          },
+          {
+            "id": "s3o5",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Whale"
+            },
+            "points": 5
+          }
+        ],
+        "min": 1,
+        "max": 5,
+        "displayMode": "list",
+        "shuffleOptions": false,
+        "allOrNone": false,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "s4",
+      "type": "multiple",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "Which of these numbers are prime?"
+        },
+        "extras": [
+          {
+            "id": "s4r",
+            "kind": "reveal",
+            "content": null,
+            "label": "Reminder",
+            "revealContent": {
+              "kind": "text",
+              "text": "A prime is a whole number greater than 1 divisible only by 1 and itself."
+            },
+            "points": 0
+          }
+        ],
+        "options": [
+          {
+            "id": "s4o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "2"
+            },
+            "points": 5
+          },
+          {
+            "id": "s4o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "9"
+            },
+            "points": 0
+          },
+          {
+            "id": "s4o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "7"
+            },
+            "points": 5
+          },
+          {
+            "id": "s4o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "1"
+            },
+            "points": 0
+          },
+          {
+            "id": "s4o5",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "11"
+            },
+            "points": 5
+          }
+        ],
+        "min": 1,
+        "max": 5,
+        "displayMode": "list",
+        "shuffleOptions": false,
+        "allOrNone": false,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "s5",
+      "type": "multiple",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "Which of these are states of matter?"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "s5o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Solid"
+            },
+            "points": 4
+          },
+          {
+            "id": "s5o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Plasma"
+            },
+            "points": 4
+          },
+          {
+            "id": "s5o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Energy"
+            },
+            "points": 0
+          },
+          {
+            "id": "s5o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Liquid"
+            },
+            "points": 4
+          },
+          {
+            "id": "s5o5",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Gas"
+            },
+            "points": 4
+          }
+        ],
+        "min": 1,
+        "max": 5,
+        "displayMode": "list",
+        "shuffleOptions": false,
+        "allOrNone": false,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "s6",
+      "type": "multiple",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "Which metals conduct electricity well? (all or nothing!)"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "s6o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Copper"
+            },
+            "points": 5
+          },
+          {
+            "id": "s6o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Rubber"
+            },
+            "points": 0
+          },
+          {
+            "id": "s6o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Gold"
+            },
+            "points": 5
+          },
+          {
+            "id": "s6o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Wood"
+            },
+            "points": 0
+          },
+          {
+            "id": "s6o5",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Silver"
+            },
+            "points": 5
+          }
+        ],
+        "min": 1,
+        "max": 5,
+        "displayMode": "list",
+        "shuffleOptions": false,
+        "allOrNone": true,
+        "ungraded": false
+      }
+    }
+  ],
+  "settings": {
+    "pointsToWinPercent": null,
+    "maxWrongAnswers": null,
+    "revealAnswers": "end",
+    "revealScore": "end",
+    "revealWin": "end",
+    "winMessage": [
+      "You win!"
+    ],
+    "loseMessage": [
+      "Better luck next time!"
+    ],
+    "shuffleQuestions": false,
+    "maxQuestions": null,
+    "perQuestionTimeLimit": null,
+    "overallTimeLimit": null,
+    "showIntro": true,
+    "primaryColor": "#4f46e5",
+    "secondaryColor": "#64748b",
+    "accentColor": "#4f46e5",
+    "correctColor": "#16a34a",
+    "wrongColor": "#dc2626",
+    "partialColor": "#d97706",
+    "neutralColor": "#64748b",
+    "textColor": "#0f172a",
+    "bgColor": "#ffffff",
+    "fontFamily": "sans",
+    "showRunningScore": true,
+    "disableBack": false,
+    "disableEditAfterReveal": false
+  },
+  "tags": [
+    "science",
+    "medium",
+    "multi-select",
+    "all-or-none"
+  ]
+}

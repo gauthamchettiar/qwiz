@@ -1,0 +1,459 @@
+{
+  "id": "ex-music",
+  "title": "Decades of Music",
+  "description": "From vinyl to viral. Options are shuffled every play, and the hints here actually cost you points — so only peek if you're truly stuck. There's even a music video to watch.",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z",
+  "questions": [
+    {
+      "id": "m1",
+      "type": "single",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "In which decade did The Beatles rise to worldwide fame?"
+        },
+        "extras": [
+          {
+            "id": "m1r",
+            "kind": "reveal",
+            "content": null,
+            "label": "Hint",
+            "revealContent": {
+              "kind": "text",
+              "text": "Think 'Beatlemania' and the British Invasion."
+            },
+            "points": -3
+          }
+        ],
+        "options": [
+          {
+            "id": "m1o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "1960s"
+            },
+            "points": 10
+          },
+          {
+            "id": "m1o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "1950s"
+            },
+            "points": 0
+          },
+          {
+            "id": "m1o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "1970s"
+            },
+            "points": 0
+          },
+          {
+            "id": "m1o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "1980s"
+            },
+            "points": 0
+          }
+        ],
+        "displayMode": "list",
+        "shuffleOptions": true,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "m2",
+      "type": "single",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "How many keys does a standard piano have?"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "m2o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "88"
+            },
+            "points": 10
+          },
+          {
+            "id": "m2o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "76"
+            },
+            "points": 0
+          },
+          {
+            "id": "m2o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "61"
+            },
+            "points": 0
+          },
+          {
+            "id": "m2o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "100"
+            },
+            "points": 0
+          }
+        ],
+        "displayMode": "list",
+        "shuffleOptions": true,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "m3",
+      "type": "single",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "The music-television channel MTV launched in which decade?"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "m3o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "1980s"
+            },
+            "points": 10
+          },
+          {
+            "id": "m3o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "1970s"
+            },
+            "points": 0
+          },
+          {
+            "id": "m3o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "1990s"
+            },
+            "points": 0
+          },
+          {
+            "id": "m3o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "2000s"
+            },
+            "points": 0
+          }
+        ],
+        "displayMode": "list",
+        "shuffleOptions": true,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "m4",
+      "type": "single",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "Which genre was born in 1970s New York block parties and clubs?"
+        },
+        "extras": [
+          {
+            "id": "m4r",
+            "kind": "reveal",
+            "content": null,
+            "label": "Hint",
+            "revealContent": {
+              "kind": "text",
+              "text": "DJs, breakbeats, and MCs on the mic."
+            },
+            "points": -3
+          }
+        ],
+        "options": [
+          {
+            "id": "m4o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Hip-hop"
+            },
+            "points": 10
+          },
+          {
+            "id": "m4o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Jazz"
+            },
+            "points": 0
+          },
+          {
+            "id": "m4o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Country"
+            },
+            "points": 0
+          },
+          {
+            "id": "m4o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Opera"
+            },
+            "points": 0
+          }
+        ],
+        "displayMode": "list",
+        "shuffleOptions": true,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "m5",
+      "type": "single",
+      "data": {
+        "prompt": {
+          "kind": "video",
+          "videoId": "djV11Xbc914"
+        },
+        "extras": [
+          {
+            "id": "m5note",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "This 1985 hit is famous for its pencil-sketch, rotoscoped video. Who performs it?"
+            },
+            "label": null,
+            "revealContent": null,
+            "points": null
+          }
+        ],
+        "options": [
+          {
+            "id": "m5o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "a-ha"
+            },
+            "points": 10
+          },
+          {
+            "id": "m5o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Duran Duran"
+            },
+            "points": 0
+          },
+          {
+            "id": "m5o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Depeche Mode"
+            },
+            "points": 0
+          },
+          {
+            "id": "m5o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "The Police"
+            },
+            "points": 0
+          }
+        ],
+        "displayMode": "list",
+        "shuffleOptions": true,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "m6",
+      "type": "multiple",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "Which of these are string instruments? (select all)"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "m6o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Guitar"
+            },
+            "points": 4
+          },
+          {
+            "id": "m6o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Violin"
+            },
+            "points": 4
+          },
+          {
+            "id": "m6o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Cello"
+            },
+            "points": 4
+          },
+          {
+            "id": "m6o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Flute"
+            },
+            "points": 0
+          },
+          {
+            "id": "m6o5",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Trumpet"
+            },
+            "points": 0
+          }
+        ],
+        "min": 1,
+        "max": 5,
+        "displayMode": "list",
+        "shuffleOptions": true,
+        "allOrNone": false,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "m7",
+      "type": "single",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "The Woodstock festival famously took place in which year?"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "m7o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "1969"
+            },
+            "points": 10
+          },
+          {
+            "id": "m7o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "1971"
+            },
+            "points": 0
+          },
+          {
+            "id": "m7o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "1965"
+            },
+            "points": 0
+          },
+          {
+            "id": "m7o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "1973"
+            },
+            "points": 0
+          }
+        ],
+        "displayMode": "list",
+        "shuffleOptions": true,
+        "ungraded": false
+      }
+    }
+  ],
+  "settings": {
+    "pointsToWinPercent": null,
+    "maxWrongAnswers": null,
+    "revealAnswers": "end",
+    "revealScore": "end",
+    "revealWin": "end",
+    "winMessage": [
+      "You win!"
+    ],
+    "loseMessage": [
+      "Better luck next time!"
+    ],
+    "shuffleQuestions": false,
+    "maxQuestions": null,
+    "perQuestionTimeLimit": null,
+    "overallTimeLimit": null,
+    "showIntro": true,
+    "primaryColor": "#4f46e5",
+    "secondaryColor": "#64748b",
+    "accentColor": "#4f46e5",
+    "correctColor": "#16a34a",
+    "wrongColor": "#dc2626",
+    "partialColor": "#d97706",
+    "neutralColor": "#64748b",
+    "textColor": "#0f172a",
+    "bgColor": "#ffffff",
+    "fontFamily": "sans",
+    "showRunningScore": true,
+    "disableBack": false,
+    "disableEditAfterReveal": false
+  },
+  "tags": [
+    "music",
+    "medium",
+    "shuffle",
+    "hints",
+    "video"
+  ]
+}

@@ -1,0 +1,202 @@
+{
+  "id": "ex-spelling",
+  "title": "Spelling Bee",
+  "description": "Type the answer, one letter per box — the boxes even tell you how long the word is. Read the clue, then spell it out.",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z",
+  "questions": [
+    {
+      "id": "w1",
+      "type": "typed",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "A large grey animal with a long trunk and big ears."
+        },
+        "extras": [],
+        "mode": "single",
+        "inputStyle": "boxes",
+        "answers": [
+          {
+            "id": "w1a1",
+            "text": "elephant",
+            "points": 10
+          }
+        ],
+        "maxGuesses": null,
+        "grading": "correct-only",
+        "wrongPenalty": 0,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "w2",
+      "type": "typed",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "The frozen, solid form of water."
+        },
+        "extras": [],
+        "mode": "single",
+        "inputStyle": "boxes",
+        "answers": [
+          {
+            "id": "w2a1",
+            "text": "ice",
+            "points": 10
+          }
+        ],
+        "maxGuesses": null,
+        "grading": "correct-only",
+        "wrongPenalty": 0,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "w3",
+      "type": "typed",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "A dome-shaped house built from blocks of snow."
+        },
+        "extras": [],
+        "mode": "single",
+        "inputStyle": "boxes",
+        "answers": [
+          {
+            "id": "w3a1",
+            "text": "igloo",
+            "points": 10
+          }
+        ],
+        "maxGuesses": null,
+        "grading": "correct-only",
+        "wrongPenalty": 0,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "w4",
+      "type": "typed",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "The colourful arc you see in the sky after rain."
+        },
+        "extras": [],
+        "mode": "single",
+        "inputStyle": "boxes",
+        "answers": [
+          {
+            "id": "w4a1",
+            "text": "rainbow",
+            "points": 10
+          }
+        ],
+        "maxGuesses": null,
+        "grading": "correct-only",
+        "wrongPenalty": 0,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "w5",
+      "type": "typed",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "A shape with eight sides."
+        },
+        "extras": [
+          {
+            "id": "w5r",
+            "kind": "reveal",
+            "content": null,
+            "label": "Hint",
+            "revealContent": {
+              "kind": "text",
+              "text": "An octopus has eight arms; this shape has eight of something too."
+            },
+            "points": 0
+          }
+        ],
+        "mode": "single",
+        "inputStyle": "boxes",
+        "answers": [
+          {
+            "id": "w5a1",
+            "text": "octagon",
+            "points": 10
+          }
+        ],
+        "maxGuesses": null,
+        "grading": "correct-only",
+        "wrongPenalty": 0,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "w6",
+      "type": "typed",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "The scientific study of living organisms."
+        },
+        "extras": [],
+        "mode": "single",
+        "inputStyle": "boxes",
+        "answers": [
+          {
+            "id": "w6a1",
+            "text": "biology",
+            "points": 10
+          }
+        ],
+        "maxGuesses": null,
+        "grading": "correct-only",
+        "wrongPenalty": 0,
+        "ungraded": false
+      }
+    }
+  ],
+  "settings": {
+    "pointsToWinPercent": null,
+    "maxWrongAnswers": null,
+    "revealAnswers": "end",
+    "revealScore": "end",
+    "revealWin": "end",
+    "winMessage": [
+      "You win!"
+    ],
+    "loseMessage": [
+      "Better luck next time!"
+    ],
+    "shuffleQuestions": false,
+    "maxQuestions": null,
+    "perQuestionTimeLimit": null,
+    "overallTimeLimit": null,
+    "showIntro": true,
+    "primaryColor": "#4f46e5",
+    "secondaryColor": "#64748b",
+    "accentColor": "#4f46e5",
+    "correctColor": "#16a34a",
+    "wrongColor": "#dc2626",
+    "partialColor": "#d97706",
+    "neutralColor": "#64748b",
+    "textColor": "#0f172a",
+    "bgColor": "#ffffff",
+    "fontFamily": "sans",
+    "showRunningScore": false,
+    "disableBack": false,
+    "disableEditAfterReveal": false
+  },
+  "tags": [
+    "words",
+    "medium",
+    "typed",
+    "character boxes"
+  ]
+}

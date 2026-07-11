@@ -1,0 +1,405 @@
+{
+  "id": "ex-finale",
+  "title": "The Grand Finale",
+  "description": "Everything at once — every question type, a custom dark-and-gold theme in a serif face, and a randomised run: 5 questions drawn from a pool of 8, shuffled fresh each play. Reach 60% for the crown.",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z",
+  "questions": [
+    {
+      "id": "g1",
+      "type": "single",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "The chemical symbol “Au” represents which element?"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "g1o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Gold"
+            },
+            "points": 10
+          },
+          {
+            "id": "g1o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Silver"
+            },
+            "points": 0
+          },
+          {
+            "id": "g1o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Aluminium"
+            },
+            "points": 0
+          },
+          {
+            "id": "g1o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Argon"
+            },
+            "points": 0
+          }
+        ],
+        "displayMode": "list",
+        "shuffleOptions": false,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "g2",
+      "type": "single",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "What is the smallest prime number?"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "g2o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "2"
+            },
+            "points": 10
+          },
+          {
+            "id": "g2o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "1"
+            },
+            "points": 0
+          },
+          {
+            "id": "g2o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "3"
+            },
+            "points": 0
+          },
+          {
+            "id": "g2o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "0"
+            },
+            "points": 0
+          }
+        ],
+        "displayMode": "list",
+        "shuffleOptions": false,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "g3",
+      "type": "multiple",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "Which of these people won a Nobel Prize? (select all)"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "g3o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Marie Curie"
+            },
+            "points": 5
+          },
+          {
+            "id": "g3o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Albert Einstein"
+            },
+            "points": 5
+          },
+          {
+            "id": "g3o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Nikola Tesla"
+            },
+            "points": 0
+          },
+          {
+            "id": "g3o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Isaac Newton"
+            },
+            "points": 0
+          }
+        ],
+        "min": 1,
+        "max": 4,
+        "displayMode": "list",
+        "shuffleOptions": false,
+        "allOrNone": false,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "g4",
+      "type": "typed",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "Complete the sequence: 2, 3, 5, 7, 11, __"
+        },
+        "extras": [],
+        "mode": "single",
+        "inputStyle": "text",
+        "answers": [
+          {
+            "id": "g4a1",
+            "text": "13",
+            "points": 10
+          }
+        ],
+        "maxGuesses": null,
+        "grading": "correct-only",
+        "wrongPenalty": 0,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "g5",
+      "type": "single",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "How many bones are there in the adult human body?"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "g5o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "206"
+            },
+            "points": 10
+          },
+          {
+            "id": "g5o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "201"
+            },
+            "points": 0
+          },
+          {
+            "id": "g5o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "210"
+            },
+            "points": 0
+          },
+          {
+            "id": "g5o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "198"
+            },
+            "points": 0
+          }
+        ],
+        "displayMode": "list",
+        "shuffleOptions": false,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "g6",
+      "type": "typed",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "Name 3 of the five Great Lakes of North America."
+        },
+        "extras": [],
+        "mode": "multi",
+        "inputStyle": "text",
+        "answers": [
+          {
+            "id": "g6a1",
+            "text": "superior",
+            "points": 5
+          },
+          {
+            "id": "g6a2",
+            "text": "michigan",
+            "points": 5
+          },
+          {
+            "id": "g6a3",
+            "text": "huron",
+            "points": 5
+          },
+          {
+            "id": "g6a4",
+            "text": "erie",
+            "points": 5
+          },
+          {
+            "id": "g6a5",
+            "text": "ontario",
+            "points": 5
+          }
+        ],
+        "maxGuesses": 3,
+        "grading": "correct-only",
+        "wrongPenalty": 0,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "g7",
+      "type": "typed",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "Finish the artist's name — Leonardo da ___"
+        },
+        "extras": [],
+        "mode": "single",
+        "inputStyle": "boxes",
+        "answers": [
+          {
+            "id": "g7a1",
+            "text": "vinci",
+            "points": 10
+          }
+        ],
+        "maxGuesses": null,
+        "grading": "correct-only",
+        "wrongPenalty": 0,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "g8",
+      "type": "single",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "What is the hardest known natural material?"
+        },
+        "extras": [],
+        "options": [
+          {
+            "id": "g8o1",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Diamond"
+            },
+            "points": 10
+          },
+          {
+            "id": "g8o2",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Quartz"
+            },
+            "points": 0
+          },
+          {
+            "id": "g8o3",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Steel"
+            },
+            "points": 0
+          },
+          {
+            "id": "g8o4",
+            "kind": "text",
+            "content": {
+              "kind": "text",
+              "text": "Granite"
+            },
+            "points": 0
+          }
+        ],
+        "displayMode": "list",
+        "shuffleOptions": false,
+        "ungraded": false
+      }
+    }
+  ],
+  "settings": {
+    "pointsToWinPercent": 60,
+    "maxWrongAnswers": null,
+    "revealAnswers": "end",
+    "revealScore": "end",
+    "revealWin": "end",
+    "winMessage": [
+      "🏆 Champion of Champions!",
+      "You've mastered the whole toolkit."
+    ],
+    "loseMessage": [
+      "So close — one more run?",
+      "The finale bested you this time."
+    ],
+    "shuffleQuestions": true,
+    "maxQuestions": 5,
+    "perQuestionTimeLimit": null,
+    "overallTimeLimit": null,
+    "showIntro": true,
+    "primaryColor": "#f59e0b",
+    "secondaryColor": "#a78bfa",
+    "accentColor": "#f59e0b",
+    "correctColor": "#22c55e",
+    "wrongColor": "#f87171",
+    "partialColor": "#d97706",
+    "neutralColor": "#64748b",
+    "textColor": "#f5f3ff",
+    "bgColor": "#1e1b2e",
+    "fontFamily": "serif",
+    "showRunningScore": true,
+    "disableBack": false,
+    "disableEditAfterReveal": false
+  },
+  "tags": [
+    "mixed",
+    "hard",
+    "custom theme",
+    "serif",
+    "shuffle questions",
+    "max questions"
+  ]
+}

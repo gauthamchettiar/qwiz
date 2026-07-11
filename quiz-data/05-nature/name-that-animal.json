@@ -1,0 +1,404 @@
+{
+  "id": "ex-animals",
+  "title": "Name That Animal",
+  "description": "Type a guess and press Enter, then keep going until your guesses run out. Wrong guesses don't cost you here — so cast a wide net. Stuck? Reveal a hint (it nibbles a couple of points).",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z",
+  "questions": [
+    {
+      "id": "n1",
+      "type": "typed",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "Name 3 of the world's “big cats.”"
+        },
+        "extras": [
+          {
+            "id": "n1r",
+            "kind": "reveal",
+            "content": null,
+            "label": "Hint",
+            "revealContent": {
+              "kind": "text",
+              "text": "They all belong to the family Felidae, and most can roar."
+            },
+            "points": -2
+          }
+        ],
+        "mode": "multi",
+        "inputStyle": "text",
+        "answers": [
+          {
+            "id": "n1a1",
+            "text": "lion",
+            "points": 5
+          },
+          {
+            "id": "n1a2",
+            "text": "tiger",
+            "points": 5
+          },
+          {
+            "id": "n1a3",
+            "text": "leopard",
+            "points": 5
+          },
+          {
+            "id": "n1a4",
+            "text": "jaguar",
+            "points": 5
+          },
+          {
+            "id": "n1a5",
+            "text": "cheetah",
+            "points": 5
+          },
+          {
+            "id": "n1a6",
+            "text": "cougar",
+            "points": 5
+          },
+          {
+            "id": "n1a7",
+            "text": "panther",
+            "points": 5
+          }
+        ],
+        "maxGuesses": 3,
+        "grading": "correct-only",
+        "wrongPenalty": 0,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "n2",
+      "type": "typed",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "Name 3 animals that live in the ocean."
+        },
+        "extras": [],
+        "mode": "multi",
+        "inputStyle": "text",
+        "answers": [
+          {
+            "id": "n2a1",
+            "text": "whale",
+            "points": 4
+          },
+          {
+            "id": "n2a2",
+            "text": "dolphin",
+            "points": 4
+          },
+          {
+            "id": "n2a3",
+            "text": "shark",
+            "points": 4
+          },
+          {
+            "id": "n2a4",
+            "text": "octopus",
+            "points": 4
+          },
+          {
+            "id": "n2a5",
+            "text": "jellyfish",
+            "points": 4
+          },
+          {
+            "id": "n2a6",
+            "text": "crab",
+            "points": 4
+          },
+          {
+            "id": "n2a7",
+            "text": "seahorse",
+            "points": 4
+          },
+          {
+            "id": "n2a8",
+            "text": "squid",
+            "points": 4
+          },
+          {
+            "id": "n2a9",
+            "text": "turtle",
+            "points": 4
+          }
+        ],
+        "maxGuesses": 3,
+        "grading": "correct-only",
+        "wrongPenalty": 0,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "n3",
+      "type": "typed",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "Name 3 birds that cannot fly."
+        },
+        "extras": [
+          {
+            "id": "n3r",
+            "kind": "reveal",
+            "content": null,
+            "label": "Hint",
+            "revealContent": {
+              "kind": "text",
+              "text": "One waddles on ice, one is the fastest runner on two legs."
+            },
+            "points": -2
+          }
+        ],
+        "mode": "multi",
+        "inputStyle": "text",
+        "answers": [
+          {
+            "id": "n3a1",
+            "text": "ostrich",
+            "points": 5
+          },
+          {
+            "id": "n3a2",
+            "text": "penguin",
+            "points": 5
+          },
+          {
+            "id": "n3a3",
+            "text": "emu",
+            "points": 5
+          },
+          {
+            "id": "n3a4",
+            "text": "kiwi",
+            "points": 5
+          },
+          {
+            "id": "n3a5",
+            "text": "cassowary",
+            "points": 5
+          },
+          {
+            "id": "n3a6",
+            "text": "rhea",
+            "points": 5
+          }
+        ],
+        "maxGuesses": 3,
+        "grading": "correct-only",
+        "wrongPenalty": 0,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "n4",
+      "type": "typed",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "Name 3 animals famous for their stripes."
+        },
+        "extras": [],
+        "mode": "multi",
+        "inputStyle": "text",
+        "answers": [
+          {
+            "id": "n4a1",
+            "text": "zebra",
+            "points": 4
+          },
+          {
+            "id": "n4a2",
+            "text": "tiger",
+            "points": 4
+          },
+          {
+            "id": "n4a3",
+            "text": "bee",
+            "points": 4
+          },
+          {
+            "id": "n4a4",
+            "text": "skunk",
+            "points": 4
+          },
+          {
+            "id": "n4a5",
+            "text": "chipmunk",
+            "points": 4
+          },
+          {
+            "id": "n4a6",
+            "text": "badger",
+            "points": 4
+          }
+        ],
+        "maxGuesses": 3,
+        "grading": "correct-only",
+        "wrongPenalty": 0,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "n5",
+      "type": "typed",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "Name 3 reptiles."
+        },
+        "extras": [],
+        "mode": "multi",
+        "inputStyle": "text",
+        "answers": [
+          {
+            "id": "n5a1",
+            "text": "snake",
+            "points": 5
+          },
+          {
+            "id": "n5a2",
+            "text": "lizard",
+            "points": 5
+          },
+          {
+            "id": "n5a3",
+            "text": "crocodile",
+            "points": 5
+          },
+          {
+            "id": "n5a4",
+            "text": "alligator",
+            "points": 5
+          },
+          {
+            "id": "n5a5",
+            "text": "turtle",
+            "points": 5
+          },
+          {
+            "id": "n5a6",
+            "text": "tortoise",
+            "points": 5
+          },
+          {
+            "id": "n5a7",
+            "text": "iguana",
+            "points": 5
+          },
+          {
+            "id": "n5a8",
+            "text": "gecko",
+            "points": 5
+          },
+          {
+            "id": "n5a9",
+            "text": "chameleon",
+            "points": 5
+          }
+        ],
+        "maxGuesses": 3,
+        "grading": "correct-only",
+        "wrongPenalty": 0,
+        "ungraded": false
+      }
+    },
+    {
+      "id": "n6",
+      "type": "typed",
+      "data": {
+        "prompt": {
+          "kind": "text",
+          "text": "Name 3 primates."
+        },
+        "extras": [],
+        "mode": "multi",
+        "inputStyle": "text",
+        "answers": [
+          {
+            "id": "n6a1",
+            "text": "monkey",
+            "points": 5
+          },
+          {
+            "id": "n6a2",
+            "text": "gorilla",
+            "points": 5
+          },
+          {
+            "id": "n6a3",
+            "text": "chimpanzee",
+            "points": 5
+          },
+          {
+            "id": "n6a4",
+            "text": "orangutan",
+            "points": 5
+          },
+          {
+            "id": "n6a5",
+            "text": "baboon",
+            "points": 5
+          },
+          {
+            "id": "n6a6",
+            "text": "lemur",
+            "points": 5
+          },
+          {
+            "id": "n6a7",
+            "text": "gibbon",
+            "points": 5
+          }
+        ],
+        "maxGuesses": 3,
+        "grading": "correct-only",
+        "wrongPenalty": 0,
+        "ungraded": false
+      }
+    }
+  ],
+  "settings": {
+    "pointsToWinPercent": null,
+    "maxWrongAnswers": null,
+    "revealAnswers": "end",
+    "revealScore": "end",
+    "revealWin": "end",
+    "winMessage": [
+      "You win!"
+    ],
+    "loseMessage": [
+      "Better luck next time!"
+    ],
+    "shuffleQuestions": false,
+    "maxQuestions": null,
+    "perQuestionTimeLimit": null,
+    "overallTimeLimit": null,
+    "showIntro": true,
+    "primaryColor": "#4f46e5",
+    "secondaryColor": "#64748b",
+    "accentColor": "#4f46e5",
+    "correctColor": "#16a34a",
+    "wrongColor": "#dc2626",
+    "partialColor": "#d97706",
+    "neutralColor": "#64748b",
+    "textColor": "#0f172a",
+    "bgColor": "#ffffff",
+    "fontFamily": "sans",
+    "showRunningScore": true,
+    "disableBack": false,
+    "disableEditAfterReveal": false
+  },
+  "tags": [
+    "nature",
+    "medium",
+    "typed",
+    "reveal hints"
+  ]
+}
