@@ -58,6 +58,8 @@
   const needsReveal = settings.revealAnswers === 'after-question' || settings.revealScore === 'after-question';
   const livesEnabled = settings.maxWrongAnswers !== null;
   const livesExhausted = $derived(livesEnabled && wrongCount >= (settings.maxWrongAnswers ?? Infinity));
+  // The running "earned / max" tally is only shown when enabled and scores are being revealed.
+  const scoreShown = settings.showRunningScore && settings.revealScore !== 'never';
   // Flips false -> true exactly once per attempt (when Start is clicked, or immediately if
   // there's no intro) and then stays true — used to gate the overall timer without it
   // resetting on every later answering/reveal/finished transition.
@@ -411,15 +413,21 @@
       <div class="flex items-center justify-between text-xs text-slate-400">
         <span>Question {index + 1} of {orderedQuestions.length}</span>
         <div class="flex items-center gap-3">
-          {#if settings.showRunningScore && settings.revealScore !== 'never'}
+          {#if scoreShown}
             <span class="font-semibold text-[var(--accent)]">{pointsSoFar.earned} / {pointsSoFar.max} pts</span>
           {/if}
           {#if livesEnabled}
-            <span class="flex items-center gap-0.5">
-              {#each { length: wrongCount } as _, i (i)}
-                <X size={12} class="text-[var(--color-wrong)]" />
+            {#if scoreShown}
+              <span class="h-3.5 w-px bg-slate-300" aria-hidden="true"></span>
+            {/if}
+            <span class="flex items-center gap-0.5" aria-label={`${(settings.maxWrongAnswers ?? 0) - wrongCount} of ${settings.maxWrongAnswers} lives left`}>
+              {#each { length: settings.maxWrongAnswers ?? 0 } as _, i (i)}
+                {#if i < wrongCount}
+                  <X size={13} class="text-[var(--color-wrong)]" />
+                {:else}
+                  <Heart size={13} class="text-[var(--color-wrong)]" fill="currentColor" />
+                {/if}
               {/each}
-              <Heart size={13} class="text-[var(--color-wrong)]" fill="currentColor" />
             </span>
           {/if}
           {#if overallSecondsLeft !== null}
