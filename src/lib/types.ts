@@ -23,6 +23,9 @@ export interface TriviaSettings {
    * win/lose condition tracked. Converted to a points threshold at play time, since the
    * actual total can vary per attempt when `maxQuestions` samples a subset of the pool. */
   pointsToWinPercent: number | null;
+  /** Number of wrong answers allowed before the player automatically fails, regardless of
+   * points earned. null = unlimited (no lives mechanic). Always > 0 when set. */
+  maxWrongAnswers: number | null;
   revealAnswers: RevealTiming;
   revealScore: RevealTiming;
   revealWin: RevealWinTiming;
@@ -69,6 +72,7 @@ export interface TriviaSettings {
 export function defaultTriviaSettings(): TriviaSettings {
   return {
     pointsToWinPercent: null,
+    maxWrongAnswers: null,
     revealAnswers: 'end',
     revealScore: 'end',
     revealWin: 'end',

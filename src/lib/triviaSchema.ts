@@ -34,6 +34,7 @@ function buildSettingsSchema() {
     type: 'object',
     required: [
       'pointsToWinPercent',
+      'maxWrongAnswers',
       'revealAnswers',
       'revealScore',
       'revealWin',
@@ -60,6 +61,7 @@ function buildSettingsSchema() {
     additionalProperties: false,
     properties: {
       pointsToWinPercent: { type: ['number', 'null'], minimum: 0, maximum: 100 },
+      maxWrongAnswers: { type: ['number', 'null'], minimum: 1 },
       revealAnswers: { enum: REVEAL_TIMING },
       revealScore: { enum: REVEAL_TIMING },
       revealWin: { enum: REVEAL_WIN_TIMING },

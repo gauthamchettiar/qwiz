@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import { Heart, X } from '@lucide/svelte';
   import { defaultTriviaSettings, type QuestionInstance, type Trivia } from '../types';
   import { getQuestionType } from '../question-types/registry';
   import { shuffledArray } from '../shuffle';
@@ -40,6 +41,10 @@
   // Which questions have already had their per-question reveal shown — used by
   // disableEditAfterReveal to lock those questions' answers if the player navigates back.
   let revealedQuestionIds = $state(new Set<string>());
+  // Counts up on each wrong (graded, zero-or-negative-earned) answer as it's submitted — not
+  // derived from `responses`, so going Back and changing an answer doesn't retroactively undo
+  // a life already lost.
+  let wrongCount = $state(0);
 
   const current = $derived(orderedQuestions[index]);
   const currentDef = $derived(current ? getQuestionType(current.type) : undefined);
@@ -51,6 +56,8 @@
   );
   const isLast = $derived(index === orderedQuestions.length - 1);
   const needsReveal = settings.revealAnswers === 'after-question' || settings.revealScore === 'after-question';
+  const livesEnabled = settings.maxWrongAnswers !== null;
+  const livesExhausted = $derived(livesEnabled && wrongCount >= (settings.maxWrongAnswers ?? Infinity));
   // Flips false -> true exactly once per attempt (when Start is clicked, or immediately if
   // there's no intro) and then stays true — used to gate the overall timer without it
   // resetting on every later answering/reveal/finished transition.
@@ -73,10 +80,18 @@
   }
 
   function submitAnswer() {
+    // A "wrong" answer only counts against lives if the question was actually graded — an
+    // ungraded (practice) question, or one worth 0 points outright, can't cost a life.
+    if (current && currentDef && !currentUngraded && currentGrade && currentGrade.max > 0 && currentGrade.earned <= 0) {
+      wrongCount += 1;
+    }
+
     if (needsReveal && current) {
       revealedQuestionIds.add(current.id);
       revealedQuestionIds = new Set(revealedQuestionIds);
       step = 'reveal';
+    } else if (livesExhausted) {
+      finishNow();
     } else {
       goToNextOrFinish();
     }
@@ -87,7 +102,8 @@
   }
 
   function continueAfterReveal() {
-    goToNextOrFinish();
+    if (livesExhausted) finishNow();
+    else goToNextOrFinish();
   }
 
   function finishNow() {
@@ -105,6 +121,7 @@
     step = settings.showIntro ? 'intro' : 'answering';
     bestScoreResult = null;
     revealedQuestionIds = new Set();
+    wrongCount = 0;
     attemptId += 1;
   }
 
@@ -195,7 +212,8 @@
   const pointsToWin = $derived(
     hasWinCondition ? Math.round(((settings.pointsToWinPercent ?? 0) / 100) * totalMax) : null
   );
-  const won = $derived(hasWinCondition && totalEarned >= (pointsToWin ?? 0));
+  // Running out of lives is an automatic fail regardless of points earned.
+  const won = $derived(!livesExhausted && hasWinCondition && totalEarned >= (pointsToWin ?? 0));
 
   // Finalizes the attempt once per finish (reruns each time a "Play again" reaches 'finished'
   // again, since `step` genuinely changes value on each transition): records the score and
@@ -234,6 +252,9 @@
           {#if hasWinCondition}
             <span>Win at {pointsToWin} pts</span>
           {/if}
+          {#if livesEnabled}
+            <span>{settings.maxWrongAnswers} wrong answer{settings.maxWrongAnswers === 1 ? '' : 's'} allowed</span>
+          {/if}
           {#if settings.perQuestionTimeLimit}
             <span>{settings.perQuestionTimeLimit}s per question</span>
           {/if}
@@ -267,6 +288,14 @@
       {:else}
         <div class="rounded-lg border border-slate-200 bg-slate-50 p-6 text-center">
           <p class="text-lg font-semibold">Trivia complete!</p>
+        </div>
+      {/if}
+
+      {#if livesExhausted}
+        <div class="rounded-lg border border-[var(--color-wrong)]/40 bg-[var(--color-wrong)]/10 p-4 text-center">
+          <p class="text-lg font-semibold text-[var(--color-wrong)]">
+            Out of lives — {wrongCount} wrong answer{wrongCount === 1 ? '' : 's'}
+          </p>
         </div>
       {/if}
 
@@ -384,6 +413,14 @@
         <div class="flex items-center gap-3">
           {#if settings.showRunningScore && settings.revealScore !== 'never'}
             <span class="font-semibold text-[var(--accent)]">{pointsSoFar.earned} / {pointsSoFar.max} pts</span>
+          {/if}
+          {#if livesEnabled}
+            <span class="flex items-center gap-0.5">
+              {#each { length: wrongCount } as _, i (i)}
+                <X size={12} class="text-[var(--color-wrong)]" />
+              {/each}
+              <Heart size={13} class="text-[var(--color-wrong)]" fill="currentColor" />
+            </span>
           {/if}
           {#if overallSecondsLeft !== null}
             <span>Overall {formatTime(overallSecondsLeft)}</span>

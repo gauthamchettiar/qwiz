@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { Settings, ChevronDown, Trophy, Timer, Settings2, Palette, Eye } from '@lucide/svelte';
+  import { Settings, ChevronDown, Trophy, Timer, Settings2, Palette, Eye, RotateCcw } from '@lucide/svelte';
   import HelpTooltip from './HelpTooltip.svelte';
-  import type { RevealTiming, RevealWinTiming, TriviaSettings } from '../types';
+  import { defaultTriviaSettings, type RevealTiming, type RevealWinTiming, type TriviaSettings } from '../types';
 
   let {
     settings,
@@ -89,8 +89,31 @@
     return n === null ? null : Math.min(100, Math.max(0, n));
   }
 
+  function toOptionalPositiveInt(raw: string): number | null {
+    const n = toOptionalNumber(raw);
+    return n === null ? null : Math.max(1, Math.round(n));
+  }
+
   function toLines(raw: string): string[] {
     return raw.split('\n');
+  }
+
+  // Resets just the visual/theme fields — colors — back to their shipped defaults. Win/lose
+  // messages are content, not "look", so they're left alone.
+  function resetAppearance() {
+    const d = defaultTriviaSettings();
+    onChange({
+      ...settings,
+      primaryColor: d.primaryColor,
+      secondaryColor: d.secondaryColor,
+      accentColor: d.accentColor,
+      correctColor: d.correctColor,
+      wrongColor: d.wrongColor,
+      partialColor: d.partialColor,
+      neutralColor: d.neutralColor,
+      textColor: d.textColor,
+      bgColor: d.bgColor
+    });
   }
 </script>
 
@@ -154,12 +177,15 @@
   </div>
 {/snippet}
 
-{#snippet group(Icon: typeof Trophy, label: string, children: () => any)}
+{#snippet group(Icon: typeof Trophy, label: string, children: () => any, action?: () => any)}
   <div class="space-y-3 rounded-lg border border-dashed border-slate-300 p-3">
-    <p class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
-      <Icon size={13} />
-      {label}
-    </p>
+    <div class="flex items-center justify-between gap-2">
+      <p class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <Icon size={13} />
+        {label}
+      </p>
+      {#if action}{@render action()}{/if}
+    </div>
     {@render children()}
   </div>
 {/snippet}
@@ -200,6 +226,20 @@
           false,
           (v) => set('showRunningScore', v)
         )}
+        <div>
+          {@render label('Lives', 'Number of wrong answers allowed before the player automatically fails, regardless of points earned. Leave blank for unlimited.')}
+          <div class="flex items-center gap-2">
+            <input
+              type="number"
+              min="1"
+              class="w-20 rounded-md border border-slate-300 px-2 py-1 text-sm"
+              placeholder="Unlimited"
+              value={settings.maxWrongAnswers ?? ''}
+              oninput={(e) => set('maxWrongAnswers', toOptionalPositiveInt(e.currentTarget.value))}
+            />
+            <span class="text-sm text-slate-400">wrong answers</span>
+          </div>
+        </div>
       </div>
     {/snippet}
     {#snippet timers()}
@@ -456,6 +496,15 @@
         </div>
       </div>
     {/snippet}
-    {@render group(Palette, 'Appearance', appearance)}
+    {#snippet resetAppearanceAction()}
+      <button
+        type="button"
+        class="flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-indigo-600"
+        onclick={resetAppearance}
+      >
+        <RotateCcw size={12} /> Reset to default
+      </button>
+    {/snippet}
+    {@render group(Palette, 'Appearance', appearance, resetAppearanceAction)}
   </div>
 </details>

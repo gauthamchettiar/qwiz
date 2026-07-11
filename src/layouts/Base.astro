@@ -1,13 +1,16 @@
 ---
 import '../styles/global.css';
 import ImportTriviaDialog from '../lib/components/ImportTriviaDialog.svelte';
+import BackLink from '../lib/components/BackLink.svelte';
 import { FolderGit2 } from '@lucide/svelte';
 
 interface Props {
   title?: string;
+  /** Distraction-free mode: no logo/Browse/Import/New Trivia header, just a small Back link. */
+  minimal?: boolean;
 }
 
-const { title = 'Qwiz' } = Astro.props;
+const { title = 'Qwiz', minimal = false } = Astro.props;
 ---
 
 <html lang="en">
@@ -20,24 +23,34 @@ const { title = 'Qwiz' } = Astro.props;
   </head>
   <body class="min-h-screen">
     <div class="mx-auto max-w-3xl px-4 py-8">
-      <header class="mb-8 flex items-center justify-between">
-        <a href="/" class="text-xl font-bold text-slate-900">Qwiz</a>
-        <div class="flex items-center gap-2">
-          <a
-            href="/remote/browse"
-            class="flex items-center gap-1.5 rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          >
-            <FolderGit2 size={15} /> Browse
-          </a>
-          <ImportTriviaDialog client:load />
-          <a
-            href="/local/create"
-            class="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700"
-          >
-            + New Trivia
-          </a>
-        </div>
-      </header>
+      {
+        minimal ? (
+          <div class="mb-6">
+            <BackLink client:load />
+          </div>
+        ) : (
+          <header class="mb-8 flex items-center justify-between">
+            <a href="/" class="text-xl font-bold text-slate-900">
+              Qwiz
+            </a>
+            <div class="flex items-center gap-2">
+              <a
+                href="/remote/browse"
+                class="flex items-center gap-1.5 rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                <FolderGit2 size={15} /> Browse
+              </a>
+              <ImportTriviaDialog client:load />
+              <a
+                href="/local/create"
+                class="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700"
+              >
+                + New Trivia
+              </a>
+            </div>
+          </header>
+        )
+      }
       <main>
         <slot />
       </main>
