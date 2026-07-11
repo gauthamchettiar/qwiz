@@ -2,7 +2,7 @@
   import { untrack } from 'svelte';
   import { scale } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
-  import { Plus, ChevronDown, Download, Play, X } from '@lucide/svelte';
+  import { Plus, ChevronDown, Download, Play, X, Undo2, Redo2 } from '@lucide/svelte';
   import { defaultTriviaSettings, type QuestionInstance, type Trivia, type TriviaSettings } from '../types';
   import { questionTypeList, getQuestionType } from '../question-types/registry';
   import { getDraft, saveDraft, deleteDraft } from '../drafts';
@@ -33,6 +33,8 @@
 
   let title = $state(untrack(() => resumedDraft?.title ?? initial?.title ?? ''));
   let description = $state(untrack(() => resumedDraft?.description ?? initial?.description ?? ''));
+  let tags = $state<string[]>(untrack(() => [...(resumedDraft?.tags ?? initial?.tags ?? [])]));
+  let tagDraft = $state('');
   // JSON round-trip rather than structuredClone: Svelte 5 wraps object/array props in
   // reactive proxies, and structuredClone throws DataCloneError on those. Trivia data is
   // always plain JSON (no Dates/Maps/etc.), so this is a safe, simple deep clone.
@@ -75,9 +77,81 @@
     const isEmpty = title.trim().length === 0 && description.trim().length === 0 && questions.length === 0;
     const timeout = setTimeout(() => {
       if (isEmpty) deleteDraft(draftId);
-      else saveDraft({ id: draftId, title, description, questions, settings, updatedAt: new Date().toISOString() });
+      else saveDraft({ id: draftId, title, description, questions, settings, tags, updatedAt: new Date().toISOString() });
     }, 800);
     return () => clearTimeout(timeout);
+  });
+
+  // --- Undo / redo ---------------------------------------------------------------------------
+  // A history of serialized builder states. New states are pushed (debounced) as you edit;
+  // undo/redo walk the stack. `applyingHistory` + the snapshot-equality check keep an applied
+  // snapshot from being re-recorded as a fresh edit.
+  let history = $state<string[]>([]);
+  let histIdx = $state(0);
+  let applyingHistory = false;
+
+  function snapshot(): string {
+    return JSON.stringify({ title, description, tags, questions, settings });
+  }
+  untrack(() => {
+    history = [snapshot()];
+    histIdx = 0;
+  });
+
+  $effect(() => {
+    const snap = snapshot();
+    if (applyingHistory) return;
+    const t = setTimeout(() => {
+      if (snap === history[histIdx]) return;
+      const next = [...history.slice(0, histIdx + 1), snap];
+      history = next.length > 100 ? next.slice(next.length - 100) : next;
+      histIdx = history.length - 1;
+    }, 400);
+    return () => clearTimeout(t);
+  });
+
+  const canUndo = $derived(histIdx > 0);
+  const canRedo = $derived(histIdx < history.length - 1);
+
+  function applySnapshot(s: string) {
+    const o = JSON.parse(s);
+    applyingHistory = true;
+    title = o.title;
+    description = o.description;
+    tags = o.tags;
+    questions = o.questions;
+    settings = o.settings;
+    editingQuestionId = null;
+    pendingFocus = null;
+    queueMicrotask(() => (applyingHistory = false));
+  }
+  function undo() {
+    if (!canUndo) return;
+    histIdx -= 1;
+    applySnapshot(history[histIdx]);
+  }
+  function redo() {
+    if (!canRedo) return;
+    histIdx += 1;
+    applySnapshot(history[histIdx]);
+  }
+
+  $effect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      const el = document.activeElement;
+      const editable = el instanceof HTMLElement && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+      if (editable) return; // leave native text undo alone while typing in a field
+      if (e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      } else if ((e.key === 'z' && e.shiftKey) || e.key === 'y') {
+        e.preventDefault();
+        redo();
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   });
 
   const totalMaxPoints = $derived(
@@ -164,6 +238,15 @@
     questions = copy;
   }
 
+  function addTag() {
+    const t = tagDraft.trim().toLowerCase();
+    if (t && !tags.includes(t)) tags = [...tags, t];
+    tagDraft = '';
+  }
+  function removeTag(t: string) {
+    tags = tags.filter((x) => x !== t);
+  }
+
   function buildTrivia(): Trivia {
     const now = new Date().toISOString();
     const draft: Trivia = {
@@ -173,7 +256,8 @@
       createdAt: initial?.createdAt ?? now,
       updatedAt: now,
       questions,
-      settings
+      settings,
+      ...(tags.length > 0 ? { tags } : {})
     };
     // Round-trip through JSON so this checks exactly what Import JSON checks — the builder's
     // in-memory question data can carry `undefined` placeholders (e.g. unset optional option
@@ -219,9 +303,31 @@
 <div class="space-y-6">
   <div class="flex items-center justify-between">
     <h1 class="text-2xl font-bold text-slate-900">{heading}</h1>
-    <Button size="sm" onclick={openPlay}>
-      <Play size={15} /> Play
-    </Button>
+    <div class="flex items-center gap-1.5">
+      <button
+        type="button"
+        class="rounded-md border border-slate-300 bg-white p-1.5 text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+        disabled={!canUndo}
+        onclick={undo}
+        aria-label="Undo"
+        title="Undo (⌘Z)"
+      >
+        <Undo2 size={16} />
+      </button>
+      <button
+        type="button"
+        class="rounded-md border border-slate-300 bg-white p-1.5 text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+        disabled={!canRedo}
+        onclick={redo}
+        aria-label="Redo"
+        title="Redo (⌘⇧Z)"
+      >
+        <Redo2 size={16} />
+      </button>
+      <Button size="sm" onclick={openPlay}>
+        <Play size={15} /> Play
+      </Button>
+    </div>
   </div>
 
   <ErrorList {errors} size="md" />
@@ -242,6 +348,31 @@
         placeholder="Add a description…"
         bind:value={description}
       ></textarea>
+      <div class="flex flex-wrap items-center gap-1.5 px-1">
+        {#each tags as tag (tag)}
+          <span class="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+            {tag}
+            <button type="button" onclick={() => removeTag(tag)} aria-label={`Remove tag ${tag}`} class="hover:text-slate-900">
+              <X size={12} />
+            </button>
+          </span>
+        {/each}
+        <input
+          type="text"
+          class="min-w-[8rem] flex-1 border-0 bg-transparent px-1 py-0.5 text-xs text-slate-600 placeholder:text-slate-300 focus:outline-none"
+          placeholder={tags.length ? 'Add tag…' : 'Add tags (press Enter)…'}
+          bind:value={tagDraft}
+          onkeydown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              addTag();
+            } else if (e.key === 'Backspace' && tagDraft === '' && tags.length) {
+              removeTag(tags[tags.length - 1]);
+            }
+          }}
+          onblur={addTag}
+        />
+      </div>
     </div>
 
     <div class="border-t border-slate-100 pt-5">

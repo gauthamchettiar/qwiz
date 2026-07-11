@@ -118,6 +118,9 @@ export interface Trivia {
   updatedAt: string;
   questions: QuestionInstance[];
   settings: TriviaSettings;
+  /** Free-form labels for organizing and filtering on the home page. Optional so trivias
+   * authored before tags existed (and remote ones) still validate. */
+  tags?: string[];
 }
 
 /** Lightweight shape used for list views, avoids shipping every question's data. */
@@ -128,9 +131,10 @@ export interface TriviaSummary {
   createdAt: string;
   updatedAt: string;
   questionCount: number;
+  tags: string[];
 }
 
 export function toSummary(trivia: Trivia): TriviaSummary {
-  const { id, title, description, createdAt, updatedAt, questions } = trivia;
-  return { id, title, description, createdAt, updatedAt, questionCount: questions.length };
+  const { id, title, description, createdAt, updatedAt, questions, tags } = trivia;
+  return { id, title, description, createdAt, updatedAt, questionCount: questions.length, tags: tags ?? [] };
 }

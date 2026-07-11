@@ -133,10 +133,10 @@
 </script>
 
 {#snippet label(text: string, help: string)}
-  <p class="mb-1 flex items-center gap-1 text-xs font-medium text-slate-500">
+  <div class="mb-1 flex items-center gap-1 text-xs font-medium text-slate-500">
     {text}
     <HelpTooltip text={help} />
-  </p>
+  </div>
 {/snippet}
 
 {#snippet segmented(options: { value: string; label: string }[], current: string, onSelect: (v: any) => void)}
@@ -179,10 +179,10 @@
 
 {#snippet colorField(labelText: string, value: string, help: string, onSet: (v: string) => void, preview: any)}
   <div>
-    <p class="mb-1 flex items-center gap-1 text-xs font-medium text-slate-500">
+    <div class="mb-1 flex items-center gap-1 text-xs font-medium text-slate-500">
       {labelText}
       <HelpTooltip text={help} {preview} />
-    </p>
+    </div>
     <input
       type="color"
       class="h-8 w-16 rounded-md border border-slate-300"

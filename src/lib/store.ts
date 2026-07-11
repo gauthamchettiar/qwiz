@@ -41,3 +41,16 @@ export function deleteTrivia(id: string): boolean {
   writeAll(all);
   return true;
 }
+
+/** Every saved trivia, for a full backup export. */
+export function exportAllTrivias(): Trivia[] {
+  return Object.values(readAll());
+}
+
+/** Merges trivias into the store (same id overwrites), for restoring a backup. Returns the count. */
+export function importAllTrivias(trivias: Trivia[]): number {
+  const all = readAll();
+  for (const t of trivias) all[t.id] = t;
+  writeAll(all);
+  return trivias.length;
+}

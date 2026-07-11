@@ -111,7 +111,9 @@ export function buildTriviaImportSchema() {
       createdAt: { type: 'string' },
       updatedAt: { type: 'string' },
       questions: { type: 'array', items: buildQuestionSchema() },
-      settings: buildSettingsSchema()
+      settings: buildSettingsSchema(),
+      // Optional metadata — not in `required`, so files without it still validate.
+      tags: { type: 'array', items: { type: 'string' } }
     }
   };
 }

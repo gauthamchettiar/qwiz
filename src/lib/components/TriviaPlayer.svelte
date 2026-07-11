@@ -56,6 +56,7 @@
     current && currentDef ? (currentDef.isAnswerComplete?.(current.data, responses[current.id]) ?? true) : true
   );
   const isLast = $derived(index === orderedQuestions.length - 1);
+  const progressPct = $derived(orderedQuestions.length ? Math.round(((index + 1) / orderedQuestions.length) * 100) : 0);
   const needsReveal = settings.revealAnswers === 'after-question' || settings.revealScore === 'after-question';
   const livesEnabled = settings.maxWrongAnswers !== null;
   const livesExhausted = $derived(livesEnabled && wrongCount >= (settings.maxWrongAnswers ?? Infinity));
@@ -426,6 +427,9 @@
     </div>
   {:else if step === 'reveal' && current && currentDef}
     <div class="space-y-6">
+      <div class="h-1 w-full overflow-hidden rounded-full bg-slate-200">
+        <div class="h-full rounded-full bg-[var(--accent)] transition-all duration-300" style={`width:${progressPct}%`}></div>
+      </div>
       <div class="flex items-center justify-between text-xs text-slate-400">
         <span>Question {index + 1} of {orderedQuestions.length}</span>
         {#if currentUngraded}
@@ -467,6 +471,9 @@
   {:else if current && currentDef}
     {@const locked = isLocked(current.id)}
     <div class="space-y-6">
+      <div class="h-1 w-full overflow-hidden rounded-full bg-slate-200">
+        <div class="h-full rounded-full bg-[var(--accent)] transition-all duration-300" style={`width:${progressPct}%`}></div>
+      </div>
       <div class="flex items-center justify-between text-xs text-slate-400">
         <span>Question {index + 1} of {orderedQuestions.length}</span>
         <div class="flex items-center gap-3">

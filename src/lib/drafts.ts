@@ -7,6 +7,7 @@ export interface DraftRecord {
   questions: QuestionInstance[];
   settings: TriviaSettings;
   updatedAt: string;
+  tags?: string[];
 }
 
 const STORAGE_KEY = 'qwiz:drafts';
