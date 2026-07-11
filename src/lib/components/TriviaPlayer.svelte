@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { Heart, X } from '@lucide/svelte';
+  import type { Component } from 'svelte';
+  import { Heart, X, Shuffle, Trophy, Timer, Clock, Ban, Lock, Eye, EyeOff, Sparkles, ScrollText } from '@lucide/svelte';
   import { defaultTriviaSettings, type QuestionInstance, type Trivia } from '../types';
   import { getQuestionType } from '../question-types/registry';
   import { shuffledArray } from '../shuffle';
@@ -217,6 +218,56 @@
   // Running out of lives is an automatic fail regardless of points earned.
   const won = $derived(!livesExhausted && hasWinCondition && totalEarned >= (pointsToWin ?? 0));
 
+  // The intro screen's "house rules" — one short, playful line per setting that actually
+  // changes how you play, built fresh from this trivia's config so it always matches reality.
+  const rules = $derived.by(() => {
+    const r: { icon: Component; text: string }[] = [];
+    const q = orderedQuestions.length;
+    const pool = trivia.questions.length;
+
+    if (settings.shuffleQuestions && settings.maxQuestions != null && settings.maxQuestions < pool) {
+      r.push({ icon: Shuffle, text: `A random ${q} drawn from a pool of ${pool} — no two runs play out the same.` });
+    } else if (settings.shuffleQuestions) {
+      r.push({ icon: Shuffle, text: `Questions come shuffled, so memorizing the order won't save you.` });
+    }
+
+    if (hasWinCondition) {
+      r.push({ icon: Trophy, text: `Bag ${pointsToWin} of ${totalMax} pts (${settings.pointsToWinPercent}%) and the win is yours.` });
+    }
+
+    if (livesEnabled) {
+      const n = settings.maxWrongAnswers ?? 0;
+      r.push({ icon: Heart, text: `You've got ${n} li${n === 1 ? 'fe' : 'ves'} — slip up ${n} time${n === 1 ? '' : 's'} and the run ends on the spot.` });
+    }
+
+    if (settings.perQuestionTimeLimit) {
+      r.push({ icon: Timer, text: `${settings.perQuestionTimeLimit}s on each question. Blink and it's gone.` });
+    }
+    if (settings.overallTimeLimit) {
+      r.push({ icon: Clock, text: `${formatTime(settings.overallTimeLimit)} on the clock, start to finish.` });
+    }
+
+    if (settings.disableBack) {
+      r.push({ icon: Ban, text: `No do-overs — once you move on, that question's sealed for good.` });
+    } else if (settings.disableEditAfterReveal) {
+      r.push({ icon: Lock, text: `Peek at how a question scored and your answer locks — commit before you look.` });
+    }
+
+    if (settings.revealAnswers === 'after-question') {
+      r.push({ icon: Eye, text: `You'll see how you did right after every question.` });
+    } else if (settings.revealAnswers === 'end') {
+      r.push({ icon: EyeOff, text: `Answers stay under wraps until the finish line — no peeking.` });
+    } else {
+      r.push({ icon: EyeOff, text: `Answers never show. Trust your gut and keep moving.` });
+    }
+
+    if (results.some((x) => x.ungraded)) {
+      r.push({ icon: Sparkles, text: `A few questions are just for fun — they won't dent your score.` });
+    }
+
+    return r;
+  });
+
   // Finalizes the attempt once per finish (reruns each time a "Play again" reaches 'finished'
   // again, since `step` genuinely changes value on each transition): records the score and
   // picks the win/lose message once so it doesn't change on every re-render.
@@ -244,34 +295,40 @@
       This trivia has no questions yet.
     </p>
   {:else if step === 'intro'}
-    <div class="space-y-6 text-center">
-      <div class="rounded-lg border border-slate-200 bg-[var(--color-bg)] p-8">
+    <div class="space-y-6">
+      <div class="rounded-lg border border-slate-200 bg-[var(--color-bg)] p-6 sm:p-8">
         {#if trivia.description}
-          <p>{trivia.description}</p>
+          <p class="text-center text-slate-600">{trivia.description}</p>
         {/if}
-        <div class="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-slate-500">
-          <span>{orderedQuestions.length} question{orderedQuestions.length === 1 ? '' : 's'}</span>
-          {#if hasWinCondition}
-            <span>Win at {pointsToWin} pts</span>
-          {/if}
-          {#if livesEnabled}
-            <span>{settings.maxWrongAnswers} wrong answer{settings.maxWrongAnswers === 1 ? '' : 's'} allowed</span>
-          {/if}
-          {#if settings.perQuestionTimeLimit}
-            <span>{settings.perQuestionTimeLimit}s per question</span>
-          {/if}
-          {#if settings.overallTimeLimit}
-            <span>{formatTime(settings.overallTimeLimit)} total</span>
-          {/if}
+        <p class="mt-1 text-center text-lg font-semibold">
+          {orderedQuestions.length} question{orderedQuestions.length === 1 ? '' : 's'}{totalMax > 0
+            ? `, ${totalMax} points on the line`
+            : ''}.
+        </p>
+
+        <div class="mt-6 border-t border-slate-100 pt-5">
+          <p class="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <ScrollText size={13} /> House rules
+          </p>
+          <ul class="space-y-2.5 text-sm text-slate-600">
+            {#each rules as rule (rule.text)}
+              <li class="flex items-start gap-2.5">
+                <rule.icon size={16} class="mt-0.5 shrink-0 text-[var(--accent)]" />
+                <span>{rule.text}</span>
+              </li>
+            {/each}
+          </ul>
         </div>
       </div>
-      <button
-        type="button"
-        class="rounded-md bg-[var(--color-primary)] px-6 py-2 text-sm font-medium text-white hover:brightness-90"
-        onclick={startTrivia}
-      >
-        Start
-      </button>
+      <div class="text-center">
+        <button
+          type="button"
+          class="rounded-md bg-[var(--color-primary)] px-8 py-2.5 text-sm font-semibold text-white hover:brightness-90"
+          onclick={startTrivia}
+        >
+          Start playing
+        </button>
+      </div>
     </div>
   {:else if step === 'finished'}
     <div class="space-y-6">
