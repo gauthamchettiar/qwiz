@@ -2,7 +2,7 @@
   import { untrack } from 'svelte';
   import type { Component } from 'svelte';
   import { Heart, X, Shuffle, Trophy, Timer, Clock, Ban, Lock, Eye, EyeOff, Sparkles, ScrollText } from '@lucide/svelte';
-  import { defaultTriviaSettings, type QuestionInstance, type Trivia } from '../types';
+  import { defaultTriviaSettings, FONT_STACKS, type QuestionInstance, type Trivia } from '../types';
   import { getQuestionType } from '../question-types/registry';
   import { shuffledArray } from '../shuffle';
   import { recordScore } from '../bestScore';
@@ -288,7 +288,7 @@
 </script>
 
 <div
-  style={`--color-primary:${settings.primaryColor};--color-secondary:${settings.secondaryColor};--accent:${settings.accentColor};--color-correct:${settings.correctColor};--color-wrong:${settings.wrongColor};--color-partial:${settings.partialColor};--color-neutral:${settings.neutralColor};--color-text:${settings.textColor};--color-bg:${settings.bgColor};color:var(--color-text)`}
+  style={`--color-primary:${settings.primaryColor};--color-secondary:${settings.secondaryColor};--accent:${settings.accentColor};--color-correct:${settings.correctColor};--color-wrong:${settings.wrongColor};--color-partial:${settings.partialColor};--color-neutral:${settings.neutralColor};--color-text:${settings.textColor};--color-bg:${settings.bgColor};color:var(--color-text);font-family:${FONT_STACKS[settings.fontFamily ?? 'sans']}`}
 >
   {#if orderedQuestions.length === 0}
     <p class="rounded-md border border-dashed border-slate-300 p-6 text-center text-sm text-slate-400">
@@ -491,7 +491,9 @@
             <span>Overall {formatTime(overallSecondsLeft)}</span>
           {/if}
           {#if questionSecondsLeft !== null}
-            <span class="font-medium {questionSecondsLeft <= 5 ? 'text-red-500' : ''}">
+            <span
+              class="font-medium {questionSecondsLeft <= 5 ? 'text-[var(--color-wrong)]' : ''}"
+            >
               {formatTime(questionSecondsLeft)}
             </span>
           {/if}

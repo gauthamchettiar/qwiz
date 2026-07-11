@@ -36,7 +36,8 @@
     "bgColor": "#ffffff",
     "pointsToWinPercent": 60,
     "maxQuestions": null,
-    "maxWrongAnswers": null
+    "maxWrongAnswers": null,
+    "fontFamily": "sans"
   },
   "questions": [
     {

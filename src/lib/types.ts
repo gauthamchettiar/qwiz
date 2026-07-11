@@ -18,6 +18,15 @@ export interface QuestionInstance<TData = unknown> {
 export type RevealTiming = 'after-question' | 'end' | 'never';
 export type RevealWinTiming = 'end' | 'never';
 
+/** Player-page typeface presets. Maps to a CSS font stack applied to the whole player. */
+export type FontChoice = 'sans' | 'serif' | 'mono' | 'rounded';
+export const FONT_STACKS: Record<FontChoice, string> = {
+  sans: 'ui-sans-serif, system-ui, sans-serif',
+  serif: 'ui-serif, Georgia, Cambria, "Times New Roman", serif',
+  mono: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+  rounded: 'ui-rounded, "SF Pro Rounded", "Hiragino Maru Gothic ProN", "Segoe UI", system-ui, sans-serif'
+};
+
 export interface TriviaSettings {
   /** Percentage (0-100) of the played total a player needs to reach to "win". null = no
    * win/lose condition tracked. Converted to a points threshold at play time, since the
@@ -61,6 +70,8 @@ export interface TriviaSettings {
   textColor: string;
   /** Question/intro/results card background color. */
   bgColor: string;
+  /** Typeface preset applied to the whole player page. */
+  fontFamily: FontChoice;
   /** Show a running "earned / max so far" tally while answering. No effect if revealScore is 'never'. */
   showRunningScore: boolean;
   /** Hide the Back button so players can't revisit earlier questions. */
@@ -92,6 +103,7 @@ export function defaultTriviaSettings(): TriviaSettings {
     neutralColor: '#64748b',
     textColor: '#0f172a',
     bgColor: '#ffffff',
+    fontFamily: 'sans',
     showRunningScore: false,
     disableBack: false,
     disableEditAfterReveal: false

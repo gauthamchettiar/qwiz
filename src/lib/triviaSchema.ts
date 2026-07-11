@@ -54,6 +54,7 @@ function buildSettingsSchema() {
       'neutralColor',
       'textColor',
       'bgColor',
+      'fontFamily',
       'showRunningScore',
       'disableBack',
       'disableEditAfterReveal'
@@ -81,6 +82,7 @@ function buildSettingsSchema() {
       neutralColor: { type: 'string' },
       textColor: { type: 'string' },
       bgColor: { type: 'string' },
+      fontFamily: { enum: ['sans', 'serif', 'mono', 'rounded'] },
       showRunningScore: { type: 'boolean' },
       disableBack: { type: 'boolean' },
       disableEditAfterReveal: { type: 'boolean' }

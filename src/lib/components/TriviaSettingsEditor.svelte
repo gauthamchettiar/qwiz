@@ -1,7 +1,14 @@
 <script lang="ts">
   import { Settings, ChevronDown, Trophy, Timer, Settings2, Palette, Eye, RotateCcw } from '@lucide/svelte';
   import HelpTooltip from './HelpTooltip.svelte';
-  import { defaultTriviaSettings, type RevealTiming, type RevealWinTiming, type TriviaSettings } from '../types';
+  import {
+    defaultTriviaSettings,
+    FONT_STACKS,
+    type FontChoice,
+    type RevealTiming,
+    type RevealWinTiming,
+    type TriviaSettings
+  } from '../types';
 
   let {
     settings,
@@ -20,6 +27,13 @@
   const pointsToWinComputed = $derived(
     settings.pointsToWinPercent !== null ? Math.round((settings.pointsToWinPercent / 100) * totalMaxPoints) : null
   );
+
+  const fontChoices: { value: FontChoice; label: string }[] = [
+    { value: 'sans', label: 'Sans' },
+    { value: 'serif', label: 'Serif' },
+    { value: 'mono', label: 'Mono' },
+    { value: 'rounded', label: 'Rounded' }
+  ];
 
   const revealTimingOptions: { value: RevealTiming; label: string }[] = [
     { value: 'after-question', label: 'After every question' },
@@ -112,7 +126,8 @@
       partialColor: d.partialColor,
       neutralColor: d.neutralColor,
       textColor: d.textColor,
-      bgColor: d.bgColor
+      bgColor: d.bgColor,
+      fontFamily: d.fontFamily
     });
   }
 </script>
@@ -473,6 +488,24 @@
               (v) => set('bgColor', v),
               bgPreview
             )}
+          </div>
+        </div>
+
+        <div>
+          {@render label('Font', 'Typeface used throughout the player — question text, answers, and everything else.')}
+          <div class="inline-flex overflow-hidden rounded-md border border-slate-300">
+            {#each fontChoices as f, i (f.value)}
+              <button
+                type="button"
+                class="px-3 py-1.5 text-sm {(settings.fontFamily ?? 'sans') === f.value
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-white text-slate-700 hover:bg-slate-100'} {i > 0 ? 'border-l border-slate-300' : ''}"
+                style={`font-family:${FONT_STACKS[f.value]}`}
+                onclick={() => set('fontFamily', f.value)}
+              >
+                {f.label}
+              </button>
+            {/each}
           </div>
         </div>
 
