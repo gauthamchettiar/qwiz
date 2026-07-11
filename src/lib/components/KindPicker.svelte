@@ -32,12 +32,12 @@
     <ChevronsUpDown size={12} class="text-slate-400" />
   </button>
   {#if open}
-    <div class="absolute z-10 mt-1 w-32 rounded-md border border-slate-200 bg-white p-1 shadow-lg">
+    <div class="absolute z-10 mt-1 w-32 rounded-md border border-slate-200 bg-white p-1 shadow-md">
       {#each kinds as k (k.kind)}
         <button
           type="button"
           class="flex w-full items-center gap-1.5 rounded px-2 py-1.5 text-left text-sm hover:bg-slate-100 {k.kind === current
-            ? 'font-semibold text-indigo-600'
+            ? 'font-semibold text-slate-900'
             : 'text-slate-700'}"
           onclick={() => select(k.kind)}
         >

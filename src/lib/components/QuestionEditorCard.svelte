@@ -57,22 +57,22 @@
 
 <div
   data-question-card
-  class="rounded-lg border p-4 shadow-sm {invalid
+  class="rounded-lg border p-4 {invalid
     ? 'bg-white border-red-300 ring-2 ring-red-100'
     : editing
-      ? 'bg-white border-slate-200 ring-2 ring-indigo-100'
+      ? 'bg-white border-slate-400'
       : ungraded
         ? 'bg-slate-100 border-slate-200'
         : 'bg-white border-slate-200'}"
 >
   <div class="mb-3 flex items-center justify-between">
     <div class="flex items-center gap-2">
-      <span class="text-sm font-semibold text-indigo-600">Question {index + 1}</span>
+      <span class="text-sm font-semibold text-slate-900">Question {index + 1}</span>
       <div class="relative" use:clickOutside={() => (showTypeMenu = false)}>
         <button
           type="button"
-          class="flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium transition-colors {showTypeMenu
-            ? 'border-indigo-300 bg-indigo-50/60 text-indigo-700'
+          class="flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium transition-colors {showTypeMenu
+            ? 'border-slate-400 bg-slate-100 text-slate-900'
             : 'border-slate-200 text-slate-500 hover:bg-slate-50'}"
           onclick={() => (showTypeMenu = !showTypeMenu)}
         >
@@ -81,7 +81,7 @@
         </button>
         {#if showTypeMenu}
           <div
-            class="absolute z-10 mt-3 w-[26rem] max-w-[90vw] rounded-lg border border-slate-200 bg-white p-3 shadow-lg"
+            class="absolute z-10 mt-3 w-[26rem] max-w-[90vw] rounded-lg border border-slate-200 bg-white p-3 shadow-md"
             transition:scale={{ duration: 120, start: 0.97, opacity: 0, easing: cubicOut }}
           >
             <QuestionTypePicker types={questionTypeList} onSelect={selectType} />

@@ -59,7 +59,7 @@
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 <div class="space-y-4" onclick={focusPrompt}>
   <div
-    class="cursor-pointer rounded-md p-2 mb-2 hover:ring-2 hover:ring-indigo-200"
+    class="cursor-pointer rounded-md p-2 mb-2 hover:ring-2 hover:ring-slate-300"
     role="button"
     tabindex="0"
     onclick={(e) => {
@@ -75,7 +75,7 @@
     {#if extra.kind === 'reveal'}
       {@const points = extra.points ?? 0}
       <div
-        class="cursor-pointer rounded-md border p-3 hover:ring-2 hover:ring-indigo-200 {extraRowClass(points)}"
+        class="cursor-pointer rounded-md border p-3 hover:ring-2 hover:ring-slate-300 {extraRowClass(points)}"
         role="button"
         tabindex="0"
         onclick={(e) => focusExtra(e, extra.id)}
@@ -91,7 +91,7 @@
       </div>
     {:else if extra.content}
       <div
-        class="cursor-pointer rounded-md p-2 hover:ring-2 hover:ring-indigo-200"
+        class="cursor-pointer rounded-md p-2 hover:ring-2 hover:ring-slate-300"
         role="button"
         tabindex="0"
         onclick={(e) => focusExtra(e, extra.id)}
@@ -105,7 +105,7 @@
   <div class={optionsContainerClass}>
     {#each data.options as option (option.id)}
       <div
-        class="cursor-pointer rounded-md border p-3 hover:ring-2 hover:ring-indigo-200 {rowClass(option.points)}"
+        class="cursor-pointer rounded-md border p-3 hover:ring-2 hover:ring-slate-300 {rowClass(option.points)}"
         role="button"
         tabindex="0"
         onclick={(e) => focusOption(e, option.id)}

@@ -15,11 +15,11 @@
 
 {#if loaded}
   {#if trivias.length === 0}
-    <p class="rounded-md border border-dashed border-slate-300 p-8 text-center text-sm text-slate-400">
+    <p class="rounded-lg border border-slate-200 p-8 text-center text-sm text-slate-400">
       No trivias yet. <a href="/local/create" class="text-indigo-600 hover:underline">Create your first one</a>.
     </p>
   {:else}
-    <div class="rounded-lg border border-slate-300 p-4">
+    <div class="rounded-lg border border-slate-200 p-4">
       <h2 class="mb-3 flex items-center gap-1.5 text-sm font-semibold text-slate-500">
         <Save size={14} /> Saved (in browser)
       </h2>
@@ -28,7 +28,7 @@
           <li>
             <a
               href={`/local/trivia?id=${t.id}`}
-              class="block rounded-lg border border-slate-200 bg-white p-4 shadow-sm hover:border-indigo-300 hover:shadow"
+              class="block rounded-md border border-slate-200 bg-white p-4 transition-colors hover:border-slate-400 hover:bg-slate-50"
             >
               <div class="flex items-center justify-between">
                 <h2 class="font-semibold text-slate-900">{t.title}</h2>

@@ -4,6 +4,7 @@
   import { getTrivia, deleteTrivia } from '../store';
   import { downloadJson, slugify } from '../download';
   import ConfirmDeleteButton from './ConfirmDeleteButton.svelte';
+  import Button from './Button.svelte';
   import type { Trivia } from '../types';
 
   let state = $state<'loading' | 'ready'>('loading');
@@ -45,26 +46,16 @@
         {trivia.questions.length} question{trivia.questions.length === 1 ? '' : 's'}
       </p>
     </div>
-    <div class="flex gap-2">
-      <a
-        href={`/local/trivia/play?id=${trivia.id}`}
-        class="flex items-center gap-1.5 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-      >
+    <div class="flex flex-wrap gap-2">
+      <Button variant="primary" href={`/local/trivia/play?id=${trivia.id}`}>
         <Play size={15} /> Play
-      </a>
-      <button
-        type="button"
-        class="flex items-center gap-1.5 rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-        onclick={onDownload}
-      >
+      </Button>
+      <Button onclick={onDownload}>
         <Download size={15} /> Download JSON
-      </button>
-      <a
-        href={`/local/trivia/edit?id=${trivia.id}`}
-        class="flex items-center gap-1.5 rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-      >
+      </Button>
+      <Button href={`/local/trivia/edit?id=${trivia.id}`}>
         <Pencil size={15} /> Edit
-      </a>
+      </Button>
       <ConfirmDeleteButton onConfirm={onDelete} variant="button" label="Delete" />
     </div>
   </div>

@@ -14,6 +14,8 @@
   import QuestionTypePicker from './QuestionTypePicker.svelte';
   import TriviaSettingsEditor from './TriviaSettingsEditor.svelte';
   import TriviaPlayer from './TriviaPlayer.svelte';
+  import Button from './Button.svelte';
+  import ErrorList from './ErrorList.svelte';
 
   let { initial, heading }: { initial?: Trivia; heading: string } = $props();
 
@@ -217,37 +219,25 @@
 <div class="space-y-6">
   <div class="flex items-center justify-between">
     <h1 class="text-2xl font-bold text-slate-900">{heading}</h1>
-    <button
-      type="button"
-      class="flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-      onclick={openPlay}
-    >
+    <Button size="sm" onclick={openPlay}>
       <Play size={15} /> Play
-    </button>
+    </Button>
   </div>
 
-  {#if errors.length > 0}
-    <div class="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-      <ul class="list-inside list-disc space-y-1">
-        {#each errors as err}
-          <li>{err}</li>
-        {/each}
-      </ul>
-    </div>
-  {/if}
+  <ErrorList {errors} size="md" />
 
-  <div class="space-y-5 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+  <div class="space-y-5 rounded-lg border border-slate-200 bg-white p-6">
     <div class="-mx-1 space-y-1">
       <input
         type="text"
-        class="w-full rounded-md px-1 py-1 text-2xl font-bold text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-100 {titleInvalid
+        class="w-full rounded-md px-1 py-1 text-2xl font-bold text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-200 {titleInvalid
           ? 'border border-red-300 ring-1 ring-red-100'
           : 'border-0 bg-transparent'}"
         placeholder="Untitled trivia"
         bind:value={title}
       />
       <textarea
-        class="w-full resize-none rounded-md border-0 bg-transparent px-1 py-1 text-sm text-slate-500 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+        class="w-full resize-none rounded-md border-0 bg-transparent px-1 py-1 text-sm text-slate-500 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-200"
         rows="2"
         placeholder="Add a description…"
         bind:value={description}
@@ -287,7 +277,7 @@
     {/each}
 
     {#if questions.length === 0}
-      <p class="rounded-md border border-dashed border-slate-300 p-6 text-center text-sm text-slate-400">
+      <p class="rounded-lg border border-slate-200 p-6 text-center text-sm text-slate-400">
         No questions yet. Add one below to get started.
       </p>
     {/if}
@@ -296,7 +286,7 @@
   <div class="relative" use:clickOutside={() => (showAddMenu = false)}>
     {#if showAddMenu}
       <div
-        class="absolute inset-x-0 bottom-full z-10 mb-3 rounded-lg border border-slate-200 bg-white p-3 shadow-lg"
+        class="absolute inset-x-0 bottom-full z-10 mb-3 rounded-lg border border-slate-200 bg-white p-3 shadow-md"
         transition:scale={{ duration: 120, start: 0.97, opacity: 0, easing: cubicOut }}
       >
         <QuestionTypePicker types={questionTypeList} onSelect={addQuestion} />
@@ -307,7 +297,7 @@
     <button
       type="button"
       class="flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition-colors {showAddMenu
-        ? 'border-indigo-300 bg-indigo-50/60 text-indigo-700'
+        ? 'border-slate-400 bg-slate-100 text-slate-900'
         : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}"
       onclick={onAddQuestionClick}
     >
@@ -317,27 +307,18 @@
   </div>
 
   <div class="flex items-center justify-end gap-3 border-t border-slate-200 pt-4">
-    <button
-      type="button"
-      class="flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-      onclick={downloadCurrent}
-    >
+    <Button onclick={downloadCurrent}>
       <Download size={15} /> Download JSON
-    </button>
-    <button
-      type="button"
-      class="shrink-0 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-      disabled={saving}
-      onclick={save}
-    >
+    </Button>
+    <Button variant="primary" disabled={saving} onclick={save}>
       {saving ? 'Saving…' : 'Save to this browser'}
-    </button>
+    </Button>
   </div>
 </div>
 
 {#if playSnapshot}
-  <div class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/40 p-4">
-    <div class="mx-auto max-w-2xl rounded-xl bg-white p-6 shadow-xl">
+  <div class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/30 p-4">
+    <div class="mx-auto max-w-2xl rounded-lg border border-slate-300 bg-white p-6 shadow-md">
       <div class="mb-4 flex items-center justify-between">
         <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Playing draft</p>
         <button

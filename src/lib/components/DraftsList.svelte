@@ -24,7 +24,7 @@
     <ul class="space-y-2">
       {#each drafts as d (d.id)}
         <li class="flex items-center justify-between rounded-md border border-slate-200 bg-white p-3">
-          <a href={`/local/create?draft=${d.id}`} class="text-sm font-medium text-slate-700 hover:text-indigo-600">
+          <a href={`/local/create?draft=${d.id}`} class="text-sm font-medium text-slate-700 hover:text-slate-900">
             {d.title || 'Untitled trivia'}
           </a>
           <ConfirmDeleteButton onConfirm={() => discard(d.id)} ariaLabel="Discard draft" />

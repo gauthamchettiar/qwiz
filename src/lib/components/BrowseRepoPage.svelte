@@ -3,6 +3,7 @@
   import { Download, Sparkles, ChevronRight } from '@lucide/svelte';
   import { parseRepoInput, getBrowsedRepos } from '../github';
   import { DEFAULT_REPO } from '../githubConfig';
+  import Button from './Button.svelte';
 
   const EXAMPLE_REPO = 'https://github.com/gauthamchettiar/qwiz';
 
@@ -39,23 +40,16 @@
   <form class="flex gap-2" onsubmit={onSubmit}>
     <input
       type="text"
-      class="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+      class="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
       placeholder="owner/repo or https://github.com/owner/repo"
       bind:value={inputValue}
     />
-    <button
-      type="submit"
-      class="flex items-center gap-1.5 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-    >
+    <Button type="submit" variant="primary">
       <Download size={15} /> Load
-    </button>
-    <button
-      type="button"
-      class="flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-      onclick={loadExample}
-    >
+    </Button>
+    <Button onclick={loadExample}>
       <Sparkles size={15} /> Load Example
-    </button>
+    </Button>
   </form>
 
   {#if formError}
@@ -71,7 +65,7 @@
       {#if parsed}
         <a
           href={`/remote/trivia?github=${encodeURIComponent(key)}`}
-          class="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white p-4 hover:border-indigo-300 hover:shadow"
+          class="flex items-center justify-between gap-2 rounded-md border border-slate-200 bg-white p-4 transition-colors hover:border-slate-400 hover:bg-slate-50"
         >
           <span class="text-sm font-semibold text-slate-900">{parsed.owner}/{parsed.repo}</span>
           <ChevronRight size={15} class="text-slate-400" />

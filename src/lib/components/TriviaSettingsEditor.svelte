@@ -130,7 +130,7 @@
       <button
         type="button"
         class="px-2.5 py-1.5 font-medium {current === opt.value
-          ? 'bg-indigo-600 text-white'
+          ? 'bg-slate-900 text-white'
           : 'text-slate-600 hover:bg-slate-100'} {i === 0 ? 'rounded-l-md' : ''} {i === options.length - 1
           ? 'rounded-r-md'
           : ''}"
@@ -178,7 +178,7 @@
 {/snippet}
 
 {#snippet group(Icon: typeof Trophy, label: string, children: () => any, action?: () => any)}
-  <div class="space-y-3 rounded-lg border border-dashed border-slate-300 p-3">
+  <div class="space-y-3 rounded-lg border border-slate-200 p-3">
     <div class="flex items-center justify-between gap-2">
       <p class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
         <Icon size={13} />
@@ -398,7 +398,7 @@
     {#snippet appearance()}
       <div class="space-y-4">
         <div>
-          <p class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Interactive</p>
+          <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Interactive</p>
           <div class="flex flex-wrap gap-4">
             {@render colorField(
               'Primary',
@@ -424,7 +424,7 @@
           </div>
         </div>
         <div>
-          <p class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Feedback</p>
+          <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Feedback</p>
           <div class="flex flex-wrap gap-4">
             {@render colorField(
               'Correct',
@@ -457,7 +457,7 @@
           </div>
         </div>
         <div>
-          <p class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Base</p>
+          <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Base</p>
           <div class="flex flex-wrap gap-4">
             {@render colorField(
               'Text',
@@ -499,7 +499,7 @@
     {#snippet resetAppearanceAction()}
       <button
         type="button"
-        class="flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-indigo-600"
+        class="flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-900"
         onclick={resetAppearance}
       >
         <RotateCcw size={12} /> Reset to default

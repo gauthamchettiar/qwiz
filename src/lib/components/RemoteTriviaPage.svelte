@@ -11,6 +11,7 @@
   } from '../github';
   import { saveTrivia } from '../store';
   import { downloadJson, slugify } from '../download';
+  import Button from './Button.svelte';
   import type { Trivia } from '../types';
 
   type PageState =
@@ -125,27 +126,16 @@
         {state.trivia.questions.length} question{state.trivia.questions.length === 1 ? '' : 's'}
       </p>
     </div>
-    <div class="flex gap-2">
-      <a
-        href={playHref(state.owner, state.repo, state.path, state.ref)}
-        class="flex items-center gap-1.5 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-      >
+    <div class="flex flex-wrap gap-2">
+      <Button variant="primary" href={playHref(state.owner, state.repo, state.path, state.ref)}>
         <Play size={15} /> Play
-      </a>
-      <button
-        type="button"
-        class="flex items-center gap-1.5 rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-        onclick={onDownload}
-      >
+      </Button>
+      <Button onclick={onDownload}>
         <Download size={15} /> Download JSON
-      </button>
-      <button
-        type="button"
-        class="flex items-center gap-1.5 rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-        onclick={onClone}
-      >
+      </Button>
+      <Button onclick={onClone}>
         <Copy size={15} /> Clone
-      </button>
+      </Button>
     </div>
   </div>
 {:else if state.kind === 'repo'}
@@ -164,7 +154,7 @@
       </a>
       <button
         type="button"
-        class="text-xs font-medium text-indigo-600 hover:underline disabled:text-slate-300"
+        class="text-xs font-medium text-slate-600 hover:text-slate-900 disabled:text-slate-300"
         disabled={refreshing}
         onclick={() => loadRepo(state.owner, state.repo)}
       >
@@ -193,7 +183,7 @@
               <li>
                 <a
                   href={triviaHref(state.owner, state.repo, state.result.ref, t.path)}
-                  class="block rounded-lg border border-dashed border-slate-300 bg-white p-4 hover:border-indigo-300"
+                  class="block rounded-md border border-slate-200 bg-white p-4 transition-colors hover:border-slate-400 hover:bg-slate-50"
                 >
                   <div class="flex items-center justify-between">
                     <span class="font-semibold text-slate-900">{t.title}</span>

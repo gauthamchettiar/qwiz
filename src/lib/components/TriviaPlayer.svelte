@@ -375,7 +375,7 @@
       </div>
 
       <div
-        class="space-y-4 rounded-lg border p-5 shadow-sm {currentUngraded
+        class="space-y-4 rounded-lg border p-5 {currentUngraded
           ? 'border-slate-200 bg-slate-100'
           : 'border-slate-200 bg-[var(--color-bg)]'}"
       >
@@ -440,7 +440,7 @@
       {/if}
 
       <div
-        class="rounded-lg border border-slate-200 bg-[var(--color-bg)] p-5 shadow-sm {locked
+        class="rounded-lg border border-slate-200 bg-[var(--color-bg)] p-5 {locked
           ? 'pointer-events-none opacity-60'
           : ''}"
       >
