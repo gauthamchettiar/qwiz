@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Download, Upload } from '@lucide/svelte';
+  import { Download, Upload, FolderGit2 } from '@lucide/svelte';
   import { exportAllTrivias, importAllTrivias } from '../store';
   import { downloadJson } from '../download';
   import { validateTriviaImport } from '../triviaSchema';
@@ -73,4 +73,12 @@
   <input bind:this={fileEl} type="file" accept=".json,application/json" class="hidden" onchange={onFile} />
   {#if message}<span class="text-xs text-slate-500">{message}</span>{/if}
   {#if error}<span class="text-xs text-red-600">{error}</span>{/if}
+
+  <span class="ml-auto"></span>
+  <a
+    href="/local/repo"
+    class="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+  >
+    <FolderGit2 size={15} /> Build repo
+  </a>
 </div>

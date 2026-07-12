@@ -1,0 +1,8 @@
+---
+import Base from '../../layouts/Base.astro';
+import RepoBuilderPage from '../../lib/components/RepoBuilderPage.svelte';
+---
+
+<Base title="Repo Builder">
+  <RepoBuilderPage client:only="svelte" />
+</Base>
