@@ -1,0 +1,9 @@
+---
+import Base from '../../layouts/Base.astro';
+import MyTriviasList from '../../lib/components/MyTriviasList.svelte';
+---
+
+<Base title="Saved Trivias">
+  <h1 class="mb-4 text-2xl font-bold text-slate-900">Saved Trivias</h1>
+  <MyTriviasList client:only="svelte" />
+</Base>

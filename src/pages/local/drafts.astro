@@ -1,0 +1,9 @@
+---
+import Base from '../../layouts/Base.astro';
+import DraftsList from '../../lib/components/DraftsList.svelte';
+---
+
+<Base title="Drafts">
+  <h1 class="mb-4 text-2xl font-bold text-slate-900">Drafts</h1>
+  <DraftsList client:load />
+</Base>

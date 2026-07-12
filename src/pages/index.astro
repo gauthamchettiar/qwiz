@@ -7,7 +7,7 @@ import BackupControls from '../lib/components/BackupControls.svelte';
 
 <Base title="Trivias">
   <h1 class="mb-4 text-2xl font-bold text-slate-900">Your Trivias</h1>
-  <DraftsList client:load />
-  <MyTriviasList client:only="svelte" />
+  <DraftsList client:load limit={5} />
+  <MyTriviasList client:only="svelte" limit={5} />
   <BackupControls client:only="svelte" />
 </Base>
