@@ -1,7 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Play, Download, Copy, ChevronRight, ArrowLeft, RefreshCw, ChevronsUpDown, ChevronsDownUp } from '@lucide/svelte';
+  import { Play, Download, Copy, ArrowLeft, RefreshCw, ChevronsUpDown, ChevronsDownUp } from '@lucide/svelte';
   import JourneyView from './JourneyView.svelte';
+  import FolderTree from './FolderTree.svelte';
+  import CategorySession from './CategorySession.svelte';
+  import { buildFolderTree, allFolderPaths, type FolderNode } from '../folderTree';
   import {
     fetchGithubTrivia,
     fetchRepoQuizData,
@@ -27,10 +30,9 @@
   // Open/closed state per group, so Expand/Collapse all can drive every <details> at once.
   let openGroups = $state<Record<string, boolean>>({});
 
-  function setAllGroups(open: boolean) {
-    if (state.kind !== 'repo') return;
-    const next: Record<string, boolean> = {};
-    for (const g of state.result.groups) next[g.name] = open;
+  function setAllFolders(tree: FolderNode, open: boolean) {
+    const next: Record<string, boolean> = { ...openGroups };
+    for (const p of allFolderPaths(tree)) next[p] = open;
     openGroups = next;
   }
 
@@ -179,7 +181,15 @@
       </p>
     {/if}
 
-    {#if state.result.journey}
+    {#if state.result.category}
+      <CategorySession
+        config={state.result.category}
+        tree={buildFolderTree(state.result.groups.flatMap((g) => g.trivias))}
+        owner={state.owner}
+        repo={state.repo}
+        ref={state.result.ref}
+      />
+    {:else if state.result.journey}
       <JourneyView
         journey={state.result.journey}
         groups={state.result.groups}
@@ -188,51 +198,24 @@
         ref={state.result.ref}
       />
     {:else}
-      {#if state.result.groups.length > 1}
+      {@const tree = buildFolderTree(state.result.groups.flatMap((g) => g.trivias))}
+      {#if tree.folders.length > 1 || tree.folders.some((f) => f.folders.length)}
         <div class="flex items-center gap-3 text-xs font-medium text-slate-500">
-          <button type="button" class="flex items-center gap-1 hover:text-slate-900" onclick={() => setAllGroups(true)}>
+          <button type="button" class="flex items-center gap-1 hover:text-slate-900" onclick={() => setAllFolders(tree, true)}>
             <ChevronsUpDown size={13} /> Expand all
           </button>
           <span class="text-slate-300">·</span>
-          <button type="button" class="flex items-center gap-1 hover:text-slate-900" onclick={() => setAllGroups(false)}>
+          <button type="button" class="flex items-center gap-1 hover:text-slate-900" onclick={() => setAllFolders(tree, false)}>
             <ChevronsDownUp size={13} /> Collapse all
           </button>
         </div>
       {/if}
 
-      <div class="space-y-2">
-        {#each state.result.groups as group (group.name)}
-          <details class="group/g rounded-md border border-slate-200 bg-white" bind:open={openGroups[group.name]}>
-            <summary
-              class="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            >
-              <ChevronRight size={13} class="text-slate-400 transition-transform group-open/g:rotate-90" />
-              {group.name}
-              <span class="text-xs font-normal text-slate-400">({group.trivias.length})</span>
-            </summary>
-            <ul class="space-y-2 border-t border-slate-100 p-3">
-              {#each group.trivias as t (t.path)}
-                <li>
-                  <a
-                    href={triviaHref(state.owner, state.repo, state.result.ref, t.path)}
-                    class="block rounded-md border border-slate-200 bg-white p-4 transition-colors hover:border-slate-400 hover:bg-slate-50"
-                  >
-                    <div class="flex items-center justify-between">
-                      <span class="font-semibold text-slate-900">{t.title}</span>
-                      <span class="text-xs text-slate-400">
-                        {t.questionCount} question{t.questionCount === 1 ? '' : 's'}
-                      </span>
-                    </div>
-                    {#if t.description}
-                      <p class="mt-1 text-sm text-slate-500">{t.description}</p>
-                    {/if}
-                  </a>
-                </li>
-              {/each}
-            </ul>
-          </details>
-        {/each}
-      </div>
+      <FolderTree
+        node={tree}
+        openState={openGroups}
+        triviaHref={(path) => triviaHref(state.owner, state.repo, state.result.ref, path)}
+      />
     {/if}
   </div>
 {/if}

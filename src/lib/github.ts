@@ -69,6 +69,18 @@ export interface JourneyConfig {
   nodes: JourneyNode[];
 }
 
+/** Optional `quiz-data/description.json` with "mode":"category" — a pick-your-topic challenge
+ * where the player chooses a folder every few questions and is scored on the average. */
+export interface CategoryConfig {
+  mode: 'category';
+  title?: string;
+  description?: string;
+  /** How many questions to answer before choosing the next category. Default 1. */
+  questionsPerPick: number;
+  /** How many category picks make up a full run. */
+  rounds: number;
+}
+
 export interface RepoQuizResult {
   owner: string;
   repo: string;
@@ -77,6 +89,8 @@ export interface RepoQuizResult {
   skipped: string[];
   /** Present when the repo ships a journey description.json; otherwise the folder view is used. */
   journey: JourneyConfig | null;
+  /** Present when the repo's description.json is in category mode. */
+  category: CategoryConfig | null;
   fetchedAt: string;
 }
 
@@ -107,6 +121,21 @@ function parseJourney(data: unknown): JourneyConfig | null {
     description: typeof d.description === 'string' ? d.description : undefined,
     requireWin: typeof d.requireWin === 'boolean' ? d.requireWin : false,
     nodes
+  };
+}
+
+function parseCategory(data: unknown): CategoryConfig | null {
+  if (!data || typeof data !== 'object') return null;
+  const d = data as Record<string, unknown>;
+  if (d.mode !== 'category') return null;
+  const qpp = typeof d.questionsPerPick === 'number' && d.questionsPerPick >= 1 ? Math.floor(d.questionsPerPick) : 1;
+  const rounds = typeof d.rounds === 'number' && d.rounds >= 1 ? Math.floor(d.rounds) : 10;
+  return {
+    mode: 'category',
+    title: typeof d.title === 'string' ? d.title : undefined,
+    description: typeof d.description === 'string' ? d.description : undefined,
+    questionsPerPick: qpp,
+    rounds
   };
 }
 
@@ -223,18 +252,23 @@ export async function fetchRepoQuizData(
     .sort(([a], [b]) => (a === 'General' ? -1 : b === 'General' ? 1 : a.localeCompare(b)))
     .map(([name, trivias]) => ({ name, trivias: trivias.sort((a, b) => a.title.localeCompare(b.title)) }));
 
-  // A repo can opt into journey mode by shipping quiz-data/description.json.
+  // A repo can opt into journey or category mode by shipping quiz-data/description.json.
   let journey: JourneyConfig | null = null;
+  let category: CategoryConfig | null = null;
   if (tree.data.tree.some((e) => e.path === DESCRIPTION_PATH)) {
     try {
       const res = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${DESCRIPTION_PATH}`);
-      if (res.ok) journey = parseJourney(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        journey = parseJourney(data);
+        category = parseCategory(data);
+      }
     } catch {
       // A broken description.json just falls back to the folder view.
     }
   }
 
-  const result: RepoQuizResult = { owner, repo, ref, groups, skipped, journey, fetchedAt: new Date().toISOString() };
+  const result: RepoQuizResult = { owner, repo, ref, groups, skipped, journey, category, fetchedAt: new Date().toISOString() };
   cacheRepoQuizData(result);
   return { ok: true, result };
 }
