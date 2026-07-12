@@ -203,7 +203,7 @@
       </ul>
       <div class="flex justify-center">
         <button type="button" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700" onclick={restart}>
-          Play again
+          Try again
         </button>
       </div>
     </div>

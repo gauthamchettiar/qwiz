@@ -75,7 +75,7 @@
       const now = new Date().toISOString();
       const created: Trivia = { ...source, id: crypto.randomUUID(), createdAt: now, updatedAt: now };
       saveTrivia(created);
-      window.location.href = `/local/trivia?id=${created.id}`;
+      window.location.href = '/';
     } finally {
       importing = false;
     }

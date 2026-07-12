@@ -1,13 +1,23 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Save, Search, X } from '@lucide/svelte';
-  import { listTrivias } from '../store';
+  import { Save, Search, X, Play, Pencil, Download, Share2, Trash2 } from '@lucide/svelte';
+  import { listTrivias, getTrivia, deleteTrivia } from '../store';
+  import { downloadJson, slugify } from '../download';
+  import { buildShareUrl } from '../share';
+  import Button from './Button.svelte';
+  import CardMenu from './CardMenu.svelte';
   import type { TriviaSummary } from '../types';
 
   let trivias = $state<TriviaSummary[]>([]);
   let loaded = $state(false);
   let query = $state('');
   let activeTag = $state<string | null>(null);
+  // Per-card transient UI: which card is mid-delete-confirm, and a short-lived share status.
+  let confirmingId = $state<string | null>(null);
+  let shareStatus = $state<{ id: string; state: 'copied' | 'toobig' } | null>(null);
+
+  const menuItem =
+    'flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-100';
 
   onMount(() => {
     trivias = listTrivias();
@@ -32,6 +42,33 @@
 
   function toggleTag(tag: string) {
     activeTag = activeTag === tag ? null : tag;
+  }
+
+  function onDownload(id: string, close: () => void) {
+    const t = getTrivia(id);
+    if (t) downloadJson(`${slugify(t.title)}.json`, t);
+    close();
+  }
+
+  async function onShare(id: string, close: () => void) {
+    const t = getTrivia(id);
+    close();
+    if (!t) return;
+    const { url } = await buildShareUrl(t);
+    if (!url) {
+      shareStatus = { id, state: 'toobig' };
+      setTimeout(() => (shareStatus = null), 4000);
+      return;
+    }
+    await navigator.clipboard.writeText(url);
+    shareStatus = { id, state: 'copied' };
+    setTimeout(() => (shareStatus = null), 2000);
+  }
+
+  function onDelete(id: string) {
+    deleteTrivia(id);
+    trivias = listTrivias();
+    confirmingId = null;
   }
 </script>
 
@@ -89,28 +126,72 @@
       {:else}
         <ul class="space-y-3">
           {#each filtered as t (t.id)}
-            <li>
-              <a
-                href={`/local/trivia?id=${t.id}`}
-                class="block rounded-md border border-slate-200 bg-white p-4 transition-colors hover:border-slate-400 hover:bg-slate-50"
-              >
-                <div class="flex items-center justify-between gap-2">
-                  <h3 class="font-semibold text-slate-900">{t.title}</h3>
-                  <span class="shrink-0 text-xs text-slate-400">
-                    {t.questionCount} question{t.questionCount === 1 ? '' : 's'}
-                  </span>
-                </div>
-                {#if t.description}
-                  <p class="mt-1 text-sm text-slate-500">{t.description}</p>
-                {/if}
-                {#if t.tags.length > 0}
-                  <div class="mt-2 flex flex-wrap gap-1">
-                    {#each t.tags as tag (tag)}
-                      <span class="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-500">{tag}</span>
-                    {/each}
+            <li class="rounded-md border border-slate-200 bg-white transition-colors hover:border-slate-400">
+              <div class="flex items-start gap-2 p-4">
+                <a href={`/local/trivia/play?id=${t.id}`} class="min-w-0 flex-1">
+                  <div class="flex items-center justify-between gap-2">
+                    <h3 class="font-semibold text-slate-900">{t.title}</h3>
+                    <span class="shrink-0 text-xs text-slate-400">
+                      {t.questionCount} question{t.questionCount === 1 ? '' : 's'}
+                    </span>
                   </div>
-                {/if}
-              </a>
+                  {#if t.description}
+                    <p class="mt-1 text-sm text-slate-500">{t.description}</p>
+                  {/if}
+                  {#if t.tags.length > 0}
+                    <div class="mt-2 flex flex-wrap gap-1">
+                      {#each t.tags as tag (tag)}
+                        <span class="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-500">{tag}</span>
+                      {/each}
+                    </div>
+                  {/if}
+                </a>
+
+                <div class="flex shrink-0 items-center gap-1.5">
+                  <Button variant="primary" size="sm" href={`/local/trivia/play?id=${t.id}`}>
+                    <Play size={14} /> Play
+                  </Button>
+                  <Button size="sm" href={`/local/trivia/edit?id=${t.id}`}>
+                    <Pencil size={14} /> Edit
+                  </Button>
+                  <CardMenu onClose={() => (confirmingId = null)}>
+                    {#snippet children(close)}
+                      <button type="button" class={menuItem} onclick={() => onDownload(t.id, close)}>
+                        <Download size={15} /> Download JSON
+                      </button>
+                      <button type="button" class={menuItem} onclick={() => onShare(t.id, close)}>
+                        <Share2 size={15} /> Share link
+                      </button>
+                      <div class="my-1 border-t border-slate-100"></div>
+                      {#if confirmingId === t.id}
+                        <button
+                          type="button"
+                          class="flex w-full items-center gap-2 rounded bg-red-600 px-2.5 py-1.5 text-left text-sm font-medium text-white hover:bg-red-700"
+                          onclick={() => onDelete(t.id)}
+                        >
+                          <Trash2 size={15} /> Confirm delete?
+                        </button>
+                      {:else}
+                        <button
+                          type="button"
+                          class="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left text-sm text-red-600 hover:bg-red-50"
+                          onclick={() => (confirmingId = t.id)}
+                        >
+                          <Trash2 size={15} /> Delete
+                        </button>
+                      {/if}
+                    {/snippet}
+                  </CardMenu>
+                </div>
+              </div>
+
+              {#if shareStatus?.id === t.id}
+                <p class="px-4 pb-3 text-xs text-slate-400">
+                  {shareStatus.state === 'copied'
+                    ? 'Share link copied to clipboard.'
+                    : 'Too large to pack into a link — use Download JSON instead.'}
+                </p>
+              {/if}
             </li>
           {/each}
         </ul>

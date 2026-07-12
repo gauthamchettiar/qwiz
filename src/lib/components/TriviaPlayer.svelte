@@ -1,14 +1,16 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import type { Component } from 'svelte';
-  import { Heart, X, Shuffle, Trophy, Timer, Clock, Ban, Lock, Eye, EyeOff, Sparkles, ScrollText } from '@lucide/svelte';
+  import { Heart, X, Shuffle, Trophy, Timer, Clock, Ban, Lock, Eye, EyeOff, Sparkles, ScrollText, ChevronLeft, ChevronRight } from '@lucide/svelte';
   import { defaultTriviaSettings, FONT_STACKS, type QuestionInstance, type Trivia } from '../types';
   import { getQuestionType } from '../question-types/registry';
   import { shuffledArray } from '../shuffle';
   import { recordScore } from '../bestScore';
   import { recordPlay } from '../progress';
 
-  let { trivia }: { trivia: Trivia } = $props();
+  // `nav` is supplied when this trivia is one of many in a repo, so the results screen can offer
+  // Prev/Next to move through the repo's trivias without going back to the listing.
+  let { trivia, nav }: { trivia: Trivia; nav?: { prevHref?: string; nextHref?: string } } = $props();
 
   function prepareQuestions(): QuestionInstance[] {
     let qs = trivia.questions;
@@ -422,14 +424,30 @@
         </div>
       {/if}
 
-      <div class="flex justify-center">
+      <div class="flex flex-wrap items-center justify-center gap-2">
+        {#if nav?.prevHref}
+          <a
+            href={nav.prevHref}
+            class="inline-flex items-center gap-1.5 rounded-md border border-[var(--color-secondary)] px-4 py-2 text-sm font-medium text-[var(--color-secondary)] hover:bg-[var(--color-secondary)]/10"
+          >
+            <ChevronLeft size={15} /> Previous
+          </a>
+        {/if}
         <button
           type="button"
           class="rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white hover:brightness-90"
           onclick={restart}
         >
-          Play again
+          Try again
         </button>
+        {#if nav?.nextHref}
+          <a
+            href={nav.nextHref}
+            class="inline-flex items-center gap-1.5 rounded-md border border-[var(--color-secondary)] px-4 py-2 text-sm font-medium text-[var(--color-secondary)] hover:bg-[var(--color-secondary)]/10"
+          >
+            Next <ChevronRight size={15} />
+          </a>
+        {/if}
       </div>
     </div>
   {:else if step === 'reveal' && current && currentDef}

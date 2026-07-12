@@ -62,7 +62,7 @@
     return `${rw ? 'Win' : 'Finish'} ${names.join(' + ')} to unlock`;
   }
   function href(path: string): string {
-    return `/remote/trivia?github=${encodeURIComponent(`${owner}/${repo}`)}&id=${encodeURIComponent(path)}&ref=${encodeURIComponent(ref)}`;
+    return `/remote/trivia/play?github=${encodeURIComponent(`${owner}/${repo}`)}&id=${encodeURIComponent(path)}&ref=${encodeURIComponent(ref)}`;
   }
 
   // Group nodes into stages by dependency depth (longest path from a start node), so the

@@ -43,7 +43,7 @@
     const now = new Date().toISOString();
     const copy: Trivia = { ...trivia, id: crypto.randomUUID(), createdAt: now, updatedAt: now };
     saveTrivia(copy);
-    window.location.href = `/local/trivia?id=${copy.id}`;
+    window.location.href = '/';
   }
 </script>
 
