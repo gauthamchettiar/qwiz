@@ -23,6 +23,15 @@
   let state = $state<PageState>({ kind: 'loading' });
   let copied = $state(false);
   let refreshing = $state(false);
+  // Open/closed state per group, so Expand/Collapse all can drive every <details> at once.
+  let openGroups = $state<Record<string, boolean>>({});
+
+  function setAllGroups(open: boolean) {
+    if (state.kind !== 'repo') return;
+    const next: Record<string, boolean> = {};
+    for (const g of state.result.groups) next[g.name] = open;
+    openGroups = next;
+  }
 
   onMount(async () => {
     const params = new URLSearchParams(window.location.search);
@@ -168,9 +177,17 @@
       </p>
     {/if}
 
+    {#if state.result.groups.length > 1}
+      <div class="flex items-center gap-3 text-xs font-medium text-slate-500">
+        <button type="button" class="hover:text-slate-900" onclick={() => setAllGroups(true)}>Expand all</button>
+        <span class="text-slate-300">·</span>
+        <button type="button" class="hover:text-slate-900" onclick={() => setAllGroups(false)}>Collapse all</button>
+      </div>
+    {/if}
+
     <div class="space-y-2">
       {#each state.result.groups as group (group.name)}
-        <details class="group/g rounded-md border border-slate-200 bg-white">
+        <details class="group/g rounded-md border border-slate-200 bg-white" bind:open={openGroups[group.name]}>
           <summary
             class="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
