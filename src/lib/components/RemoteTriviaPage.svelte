@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Play, Download, Copy, ChevronRight, ArrowLeft } from '@lucide/svelte';
+  import { Play, Download, Copy, ChevronRight, ArrowLeft, RefreshCw, ChevronsUpDown, ChevronsDownUp } from '@lucide/svelte';
+  import JourneyView from './JourneyView.svelte';
   import {
     fetchGithubTrivia,
     fetchRepoQuizData,
@@ -163,10 +164,11 @@
       </a>
       <button
         type="button"
-        class="text-xs font-medium text-slate-600 hover:text-slate-900 disabled:text-slate-300"
+        class="flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-slate-900 disabled:text-slate-300"
         disabled={refreshing}
         onclick={() => loadRepo(state.owner, state.repo)}
       >
+        <RefreshCw size={13} class={refreshing ? 'animate-spin' : ''} />
         {refreshing ? 'Refreshing…' : 'Refresh'}
       </button>
     </div>
@@ -177,46 +179,60 @@
       </p>
     {/if}
 
-    {#if state.result.groups.length > 1}
-      <div class="flex items-center gap-3 text-xs font-medium text-slate-500">
-        <button type="button" class="hover:text-slate-900" onclick={() => setAllGroups(true)}>Expand all</button>
-        <span class="text-slate-300">·</span>
-        <button type="button" class="hover:text-slate-900" onclick={() => setAllGroups(false)}>Collapse all</button>
+    {#if state.result.journey}
+      <JourneyView
+        journey={state.result.journey}
+        groups={state.result.groups}
+        owner={state.owner}
+        repo={state.repo}
+        ref={state.result.ref}
+      />
+    {:else}
+      {#if state.result.groups.length > 1}
+        <div class="flex items-center gap-3 text-xs font-medium text-slate-500">
+          <button type="button" class="flex items-center gap-1 hover:text-slate-900" onclick={() => setAllGroups(true)}>
+            <ChevronsUpDown size={13} /> Expand all
+          </button>
+          <span class="text-slate-300">·</span>
+          <button type="button" class="flex items-center gap-1 hover:text-slate-900" onclick={() => setAllGroups(false)}>
+            <ChevronsDownUp size={13} /> Collapse all
+          </button>
+        </div>
+      {/if}
+
+      <div class="space-y-2">
+        {#each state.result.groups as group (group.name)}
+          <details class="group/g rounded-md border border-slate-200 bg-white" bind:open={openGroups[group.name]}>
+            <summary
+              class="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              <ChevronRight size={13} class="text-slate-400 transition-transform group-open/g:rotate-90" />
+              {group.name}
+              <span class="text-xs font-normal text-slate-400">({group.trivias.length})</span>
+            </summary>
+            <ul class="space-y-2 border-t border-slate-100 p-3">
+              {#each group.trivias as t (t.path)}
+                <li>
+                  <a
+                    href={triviaHref(state.owner, state.repo, state.result.ref, t.path)}
+                    class="block rounded-md border border-slate-200 bg-white p-4 transition-colors hover:border-slate-400 hover:bg-slate-50"
+                  >
+                    <div class="flex items-center justify-between">
+                      <span class="font-semibold text-slate-900">{t.title}</span>
+                      <span class="text-xs text-slate-400">
+                        {t.questionCount} question{t.questionCount === 1 ? '' : 's'}
+                      </span>
+                    </div>
+                    {#if t.description}
+                      <p class="mt-1 text-sm text-slate-500">{t.description}</p>
+                    {/if}
+                  </a>
+                </li>
+              {/each}
+            </ul>
+          </details>
+        {/each}
       </div>
     {/if}
-
-    <div class="space-y-2">
-      {#each state.result.groups as group (group.name)}
-        <details class="group/g rounded-md border border-slate-200 bg-white" bind:open={openGroups[group.name]}>
-          <summary
-            class="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          >
-            <ChevronRight size={13} class="text-slate-400 transition-transform group-open/g:rotate-90" />
-            {group.name}
-            <span class="text-xs font-normal text-slate-400">({group.trivias.length})</span>
-          </summary>
-          <ul class="space-y-2 border-t border-slate-100 p-3">
-            {#each group.trivias as t (t.path)}
-              <li>
-                <a
-                  href={triviaHref(state.owner, state.repo, state.result.ref, t.path)}
-                  class="block rounded-md border border-slate-200 bg-white p-4 transition-colors hover:border-slate-400 hover:bg-slate-50"
-                >
-                  <div class="flex items-center justify-between">
-                    <span class="font-semibold text-slate-900">{t.title}</span>
-                    <span class="text-xs text-slate-400">
-                      {t.questionCount} question{t.questionCount === 1 ? '' : 's'}
-                    </span>
-                  </div>
-                  {#if t.description}
-                    <p class="mt-1 text-sm text-slate-500">{t.description}</p>
-                  {/if}
-                </a>
-              </li>
-            {/each}
-          </ul>
-        </details>
-      {/each}
-    </div>
   </div>
 {/if}

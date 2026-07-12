@@ -6,6 +6,7 @@
   import { getQuestionType } from '../question-types/registry';
   import { shuffledArray } from '../shuffle';
   import { recordScore } from '../bestScore';
+  import { recordPlay } from '../progress';
 
   let { trivia }: { trivia: Trivia } = $props();
 
@@ -218,6 +219,10 @@
   );
   // Running out of lives is an automatic fail regardless of points earned.
   const won = $derived(!livesExhausted && hasWinCondition && totalEarned >= (pointsToWin ?? 0));
+  // "Cleared" for journey progress: finished without failing — met the win condition, or
+  // simply completed a trivia that has no win gate. (A no-win-condition trivia can still be
+  // failed by running out of lives.)
+  const cleared = $derived(!livesExhausted && (!hasWinCondition || totalEarned >= (pointsToWin ?? 0)));
 
   // The intro screen's "house rules" — one short, playful line per setting that actually
   // changes how you play, built fresh from this trivia's config so it always matches reality.
@@ -280,6 +285,8 @@
     if (settings.revealScore !== 'never') {
       bestScoreResult = recordScore(trivia.id, totalEarned);
     }
+    // Record completion for journey unlocking — regardless of whether scores are shown.
+    recordPlay(trivia.id, cleared);
     if (hasWinCondition && settings.revealWin === 'end') {
       chosenMessage = won
         ? pickRandomLine(settings.winMessage, 'You win!')
