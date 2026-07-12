@@ -1,5 +1,6 @@
-import type { Trivia, TriviaSummary } from './types';
+import type { Trivia } from './types';
 import { toSummary } from './types';
+import type { RepoTrivia } from './folderTree';
 import { validateTriviaImport } from './triviaSchema';
 
 const QUIZ_DATA_PREFIX = 'quiz-data/';
@@ -42,15 +43,11 @@ async function fetchJson<T>(
   return { ok: true, data: (await res.json()) as T };
 }
 
-export interface RepoQuizGroup {
-  name: string;
-  trivias: (TriviaSummary & { path: string })[];
-}
-
 /** One trivia in a journey, keyed to a trivia file and gated behind prerequisite nodes. */
 export interface JourneyNode {
   id: string;
-  /** Repo-relative path of the trivia this node plays (must match a fetched trivia). */
+  /** Path of the trivia this node plays. In a description.json it's written relative to that
+   * file's folder; once loaded it's resolved to a full repo path matching a fetched trivia. */
   path: string;
   /** Node ids that must be satisfied before this one unlocks. Empty = a starting node. */
   requires: string[];
@@ -58,8 +55,8 @@ export interface JourneyNode {
   requireWin?: boolean;
 }
 
-/** Optional `quiz-data/description.json` that turns a repo's flat folder list into a guided
- * journey — a timeline/tree the player unlocks one trivia at a time. */
+/** A `description.json` in journey mode — turns its folder subtree into a guided journey, a
+ * timeline/tree the player unlocks one trivia at a time. */
 export interface JourneyConfig {
   mode: 'journey';
   title?: string;
@@ -69,8 +66,8 @@ export interface JourneyConfig {
   nodes: JourneyNode[];
 }
 
-/** Optional `quiz-data/description.json` with "mode":"category" — a pick-your-topic challenge
- * where the player chooses a folder every few questions and is scored on the average. */
+/** A `description.json` in category mode — a pick-your-topic challenge where the player chooses a
+ * subfolder every few questions and is scored on the average across rounds. */
 export interface CategoryConfig {
   mode: 'category';
   title?: string;
@@ -81,20 +78,49 @@ export interface CategoryConfig {
   rounds: number;
 }
 
+/** A `description.json` with no special mode — just an optional heading over a plain folder view.
+ * Also the implicit config for any trivias not owned by a journey/category section. */
+export interface FlatConfig {
+  mode: 'flat';
+  title?: string;
+  description?: string;
+}
+
+export type SectionConfig = FlatConfig | JourneyConfig | CategoryConfig;
+
+/** One rendered slice of a repo, rooted at the folder that holds its description.json (or the
+ * implicit top-level area). A repo can mix modes: several sections side by side. */
+export interface RepoSection {
+  /** Folder path below quiz-data/ this section covers; '' = the top-level area. */
+  root: string;
+  config: SectionConfig;
+  /** Trivias owned by this section (deepest matching root wins), with full repo paths. */
+  trivias: RepoTrivia[];
+}
+
 export interface RepoQuizResult {
   owner: string;
   repo: string;
   ref: string;
-  groups: RepoQuizGroup[];
   skipped: string[];
-  /** Present when the repo ships a journey description.json; otherwise the folder view is used. */
-  journey: JourneyConfig | null;
-  /** Present when the repo's description.json is in category mode. */
-  category: CategoryConfig | null;
+  /** The repo split into sections by the description.json files it ships (in render order). */
+  sections: RepoSection[];
   fetchedAt: string;
 }
 
-const DESCRIPTION_PATH = `${QUIZ_DATA_PREFIX}description.json`;
+const DESCRIPTION_FILE = 'description.json';
+
+/** True for a `quiz-data/**​/description.json` config file (at any depth), so it's treated as
+ * section config rather than a playable trivia. */
+function isDescriptionFile(path: string): boolean {
+  return path === `${QUIZ_DATA_PREFIX}${DESCRIPTION_FILE}` || path.endsWith(`/${DESCRIPTION_FILE}`);
+}
+
+/** The section root (folder below quiz-data/) a description.json defines; '' for the top-level. */
+function sectionRootOf(descPath: string): string {
+  const rel = descPath.slice(QUIZ_DATA_PREFIX.length);
+  return rel === DESCRIPTION_FILE ? '' : rel.slice(0, -(`/${DESCRIPTION_FILE}`.length));
+}
 
 /** Leniently parses a repo's description.json into a JourneyConfig, or null (→ folder mode)
  * when it's absent, malformed, or not in journey mode. */
@@ -139,6 +165,29 @@ function parseCategory(data: unknown): CategoryConfig | null {
   };
 }
 
+/** A description.json with neither journey nor category mode — a plain (optionally titled) folder
+ * section. Also used as the implicit config for trivias no section claims. */
+function parseFlat(data: unknown): FlatConfig {
+  const d = data && typeof data === 'object' ? (data as Record<string, unknown>) : {};
+  return {
+    mode: 'flat',
+    title: typeof d.title === 'string' ? d.title : undefined,
+    description: typeof d.description === 'string' ? d.description : undefined
+  };
+}
+
+/** Parses any description.json into its section config, falling back to a flat section. */
+function parseSection(data: unknown): SectionConfig {
+  return parseJourney(data) ?? parseCategory(data) ?? parseFlat(data);
+}
+
+/** Rewrites a journey's node paths (written relative to the description.json's folder) into full
+ * repo paths, so they line up with the fetched trivia paths. */
+function resolveJourneyPaths(journey: JourneyConfig, root: string): JourneyConfig {
+  const base = `${QUIZ_DATA_PREFIX}${root ? `${root}/` : ''}`;
+  return { ...journey, nodes: journey.nodes.map((n) => ({ ...n, path: base + n.path })) };
+}
+
 function cacheKey(owner: string, repo: string): string {
   return `qwiz:repo-cache:${owner}/${repo}`;
 }
@@ -147,7 +196,10 @@ export function getCachedRepoQuizData(owner: string, repo: string): RepoQuizResu
   if (typeof localStorage === 'undefined') return null;
   try {
     const raw = localStorage.getItem(cacheKey(owner, repo));
-    return raw ? (JSON.parse(raw) as RepoQuizResult) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as RepoQuizResult;
+    // Ignore caches written by an older result shape (no sections) so they don't crash the render.
+    return Array.isArray(parsed?.sections) ? parsed : null;
   } catch {
     return null;
   }
@@ -191,7 +243,8 @@ export function addBrowsedRepo(owner: string, repo: string): void {
   localStorage.setItem(BROWSED_REPOS_KEY, JSON.stringify([key, ...rest]));
 }
 
-/** Fetches and groups every valid trivia JSON under quiz-data/ in a public GitHub repo. */
+/** Fetches every valid trivia JSON under quiz-data/ in a public GitHub repo and splits it into
+ * sections by the description.json files present — a repo can mix journey/category/flat. */
 export async function fetchRepoQuizData(
   owner: string,
   repo: string
@@ -205,8 +258,9 @@ export async function fetchRepoQuizData(
   );
   if (!tree.ok) return { ok: false, error: tree.error };
 
+  const rawBase = `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/`;
   const jsonPaths = tree.data.tree.filter(
-    (e) => e.type === 'blob' && e.path.startsWith(QUIZ_DATA_PREFIX) && e.path.endsWith('.json') && e.path !== DESCRIPTION_PATH
+    (e) => e.type === 'blob' && e.path.startsWith(QUIZ_DATA_PREFIX) && e.path.endsWith('.json') && !isDescriptionFile(e.path)
   );
 
   if (jsonPaths.length === 0) {
@@ -214,61 +268,70 @@ export async function fetchRepoQuizData(
   }
 
   const skipped: string[] = [];
-  const byGroup = new Map<string, (TriviaSummary & { path: string })[]>();
+  const trivias: RepoTrivia[] = [];
 
   await Promise.all(
     jsonPaths.map(async (entry) => {
-      const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${entry.path}`;
       try {
-        const res = await fetch(rawUrl);
+        const res = await fetch(rawBase + entry.path);
         if (!res.ok) {
           skipped.push(entry.path);
           return;
         }
         const data = await res.json();
-        const { valid } = validateTriviaImport(data);
-        if (!valid) {
+        if (!validateTriviaImport(data).valid) {
           skipped.push(entry.path);
           return;
         }
-        const trivia = data as Trivia;
-        const rest = entry.path.slice(QUIZ_DATA_PREFIX.length);
-        const lastSlash = rest.lastIndexOf('/');
-        const group = lastSlash === -1 ? 'General' : rest.slice(0, lastSlash);
-        const list = byGroup.get(group) ?? [];
-        list.push({ ...toSummary(trivia), path: entry.path });
-        byGroup.set(group, list);
+        trivias.push({ ...toSummary(data as Trivia), path: entry.path });
       } catch {
         skipped.push(entry.path);
       }
     })
   );
 
-  if (byGroup.size === 0) {
+  if (trivias.length === 0) {
     return { ok: false, error: `Found ${jsonPaths.length} file(s) under quiz-data/, but none were valid trivia JSON.` };
   }
 
-  const groups: RepoQuizGroup[] = Array.from(byGroup.entries())
-    .sort(([a], [b]) => (a === 'General' ? -1 : b === 'General' ? 1 : a.localeCompare(b)))
-    .map(([name, trivias]) => ({ name, trivias: trivias.sort((a, b) => a.title.localeCompare(b.title)) }));
-
-  // A repo can opt into journey or category mode by shipping quiz-data/description.json.
-  let journey: JourneyConfig | null = null;
-  let category: CategoryConfig | null = null;
-  if (tree.data.tree.some((e) => e.path === DESCRIPTION_PATH)) {
-    try {
-      const res = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${DESCRIPTION_PATH}`);
-      if (res.ok) {
-        const data = await res.json();
-        journey = parseJourney(data);
-        category = parseCategory(data);
+  // Every description.json (at any depth) defines a section rooted at its folder.
+  const descPaths = tree.data.tree.filter(
+    (e) => e.type === 'blob' && e.path.startsWith(QUIZ_DATA_PREFIX) && isDescriptionFile(e.path)
+  );
+  const configByRoot = new Map<string, SectionConfig>();
+  await Promise.all(
+    descPaths.map(async (entry) => {
+      try {
+        const res = await fetch(rawBase + entry.path);
+        if (res.ok) configByRoot.set(sectionRootOf(entry.path), parseSection(await res.json()));
+      } catch {
+        // A broken description.json is ignored; its subtree falls back to the flat view.
       }
-    } catch {
-      // A broken description.json just falls back to the folder view.
-    }
+    })
+  );
+
+  // Assign every trivia to the deepest section root that contains it (longest matching prefix).
+  const roots = [...configByRoot.keys()].sort((a, b) => b.length - a.length);
+  const byRoot = new Map<string, RepoTrivia[]>();
+  for (const t of trivias) {
+    const rel = t.path.slice(QUIZ_DATA_PREFIX.length);
+    const ownedRoot = roots.find((r) => r === '' || rel === r || rel.startsWith(`${r}/`)) ?? '';
+    const list = byRoot.get(ownedRoot) ?? [];
+    list.push(t);
+    byRoot.set(ownedRoot, list);
   }
 
-  const result: RepoQuizResult = { owner, repo, ref, groups, skipped, journey, category, fetchedAt: new Date().toISOString() };
+  // One section per non-empty root, resolving journey node paths and sorting trivias by title.
+  const sections: RepoSection[] = [];
+  for (const [root, ts] of byRoot) {
+    let config = configByRoot.get(root) ?? { mode: 'flat' as const };
+    if (config.mode === 'journey') config = resolveJourneyPaths(config, root);
+    sections.push({ root, config, trivias: ts.sort((a, b) => a.title.localeCompare(b.title)) });
+  }
+  // Top-level area first, then configured subtrees in folder order.
+  sections.sort((a, b) => (a.root === '' ? -1 : b.root === '' ? 1 : a.root.localeCompare(b.root)));
+
+  const result: RepoQuizResult = { owner, repo, ref, skipped, sections, fetchedAt: new Date().toISOString() };
   cacheRepoQuizData(result);
   return { ok: true, result };
 }

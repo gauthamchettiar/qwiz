@@ -31,7 +31,7 @@
   // When this file is one of several in the repo, offer Prev/Next across the repo's trivia list
   // (in the same order the listing shows), so the results screen can move straight to a neighbour.
   function computeNav(result: RepoQuizResult) {
-    const paths = result.groups.flatMap((g) => g.trivias).map((t) => t.path);
+    const paths = result.sections.flatMap((s) => s.trivias).map((t) => t.path);
     const i = paths.indexOf(path);
     if (i === -1 || paths.length < 2) return;
     nav = {

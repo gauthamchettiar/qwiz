@@ -1,22 +1,18 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Play, Download, Copy, ExternalLink, ArrowLeft, RefreshCw, ChevronsUpDown, ChevronsDownUp } from '@lucide/svelte';
+  import { Play, ArrowLeft, RefreshCw, ChevronsUpDown, ChevronsDownUp } from '@lucide/svelte';
   import JourneyView from './JourneyView.svelte';
   import FolderTree from './FolderTree.svelte';
   import CategorySession from './CategorySession.svelte';
-  import CardMenu from './CardMenu.svelte';
-  import { buildFolderTree, allFolderPaths, type FolderNode } from '../folderTree';
+  import RemoteTriviaMenu from './RemoteTriviaMenu.svelte';
+  import { buildFolderTree, findFolder, allFolderPaths, type FolderNode } from '../folderTree';
   import {
-    fetchGithubTrivia,
     fetchRepoQuizData,
     getCachedRepoQuizData,
     parseRepoInput,
     addBrowsedRepo,
     type RepoQuizResult
   } from '../github';
-  import { saveTrivia } from '../store';
-  import { downloadJson, slugify } from '../download';
-  import type { Trivia } from '../types';
 
   type PageState =
     | { kind: 'loading' }
@@ -25,13 +21,8 @@
 
   let state = $state<PageState>({ kind: 'loading' });
   let refreshing = $state(false);
-  // While a card action is fetching the full trivia (clone/download need the whole file).
-  let busyPath = $state<string | null>(null);
   // Open/closed state per group, so Expand/Collapse all can drive every <details> at once.
   let openGroups = $state<Record<string, boolean>>({});
-
-  const menuItem =
-    'flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50';
 
   function setAllFolders(tree: FolderNode, open: boolean) {
     const next: Record<string, boolean> = { ...openGroups };
@@ -75,27 +66,6 @@
     return `/remote/trivia/play?github=${encodeURIComponent(repoKey)}&id=${encodeURIComponent(path)}&ref=${encodeURIComponent(ref)}`;
   }
 
-  function githubUrl(owner: string, repo: string, ref: string, path: string): string {
-    return `https://github.com/${owner}/${repo}/blob/${ref}/${path}`;
-  }
-
-  async function downloadTrivia(owner: string, repo: string, ref: string, path: string) {
-    busyPath = path;
-    const res = await fetchGithubTrivia(owner, repo, path, ref);
-    busyPath = null;
-    if (res.ok) downloadJson(`${slugify(res.trivia.title)}.json`, res.trivia);
-  }
-
-  async function cloneTrivia(owner: string, repo: string, ref: string, path: string) {
-    busyPath = path;
-    const res = await fetchGithubTrivia(owner, repo, path, ref);
-    busyPath = null;
-    if (!res.ok) return;
-    const now = new Date().toISOString();
-    const cloned: Trivia = { ...res.trivia, id: crypto.randomUUID(), createdAt: now, updatedAt: now };
-    saveTrivia(cloned);
-    window.location.href = `/local/trivia/edit?id=${cloned.id}`;
-  }
 </script>
 
 {#if state.kind === 'loading'}
@@ -109,7 +79,7 @@
   {@const owner = state.owner}
   {@const repo = state.repo}
   {@const ref = state.result.ref}
-  <div class="space-y-4">
+  <div class="space-y-6">
     <a href="/remote/browse" class="flex w-fit items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-700">
       <ArrowLeft size={13} /> Back to Browse
     </a>
@@ -139,77 +109,54 @@
       </p>
     {/if}
 
-    {#if state.result.category}
-      <CategorySession
-        config={state.result.category}
-        tree={buildFolderTree(state.result.groups.flatMap((g) => g.trivias))}
-        {owner}
-        {repo}
-        {ref}
-      />
-    {:else if state.result.journey}
-      <JourneyView journey={state.result.journey} groups={state.result.groups} {owner} {repo} {ref} />
-    {:else}
-      {@const tree = buildFolderTree(state.result.groups.flatMap((g) => g.trivias))}
-      {#if tree.folders.length > 1 || tree.folders.some((f) => f.folders.length)}
-        <div class="flex items-center gap-3 text-xs font-medium text-slate-500">
-          <button type="button" class="flex items-center gap-1 hover:text-slate-900" onclick={() => setAllFolders(tree, true)}>
-            <ChevronsUpDown size={13} /> Expand all
-          </button>
-          <span class="text-slate-300">·</span>
-          <button type="button" class="flex items-center gap-1 hover:text-slate-900" onclick={() => setAllFolders(tree, false)}>
-            <ChevronsDownUp size={13} /> Collapse all
-          </button>
-        </div>
-      {/if}
+    {#snippet flatCardMenu(t)}
+      <div class="flex items-center gap-1">
+        <a
+          href={playHref(owner, repo, t.path, ref)}
+          class="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-2.5 py-1.5 text-sm font-medium text-white hover:bg-indigo-700"
+        >
+          <Play size={14} /> Play
+        </a>
+        <RemoteTriviaMenu {owner} {repo} {ref} path={t.path} />
+      </div>
+    {/snippet}
 
-      <FolderTree node={tree} openState={openGroups} triviaHref={(path) => playHref(owner, repo, path, ref)}>
-        {#snippet cardMenu(t)}
-          <div class="flex items-center gap-1">
-            <a
-              href={playHref(owner, repo, t.path, ref)}
-              class="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-2.5 py-1.5 text-sm font-medium text-white hover:bg-indigo-700"
-            >
-              <Play size={14} /> Play
-            </a>
-            <CardMenu>
-              {#snippet children(close)}
-                <button
-                  type="button"
-                  class={menuItem}
-                  disabled={busyPath === t.path}
-                  onclick={() => {
-                    cloneTrivia(owner, repo, ref, t.path);
-                    close();
-                  }}
-                >
-                  <Copy size={15} /> Clone to my trivias
-                </button>
-                <button
-                  type="button"
-                  class={menuItem}
-                  disabled={busyPath === t.path}
-                  onclick={() => {
-                    downloadTrivia(owner, repo, ref, t.path);
-                    close();
-                  }}
-                >
-                  <Download size={15} /> Download JSON
-                </button>
-                <a
-                  href={githubUrl(owner, repo, ref, t.path)}
-                  target="_blank"
-                  rel="noreferrer"
-                  class={menuItem}
-                  onclick={close}
-                >
-                  <ExternalLink size={15} /> Open on GitHub
-                </a>
-              {/snippet}
-            </CardMenu>
-          </div>
-        {/snippet}
-      </FolderTree>
-    {/if}
+    {#each state.result.sections as section, si (section.root)}
+      {@const fullTree = buildFolderTree(section.trivias)}
+      {@const subtree = findFolder(fullTree, section.root) ?? fullTree}
+      <section class="space-y-3 {si > 0 ? 'border-t border-slate-200 pt-6' : ''}">
+        {#if section.config.mode === 'category'}
+          <CategorySession config={section.config} tree={subtree} {owner} {repo} {ref} />
+        {:else if section.config.mode === 'journey'}
+          <JourneyView journey={section.config} trivias={section.trivias} {owner} {repo} {ref} />
+        {:else}
+          {#if section.config.title}
+            <div>
+              <h2 class="text-lg font-semibold text-slate-900">{section.config.title}</h2>
+              {#if section.config.description}
+                <p class="mt-0.5 max-w-prose text-sm text-slate-500">{section.config.description}</p>
+              {/if}
+            </div>
+          {/if}
+          {#if subtree.folders.length > 1 || subtree.folders.some((f) => f.folders.length)}
+            <div class="flex items-center gap-3 text-xs font-medium text-slate-500">
+              <button type="button" class="flex items-center gap-1 hover:text-slate-900" onclick={() => setAllFolders(subtree, true)}>
+                <ChevronsUpDown size={13} /> Expand all
+              </button>
+              <span class="text-slate-300">·</span>
+              <button type="button" class="flex items-center gap-1 hover:text-slate-900" onclick={() => setAllFolders(subtree, false)}>
+                <ChevronsDownUp size={13} /> Collapse all
+              </button>
+            </div>
+          {/if}
+          <FolderTree
+            node={subtree}
+            openState={openGroups}
+            triviaHref={(path) => playHref(owner, repo, path, ref)}
+            cardMenu={flatCardMenu}
+          />
+        {/if}
+      </section>
+    {/each}
   </div>
 {/if}

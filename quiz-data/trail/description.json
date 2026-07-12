@@ -1,0 +1,11 @@
+{
+  "mode": "journey",
+  "title": "The Qwiz Trail",
+  "description": "A short guided path. Clear one trivia to unlock the next, then face the final boss — you'll need to actually win this one.",
+  "requireWin": false,
+  "nodes": [
+    { "id": "capitals", "path": "world-capitals.json", "requires": [] },
+    { "id": "spelling", "path": "spelling-bee.json", "requires": ["capitals"] },
+    { "id": "finale", "path": "grand-finale.json", "requires": ["spelling"], "requireWin": true }
+  ]
+}

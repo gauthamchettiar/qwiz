@@ -1,0 +1,7 @@
+{
+  "mode": "category",
+  "title": "The Gauntlet",
+  "description": "Pick a category every 2 questions across 5 rounds — you're scored on your average.",
+  "questionsPerPick": 2,
+  "rounds": 5
+}

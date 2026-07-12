@@ -43,6 +43,18 @@ export function buildFolderTree(trivias: RepoTrivia[]): FolderNode {
   return root;
 }
 
+/** Walks to the subtree node at `path` (relative to quiz-data/); '' returns the root. Null when
+ * the path doesn't exist — used to render a section starting at its own folder. */
+export function findFolder(root: FolderNode, path: string): FolderNode | null {
+  if (path === '') return root;
+  let node: FolderNode | null = root;
+  for (const seg of path.split('/')) {
+    node = node?.folders.find((f) => f.name === seg) ?? null;
+    if (!node) return null;
+  }
+  return node;
+}
+
 /** Total trivias in a folder's whole subtree. */
 export function countTrivias(node: FolderNode): number {
   return node.trivias.length + node.folders.reduce((sum, f) => sum + countTrivias(f), 0);
