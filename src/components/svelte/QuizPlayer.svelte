@@ -247,7 +247,7 @@
      unlike choice's own option rendering, there's no per-question layout or order to honor here. -->
 {#snippet typedAcceptedAnswers(q: QuizScriptQuestion)}
   <div class="mt-2">
-    <p class="text-xs font-medium text-slate-400">Accepted answers</p>
+    <p class="text-xs font-medium text-slate-500">Accepted answers</p>
     <div class="mt-1 flex flex-wrap gap-1.5">
       {#each q.options as option, i (i)}
         {#if option.content.kind === 'text'}
@@ -339,7 +339,7 @@
         </p>
         <p class="mt-1 text-sm text-slate-700">{extra.content}</p>
       {:else}
-        <p class="flex items-center gap-1.5 text-sm text-slate-400">
+        <p class="flex items-center gap-1.5 text-sm text-slate-500">
           <Eye size={14} />
           {extra.label || 'Hint'} (not revealed)
         </p>
@@ -395,7 +395,7 @@
 
 <div class="space-y-6">
   {#if run.length === 0}
-    <p class="rounded-lg border border-slate-200 p-6 text-center text-sm text-slate-400">
+    <p class="rounded-lg border border-slate-200 p-6 text-center text-sm text-slate-500">
       This quiz has no questions yet — nothing to play.
     </p>
   {:else if finished && summary && reviewing}
@@ -414,7 +414,7 @@
       </div>
       {#each run as playQuestion, i (i)}
         <div class="space-y-4 rounded-lg border border-slate-200 bg-white p-6">
-          <p class="text-xs font-medium text-slate-400">Question {i + 1} of {run.length}</p>
+          <p class="text-xs font-medium text-slate-500">Question {i + 1} of {run.length}</p>
           {@render questionReview(playQuestion, answers[i], results[i])}
         </div>
       {/each}
@@ -439,7 +439,7 @@
         </p>
         <div class="mx-auto max-w-xs space-y-1">
           {#each results as result, i (i)}
-            <div class="flex items-center justify-between text-xs text-slate-400">
+            <div class="flex items-center justify-between text-xs text-slate-500">
               <span>Question {i + 1}</span>
               <span>{result.earned} / {result.max}</span>
             </div>
@@ -474,11 +474,11 @@
   {:else if current}
     <div class="space-y-1">
       <div class="flex items-center justify-between gap-3">
-        <p class="text-xs font-medium text-slate-400">
+        <p class="text-xs font-medium text-slate-500">
           Question {currentIndex + 1} of {run.length}
         </p>
         {#if showScoreHeader}
-          <p class="flex items-center gap-1.5 text-xs font-medium text-slate-400">
+          <p class="flex items-center gap-1.5 text-xs font-medium text-slate-500">
             {#if scoreFlash}
               <span
                 transition:fade={{ duration: 250 }}

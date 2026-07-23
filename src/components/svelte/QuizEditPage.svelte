@@ -24,7 +24,7 @@
 {#if quiz}
   <QuizBuilder initial={quiz} heading="Edit quiz" />
 {:else if notFound}
-  <p class="rounded-lg border border-slate-200 p-6 text-center text-sm text-slate-400">
+  <p class="rounded-lg border border-slate-200 p-6 text-center text-sm text-slate-500">
     That quiz couldn't be found. It may have been deleted, or the link is wrong.
   </p>
 {/if}

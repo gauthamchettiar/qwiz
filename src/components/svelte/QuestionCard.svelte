@@ -139,7 +139,7 @@
           {rows}
           value={draft}
           oninput={(e) => onDraftChange(e.currentTarget.value)}></textarea>
-        <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-slate-400">
+        <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-slate-500">
           <span>Settings:</span>
           {#each draftSuggestedKeys as key (key)}
             <span class="inline-flex items-center gap-0.5">

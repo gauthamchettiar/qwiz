@@ -115,7 +115,7 @@
       class="hidden"
     />
 
-    <div class="flex items-center gap-3 text-xs text-slate-400">
+    <div class="flex items-center gap-3 text-xs text-slate-500">
       <div class="h-px flex-1 bg-slate-200"></div>
       or write/paste qwiz code
       <div class="h-px flex-1 bg-slate-200"></div>

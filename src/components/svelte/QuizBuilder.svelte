@@ -543,7 +543,7 @@
           rows={Math.min(16, Math.max(6, activeDraft.split('\n').length))}
           value={activeDraft}
           oninput={(e) => (activeDraft = e.currentTarget.value)}></textarea>
-        <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-slate-400">
+        <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-slate-500">
           <span>Settings:</span>
           {#each QUIZ_SUGGESTED_SETTING_KEYS as key (key)}
             <span class="inline-flex items-center gap-0.5">
@@ -689,7 +689,7 @@
         >
           <span>Settings</span>
           {#each QUIZ_SUGGESTED_SETTING_KEYS as key (key)}
-            <span class="inline-flex items-center gap-0.5 font-normal text-slate-400">
+            <span class="inline-flex items-center gap-0.5 font-normal text-slate-500">
               {key}
               <SettingHelp {key} rules={QUIZ_SETTING_RULES} />
             </span>

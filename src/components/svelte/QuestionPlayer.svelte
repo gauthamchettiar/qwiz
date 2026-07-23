@@ -277,7 +277,7 @@
 
 {#snippet typedAcceptedAnswers()}
   <div class="mt-2">
-    <p class="text-xs font-medium text-slate-400">Accepted answers</p>
+    <p class="text-xs font-medium text-slate-500">Accepted answers</p>
     <div class="mt-1 flex flex-wrap gap-1.5">
       {#each question.options as option, i (i)}
         {#if option.content.kind === 'text'}
@@ -374,7 +374,7 @@
           <Eye size={14} />
           {extra.label || 'Reveal hint'}
           {#if extra.points !== 0}
-            <span class="text-xs text-slate-400"
+            <span class="text-xs text-slate-500"
               >({extra.points > 0 ? '+' : ''}{extra.points} pts)</span
             >
           {/if}
@@ -522,7 +522,7 @@
 
   {#if !isLocked && (!isTyped || isMultiGuess) && (minAnswers > 0 || maxAnswers !== undefined)}
     {@const noun = isTyped ? 'answer' : 'option'}
-    <p class="text-xs text-slate-400">
+    <p class="text-xs text-slate-500">
       {#if minAnswers > 0 && maxAnswers !== undefined}
         {isTyped ? 'Give' : 'Select'} between {minAnswers} and {maxAnswers}
         {noun}{maxAnswers === 1 ? '' : 's'}.

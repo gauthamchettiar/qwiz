@@ -458,7 +458,7 @@
     <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs font-medium text-slate-500">
       <span>Settings</span>
       {#each suggestedKeys as key (key)}
-        <span class="inline-flex items-center gap-0.5 font-normal text-slate-400">
+        <span class="inline-flex items-center gap-0.5 font-normal text-slate-500">
           {key}
           <SettingHelp {key} />
         </span>

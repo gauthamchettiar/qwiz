@@ -41,7 +41,7 @@
 </script>
 
 {#if quizzes.length === 0}
-  <p class="rounded-lg border border-slate-200 p-6 text-center text-sm text-slate-400">
+  <p class="rounded-lg border border-slate-200 p-6 text-center text-sm text-slate-500">
     No quizzes yet. Create one to get started.
   </p>
 {:else}
@@ -77,7 +77,7 @@
               {/each}
             </div>
           {/if}
-          <p class="mt-3 text-xs text-slate-400">
+          <p class="mt-3 text-xs text-slate-500">
             {questionCountLabel(quiz)} · updated {new Date(quiz.updatedAt).toLocaleDateString()}
           </p>
         </a>
