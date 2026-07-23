@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { sampleQuizzes } from '../sampleQuizzes';
-  import { importQwizSource } from '../importQwiz';
+  import { sampleQuizzes } from '@/lib/utils/sampleQuizzes';
+  import { importQwizSource } from '@/lib/utils/importQwiz';
   import Dialog from './Dialog.svelte';
   import Button from './Button.svelte';
 

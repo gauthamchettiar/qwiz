@@ -1,4 +1,4 @@
-import type { QuizScriptSettings } from './quizScript';
+import type { QuizScriptSettings } from '@/lib/utils/quizScript';
 
 export interface Quiz {
   id: string;

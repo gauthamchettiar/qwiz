@@ -1,6 +1,6 @@
 <script lang="ts">
   import { CircleCheck, CircleX, Eye, Plus, RotateCcw, X } from '@lucide/svelte';
-  import type { QuizScriptOption, QuizScriptQuestion } from '../quizScript';
+  import type { QuizScriptOption, QuizScriptQuestion } from '@/lib/utils/quizScript';
   import {
     blankDraft,
     boxAnswer,
@@ -14,8 +14,8 @@
     typedSingleAnswerMatches,
     type PlayQuestion,
     type QuestionDraft
-  } from '../grading';
-  import { extractYoutubeId } from '../youtube';
+  } from '@/lib/utils/grading';
+  import { extractYoutubeId } from '@/lib/utils/youtube';
 
   // The one live "answer this question" widget, used two ways:
   // - `standalone` (QuestionCard's in-editor "try it" tester): owns its own Submit/Try-again cycle

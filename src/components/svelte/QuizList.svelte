@@ -1,9 +1,9 @@
 <script lang="ts">
   import { Download, Play, Trash2 } from '@lucide/svelte';
-  import { deleteQuiz, listQuizzes } from '../store';
-  import { downloadTextFile, slugify } from '../download';
-  import { serializeQuizScript } from '../quizScript';
-  import type { Quiz } from '../types';
+  import { deleteQuiz, listQuizzes } from '@/lib/stores/quizzes';
+  import { downloadTextFile, slugify } from '@/lib/utils/download';
+  import { serializeQuizScript } from '@/lib/utils/quizScript';
+  import type { Quiz } from '@/lib/schemas/quiz';
   import CardMenu from './CardMenu.svelte';
 
   // Read on mount rather than at module scope: the page is prerendered to static HTML, where

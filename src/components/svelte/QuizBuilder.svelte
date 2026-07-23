@@ -2,9 +2,9 @@
   import { tick, untrack } from 'svelte';
   import { fade } from 'svelte/transition';
   import { Check, Code, Download, FolderOpen, Play, Plus, Tag as TagIcon, X } from '@lucide/svelte';
-  import { categorySuggestions, tagSuggestions } from '../suggestions';
-  import { deleteQuiz, saveQuiz } from '../store';
-  import { downloadTextFile, slugify } from '../download';
+  import { categorySuggestions, tagSuggestions } from '@/lib/utils/suggestions';
+  import { deleteQuiz, saveQuiz } from '@/lib/stores/quizzes';
+  import { downloadTextFile, slugify } from '@/lib/utils/download';
   import {
     QUIZ_SETTING_RULES,
     QUIZ_SUGGESTED_SETTING_KEYS,
@@ -17,9 +17,9 @@
     validateSettingValue,
     type QuizScriptFrontmatter,
     type QuizScriptQuestion
-  } from '../quizScript';
-  import type { Quiz, QuizQuestion } from '../types';
-  import type { FocusTarget } from './questionFocus';
+  } from '@/lib/utils/quizScript';
+  import type { Quiz, QuizQuestion } from '@/lib/schemas/quiz';
+  import type { FocusTarget } from '@/lib/utils/questionFocus';
   import Button from './Button.svelte';
   import ErrorList from './ErrorList.svelte';
   import CodeFrame from './CodeFrame.svelte';

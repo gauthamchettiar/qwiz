@@ -9,8 +9,8 @@
     suggestedSettingKeysForVariant,
     validateSettingValue,
     type QuizScriptQuestion
-  } from '../quizScript';
-  import type { FocusTarget } from './questionFocus';
+  } from '@/lib/utils/quizScript';
+  import type { FocusTarget } from '@/lib/utils/questionFocus';
   import SuggestionInput from './SuggestionInput.svelte';
   import ErrorList from './ErrorList.svelte';
   import SettingHelp from './SettingHelp.svelte';

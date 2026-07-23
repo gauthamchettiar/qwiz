@@ -1,7 +1,7 @@
 <script lang="ts">
   import { fade } from 'svelte/transition';
   import { CircleCheck, CircleX, Eye, ChevronRight, ChevronLeft, RotateCcw, Trophy, ListChecks } from '@lucide/svelte';
-  import { parseQuizScriptQuestion, type QuizScriptOption, type QuizScriptQuestion } from '../quizScript';
+  import { parseQuizScriptQuestion, type QuizScriptOption, type QuizScriptQuestion } from '@/lib/utils/quizScript';
   import {
     blankDraft,
     buildPlayRun,
@@ -16,9 +16,9 @@
     type PlayQuestion,
     type QuestionDraft,
     type QuestionResult
-  } from '../grading';
-  import { extractYoutubeId } from '../youtube';
-  import type { Quiz } from '../types';
+  } from '@/lib/utils/grading';
+  import { extractYoutubeId } from '@/lib/utils/youtube';
+  import type { Quiz } from '@/lib/schemas/quiz';
   import QuestionPlayer from './QuestionPlayer.svelte';
 
   let { quiz }: { quiz: Quiz } = $props();

@@ -1,8 +1,8 @@
 <script lang="ts">
   import { Code, Copy, Play, Square } from '@lucide/svelte';
-  import { parseQuizScriptQuestion, suggestedSettingKeysForVariant, type QuizScriptQuestion } from '../quizScript';
-  import type { QuizQuestion } from '../types';
-  import type { FocusTarget } from './questionFocus';
+  import { parseQuizScriptQuestion, suggestedSettingKeysForVariant, type QuizScriptQuestion } from '@/lib/utils/quizScript';
+  import type { QuizQuestion } from '@/lib/schemas/quiz';
+  import type { FocusTarget } from '@/lib/utils/questionFocus';
   import QuestionView from './QuestionView.svelte';
   import QuestionForm from './QuestionForm.svelte';
   import QuestionPlayer from './QuestionPlayer.svelte';

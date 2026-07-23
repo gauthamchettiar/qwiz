@@ -1,6 +1,6 @@
-import { parseQwizFile } from './quizScript';
-import { saveQuiz } from './store';
-import type { Quiz } from './types';
+import { parseQwizFile } from '@/lib/utils/quizScript';
+import { saveQuiz } from '@/lib/stores/quizzes';
+import type { Quiz } from '@/lib/schemas/quiz';
 
 /** Builds a brand-new quiz from a piece of `.qwiz` source (fresh quiz id, fresh per-question
  * ids, fresh timestamps — never overwrites an existing quiz), saves it, and returns it. Shared

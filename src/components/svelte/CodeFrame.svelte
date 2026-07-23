@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { QuizScriptError } from '../quizScript';
+  import type { QuizScriptError } from '@/lib/utils/quizScript';
 
   let { error, source }: { error: QuizScriptError; source: string } = $props();
 

@@ -1,4 +1,4 @@
-import { listQuizzes } from './store';
+import { listQuizzes } from '@/lib/stores/quizzes';
 
 /**
  * Seed vocabularies offered in the category and tag dropdowns. Purely advisory — both fields

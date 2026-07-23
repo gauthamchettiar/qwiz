@@ -1,6 +1,6 @@
 <script lang="ts">
   import { MoreVertical } from '@lucide/svelte';
-  import { clickOutside } from '../clickOutside';
+  import { clickOutside } from '@/lib/utils/clickOutside';
   import type { Snippet } from 'svelte';
 
   // A compact "⋮" overflow menu for card actions. The children snippet receives a `close`

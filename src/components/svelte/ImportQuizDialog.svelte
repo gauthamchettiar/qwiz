@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Upload, FileUp, Sparkles } from '@lucide/svelte';
-  import { importQwizSource } from '../importQwiz';
+  import { importQwizSource } from '@/lib/utils/importQwiz';
   import Dialog from './Dialog.svelte';
   import Button from './Button.svelte';
   import ErrorList from './ErrorList.svelte';

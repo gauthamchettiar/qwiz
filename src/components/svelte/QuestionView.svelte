@@ -1,7 +1,7 @@
 <script lang="ts">
   import { CircleCheck, CircleX, Video, Eye } from '@lucide/svelte';
-  import type { QuizScriptOption, QuizScriptQuestion } from '../quizScript';
-  import type { FocusTarget } from './questionFocus';
+  import type { QuizScriptOption, QuizScriptQuestion } from '@/lib/utils/quizScript';
+  import type { FocusTarget } from '@/lib/utils/questionFocus';
 
   // Unlike quizare, which needs a per-type Editor/Preview registry because its question types
   // have genuinely different data shapes, every quizScript question is one unified

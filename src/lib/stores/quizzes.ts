@@ -1,4 +1,4 @@
-import type { Quiz } from './types';
+import type { Quiz } from '@/lib/schemas/quiz';
 
 const STORAGE_KEY = 'qwiz:quizzes';
 
