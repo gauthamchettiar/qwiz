@@ -6,7 +6,12 @@ const STORAGE_KEY = 'qwiz:quizzes';
  * so a hand-edited or stale-schema localStorage value can't crash the app downstream — it just
  * quietly disappears from the list instead of blowing up a component that assumes a valid Quiz. */
 function readAll(): Record<string, Quiz> {
-  if (typeof localStorage === 'undefined') return {};
+  // Checked via `window`, not `localStorage` itself: Node 22+ defines a global `localStorage`
+  // even outside a browser (an experimental, file-backed Web Storage API) whose methods throw
+  // unless `--localstorage-file` points at a real path — `typeof localStorage === 'undefined'`
+  // would no longer be true during Astro's SSR/build on those Node versions, and every call
+  // would silently rely on the catch block below instead of cleanly short-circuiting here.
+  if (typeof window === 'undefined') return {};
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return {};
@@ -26,7 +31,7 @@ function readAll(): Record<string, Quiz> {
 }
 
 function writeAll(quizzes: Record<string, Quiz>): void {
-  if (typeof localStorage === 'undefined') return;
+  if (typeof window === 'undefined') return;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(quizzes));
 }
 
