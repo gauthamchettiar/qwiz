@@ -1,0 +1,5 @@
+# Every quiz lives only in the visitor's own browser (localStorage) — there is no shared,
+# publicly meaningful content here for a crawler to index. See <meta name="robots"> in
+# src/layouts/Base.astro for the same intent per-page.
+User-agent: *
+Disallow: /

@@ -4,9 +4,13 @@ import ImportQuizDialog from '@/components/svelte/ImportQuizDialog.svelte';
 
 interface Props {
   title?: string;
+  description?: string;
 }
 
-const { title = 'Qwiz' } = Astro.props;
+const {
+  title = 'Qwiz',
+  description = 'Build and play quizzes entirely in your browser — nothing leaves your device.'
+} = Astro.props;
 ---
 
 <html lang="en">
@@ -15,6 +19,12 @@ const { title = 'Qwiz' } = Astro.props;
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width" />
     <meta name="generator" content={Astro.generator} />
+    <meta name="theme-color" content="#4f39f6" />
+    <meta name="description" content={description} />
+    <meta name="robots" content="noindex" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={`${title} · Qwiz`} />
+    <meta property="og:description" content={description} />
     <title>{title} · Qwiz</title>
   </head>
   <body class="min-h-screen">

@@ -1,0 +1,15 @@
+# Cloudflare Pages reads this file verbatim from the site root (Astro copies public/ there
+# unchanged) and applies these headers to every response matching the path pattern below.
+#
+# script-src/style-src need 'unsafe-inline': Astro's islands runtime ships a small inline
+# <script> (defining the astro-island custom element) and an inline <style> on every page —
+# that's Astro's architecture, not something this app's code controls, and there is no
+# {@html} or other raw-HTML-injection sink anywhere in this codebase for a strict script-src
+# to actually be defending against. The other directives below (frame-ancestors, object-src,
+# base-uri, form-action) don't have that conflict and are worth keeping strict.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; frame-src https://www.youtube.com; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()

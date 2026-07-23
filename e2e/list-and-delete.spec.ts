@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { buildQuiz } from './fixtures/quizzes';
 import { HomePage } from './pages/HomePage';
-import { resetStorage, seedQuizzes } from './utils/storage';
+import { resetStorage, seedQuizzes, simulateStorageFull } from './utils/storage';
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
@@ -39,4 +39,23 @@ test('lists every seeded quiz and lets you delete one via the two-step confirm',
   await page.reload();
   await home.expectNotListed('Remove Me');
   await home.expectListed('Keep Me');
+});
+
+test('a failed delete leaves the quiz listed instead of an optimistic false removal', async ({
+  page
+}) => {
+  const quiz = buildQuiz({ title: 'Stubborn Quiz' });
+  await seedQuizzes(page, [quiz]);
+  await simulateStorageFull(page);
+
+  const home = new HomePage(page);
+  await home.goto();
+  await home.expectListed('Stubborn Quiz');
+
+  await home.openCardMenu('Stubborn Quiz');
+  await home.deleteMenuItem().click();
+  await home.confirmDeleteMenuItem().click();
+
+  await expect(page.getByText(/storage might be unavailable/)).toBeVisible();
+  await home.expectListed('Stubborn Quiz');
 });

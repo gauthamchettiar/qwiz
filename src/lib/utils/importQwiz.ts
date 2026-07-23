@@ -23,6 +23,12 @@ export function importQwizSource(source: string): { quiz?: Quiz; errors: string[
     updatedAt: now,
     questions: questionCodes.map((code) => ({ id: crypto.randomUUID(), code }))
   };
-  saveQuiz(quiz);
+  if (!saveQuiz(quiz)) {
+    return {
+      errors: [
+        "Couldn't save — your browser's storage might be full or unavailable (e.g. private browsing)."
+      ]
+    };
+  }
   return { quiz, errors: [] };
 }

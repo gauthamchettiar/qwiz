@@ -19,3 +19,15 @@ export async function seedQuizzes(page: Page, quizzes: Quiz[]): Promise<void> {
     value: JSON.stringify(record)
   });
 }
+
+/** Makes every `localStorage.setItem` call throw, as real browsers do once storage is full or
+ * (Safari) private browsing disables it entirely — for specs verifying the app surfaces that
+ * failure instead of silently claiming success. Must be called before `page.goto`, since it
+ * installs the override via `addInitScript` so it's in place before the app's own code runs. */
+export async function simulateStorageFull(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    Storage.prototype.setItem = () => {
+      throw new DOMException('Quota exceeded', 'QuotaExceededError');
+    };
+  });
+}

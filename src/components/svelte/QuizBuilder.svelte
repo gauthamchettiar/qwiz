@@ -453,7 +453,12 @@
       questions
     };
 
-    saveQuiz(quiz);
+    if (!saveQuiz(quiz)) {
+      errors = [
+        "Couldn't save — your browser's storage might be full or unavailable (e.g. private browsing). Try removing a large image and saving again."
+      ];
+      return null;
+    }
     return quiz;
   }
 
@@ -500,7 +505,10 @@
   // the edit page, for a quiz that's confirmed to already exist in the store.
   function deleteThisQuiz() {
     if (!initial) return;
-    deleteQuiz(initial.id);
+    if (!deleteQuiz(initial.id)) {
+      errors = ["Couldn't delete — your browser's storage might be unavailable right now."];
+      return;
+    }
     window.location.href = '/';
   }
 </script>

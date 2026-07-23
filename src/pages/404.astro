@@ -1,0 +1,19 @@
+---
+import Base from '@/layouts/Base.astro';
+---
+
+<Base title="Page not found">
+  <div class="space-y-4 rounded-lg border border-slate-200 bg-white p-6 text-center">
+    <h1 class="text-xl font-bold text-slate-900">Page not found</h1>
+    <p class="text-sm text-slate-500">
+      There's nothing at this address. If you followed a link to a quiz, it may only exist in the
+      browser of whoever shared it — quizzes aren't stored anywhere shared.
+    </p>
+    <a
+      href="/"
+      class="inline-block rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+    >
+      Back to your quizzes
+    </a>
+  </div>
+</Base>

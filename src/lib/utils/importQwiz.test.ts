@@ -1,5 +1,12 @@
-import { describe, expect, it } from 'vitest';
+// @vitest-environment jsdom
+// importQwizSource persists via saveQuiz, which now reports whether the write actually landed
+// (see lib/stores/quizzes.ts) — that requires a real localStorage, hence jsdom over plain node.
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { importQwizSource } from './importQwiz';
+
+beforeEach(() => {
+  localStorage.clear();
+});
 
 const VALID_SOURCE = [
   '---',
@@ -58,5 +65,19 @@ describe('importQwizSource', () => {
     const { quiz, errors } = importQwizSource('not frontmatter\n\nQuestion with no options');
     expect(quiz).toBeUndefined();
     expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('returns an error instead of a quiz when persisting fails', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Quota exceeded', 'QuotaExceededError');
+    });
+
+    const { quiz, errors } = importQwizSource(VALID_SOURCE);
+    expect(quiz).toBeUndefined();
+    expect(errors.length).toBeGreaterThan(0);
+
+    setItem.mockRestore();
+    error.mockRestore();
   });
 });

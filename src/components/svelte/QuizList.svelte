@@ -5,6 +5,7 @@
   import { serializeQuizScript } from '@/lib/utils/quizScript';
   import type { Quiz } from '@/lib/schemas/quiz';
   import CardMenu from './CardMenu.svelte';
+  import ErrorList from './ErrorList.svelte';
 
   // A writable $derived: it reads from localStorage once at hydration time (the page is
   // prerendered to static HTML, where localStorage doesn't exist yet — listQuizzes() already
@@ -14,6 +15,8 @@
   // Which card's Delete item is showing its "Confirm delete?" state — at most one at a time,
   // and CardMenu's onClose resets it, so it can never linger open on a card whose menu closed.
   let confirmingId = $state<string | null>(null);
+
+  let errors = $state<string[]>([]);
 
   function questionCountLabel(quiz: Quiz): string {
     const n = quiz.questions.length;
@@ -35,10 +38,16 @@
   }
 
   function removeQuiz(id: string) {
-    deleteQuiz(id);
+    if (!deleteQuiz(id)) {
+      errors = ["Couldn't delete — your browser's storage might be unavailable right now."];
+      return;
+    }
+    errors = [];
     quizzes = quizzes.filter((q) => q.id !== id);
   }
 </script>
+
+<ErrorList {errors} />
 
 {#if quizzes.length === 0}
   <p class="rounded-lg border border-slate-200 p-6 text-center text-sm text-slate-500">

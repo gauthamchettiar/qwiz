@@ -34,6 +34,12 @@ Hard constraints — never violate without explicit approval:
 If a task genuinely requires a server, **stop and say so**. Propose the smallest possible external
 primitive rather than converting the project to SSR.
 
+**Deliberately not indexed.** `<meta name="robots" content="noindex">` (`Base.astro`) and
+`public/robots.txt` both disallow crawling. Since every quiz lives only in one visitor's own
+`localStorage`, a crawler hitting `/local/edit`/`/local/play` would just see the not-found state —
+there's no shared content anywhere for indexing to be useful. If the app ever grows something
+genuinely public (a shareable read-only quiz link, say), revisit both.
+
 ---
 
 ## 2. Stack
@@ -48,8 +54,8 @@ primitive rather than converting the project to SSR.
 | Validation      | zod                                                                                  | schemas in `src/lib/schemas/`; types derive via `z.infer`            |
 | Language        | TypeScript, `strict: true`                                                           | `astro/tsconfigs/strict` as base, plus a `@/*` path alias            |
 | Package manager | pnpm                                                                                 | lockfile committed (`pnpm-lock.yaml`), `--frozen-lockfile` in CI     |
-| E2E tests       | Playwright                                                                           | primary safety net — 80 tests across 4 browser projects              |
-| Unit tests      | Vitest                                                                               | pure logic in `src/lib/**` — 122 tests                               |
+| E2E tests       | Playwright                                                                           | primary safety net — 88 tests across 4 browser projects              |
+| Unit tests      | Vitest                                                                               | pure logic in `src/lib/**` — 125 tests                               |
 | Lint / format   | ESLint (flat config) + Prettier + `prettier-plugin-astro` + `prettier-plugin-svelte` |                                                                      |
 | Deploy          | Cloudflare Pages                                                                     | via GitHub Actions, see §8                                           |
 
@@ -86,7 +92,10 @@ migration.
 │   ├── pages/                   # Page Object Models: HomePage, BuilderPage, PlayPage
 │   ├── utils/                   # storage.ts (seed/reset localStorage), a11y.ts (axe helper)
 │   └── *.spec.ts
-├── public/                      # copied verbatim; favicon.svg
+├── public/                      # copied verbatim to dist/ root
+│   ├── favicon.svg
+│   ├── robots.txt               # Disallow: / — see §1, "Deliberately not indexed"
+│   └── _headers                 # Cloudflare Pages security headers (CSP, etc.) — see §5
 ├── src/
 │   ├── components/
 │   │   └── svelte/              # every interactive island (.svelte) — no astro/ subfolder yet,
@@ -101,6 +110,7 @@ migration.
 │   │                             # importQwiz.ts, clickOutside.ts, questionFocus.ts
 │   ├── pages/
 │   │   ├── index.astro          # quiz list
+│   │   ├── 404.astro            # custom not-found page, matches the app's own visual language
 │   │   └── local/
 │   │       ├── create.astro     # QuizBuilder, client:load
 │   │       ├── edit.astro       # QuizEditPage, client:only (reads ?id= at runtime)
@@ -216,6 +226,18 @@ Additional rules:
   (existing `fade` transitions in `QuizBuilder`/`QuizPlayer` are brief enough not to need a
   reduced-motion fallback, but a longer one would).
 
+### Security headers (`public/_headers`)
+
+Cloudflare Pages reads this file verbatim. `script-src`/`style-src` include `'unsafe-inline'`
+because Astro's islands runtime injects a small inline `<script>`/`<style>` on every page — that's
+Astro's architecture, not something app code controls, and this codebase has no `{@html}` or other
+raw-HTML sink for a stricter `script-src` to actually be defending against. The other directives
+(`frame-ancestors 'none'`, `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`) don't have
+that conflict and stay strict. `img-src` allows any `https:` origin because an option/media image
+URL is arbitrary author-pasted input (see `QuizScriptOptionContent` in `quizScript.ts`) — there's
+no fixed set of image hosts to allow-list. `frame-src` is scoped to `https://www.youtube.com` only,
+matching the one embed the app ever renders (`extractYoutubeId` in `lib/utils/youtube.ts`).
+
 ---
 
 ## 6. DRY and code quality
@@ -233,6 +255,15 @@ Additional rules:
   `localStorage` through `quizSchema.safeParse` and drops anything that doesn't match (logging a
   `console.warn`), so a hand-edited or stale-schema value in a visitor's browser can't crash the
   app downstream. Follow this pattern for any new localStorage-backed state.
+- **`saveQuiz`/`deleteQuiz` return `boolean`, and every call site checks it.** `writeAll` catches
+  whatever `localStorage.setItem` throws (quota exceeded — real here, since a quiz can embed
+  base64 image data; Safari private browsing, which throws on every write) and reports failure
+  rather than letting it propagate as an uncaught exception. `QuizBuilder.svelte`'s
+  `buildAndSaveQuiz`/`deleteThisQuiz`, `QuizList.svelte`'s `removeQuiz`, and
+  `importQwiz.ts`'s `importQwizSource` all surface a message via the existing `ErrorList`
+  component on failure instead of optimistically assuming the write landed — a save/delete that
+  silently didn't happen is worse than one that visibly failed. Any new code that persists a quiz
+  must do the same, not just call `saveQuiz(quiz)` and move on.
 - Errors: `parseQuizScriptQuestion`/`parseQwizFile` etc. return `{ result, errors }` shapes rather
   than throwing — user-authored `.qwiz` source is expected to sometimes be invalid, and that's not
   a programmer error. Reserve `throw` for actual programmer error.
@@ -302,7 +333,11 @@ The primary contract for user-visible behavior. Config (`playwright.config.ts`):
 
 `e2e/utils/storage.ts`'s `seedQuizzes()`/`resetStorage()` write/clear `qwiz:quizzes` directly,
 bypassing the builder UI, to arrange state for specs that test something _other_ than authoring
-(playing, listing, deep-linking). `e2e/fixtures/quizzes.ts`'s `buildQuiz()` is the one place that
+(playing, listing, deep-linking). `simulateStorageFull()` in the same file overrides
+`Storage.prototype.setItem` to throw (via `page.addInitScript`, so it's in place before the app's
+own code runs) — used by `create-quiz.spec.ts`/`list-and-delete.spec.ts` to verify the app
+actually surfaces a save/delete failure (see §6's `saveQuiz`/`deleteQuiz` boolean-return rule)
+instead of claiming success. `e2e/fixtures/quizzes.ts`'s `buildQuiz()` is the one place that
 builds a schema-valid `Quiz` fixture — pin `settings.shuffle_questions: false` on any fixture a
 test asserts a specific question order against, since it defaults to `true`.
 
@@ -415,12 +450,15 @@ lint`, `pnpm test`, or `pnpm test:e2e`.
 - [ ] `text-slate-400` never used on text-bearing elements (see §5) — `text-slate-500`+ instead
 - [ ] Still fully static: no adapter, no server route, no runtime secret
 - [ ] `localStorage` touched only from `src/lib/stores/quizzes.ts`
+- [ ] Any new persistence call checks `saveQuiz`/`deleteQuiz`'s boolean return and surfaces a
+      failure to the user (see §6) — never assumes a write landed
 - [ ] Works at mobile viewport, keyboard navigable, axe-clean (`pnpm test:e2e` covers all three)
 
 ### Anti-patterns — flag these on sight
 
-Adding an SSR adapter · a new `localStorage` call outside `lib/stores/quizzes.ts` · `@apply`
-blocks · `text-slate-400` on real text · `waitForTimeout` in tests · CSS-class selectors in tests ·
-duplicated `.qwiz` parsing/validation logic outside `quizScript.ts` · `any` · a component that only
-renders the happy path · e2e tests running against `pnpm dev` instead of the build · re-adopting
+Adding an SSR adapter · a new `localStorage` call outside `lib/stores/quizzes.ts` · calling
+`saveQuiz`/`deleteQuiz` without checking the result · `@apply` blocks · `text-slate-400` on real
+text · `waitForTimeout` in tests · CSS-class selectors in tests · duplicated `.qwiz`
+parsing/validation logic outside `quizScript.ts` · `any` · a component that only renders the
+happy path · e2e tests running against `pnpm dev` instead of the build · re-adopting
 daisyUI/Bits UI wholesale without re-reading §2's reasoning first.

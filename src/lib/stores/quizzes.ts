@@ -30,9 +30,20 @@ function readAll(): Record<string, Quiz> {
   }
 }
 
-function writeAll(quizzes: Record<string, Quiz>): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(quizzes));
+/** Returns whether the write actually succeeded. `localStorage.setItem` can throw — quota
+ * exceeded (a real risk here: quizzes can embed base64/data-URL images), or Safari private
+ * browsing, which throws on every write. Callers must check this rather than assuming a save
+ * always lands; silently swallowing it would leave the UI claiming "Saved" for data that was
+ * never actually persisted. */
+function writeAll(quizzes: Record<string, Quiz>): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(quizzes));
+    return true;
+  } catch (error) {
+    console.error('Failed to persist quizzes to localStorage:', error);
+    return false;
+  }
 }
 
 export function listQuizzes(): Quiz[] {
@@ -43,16 +54,17 @@ export function getQuiz(id: string): Quiz | null {
   return readAll()[id] ?? null;
 }
 
-export function saveQuiz(quiz: Quiz): void {
+/** Returns whether the quiz was actually persisted — see `writeAll`. */
+export function saveQuiz(quiz: Quiz): boolean {
   const all = readAll();
   all[quiz.id] = quiz;
-  writeAll(all);
+  return writeAll(all);
 }
 
+/** Returns whether the quiz existed and the deletion was actually persisted — see `writeAll`. */
 export function deleteQuiz(id: string): boolean {
   const all = readAll();
   if (!(id in all)) return false;
   delete all[id];
-  writeAll(all);
-  return true;
+  return writeAll(all);
 }

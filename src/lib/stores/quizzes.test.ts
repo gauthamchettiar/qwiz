@@ -27,7 +27,7 @@ beforeEach(() => {
 describe('saveQuiz / getQuiz / listQuizzes / deleteQuiz', () => {
   it('round-trips a saved quiz', () => {
     const quiz = makeQuiz();
-    saveQuiz(quiz);
+    expect(saveQuiz(quiz)).toBe(true);
     expect(getQuiz(quiz.id)).toEqual(quiz);
   });
 
@@ -57,6 +57,39 @@ describe('saveQuiz / getQuiz / listQuizzes / deleteQuiz', () => {
     saveQuiz({ ...quiz, title: 'Second' });
     expect(listQuizzes()).toHaveLength(1);
     expect(getQuiz(quiz.id)!.title).toBe('Second');
+  });
+});
+
+describe('write failures (quota exceeded, private browsing, etc.)', () => {
+  it('saveQuiz returns false and logs, without throwing, when the write fails', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Quota exceeded', 'QuotaExceededError');
+    });
+
+    expect(() => saveQuiz(makeQuiz())).not.toThrow();
+    expect(saveQuiz(makeQuiz())).toBe(false);
+    expect(error).toHaveBeenCalled();
+
+    setItem.mockRestore();
+    error.mockRestore();
+  });
+
+  it('deleteQuiz returns false when the quiz existed but the write fails', () => {
+    const quiz = makeQuiz();
+    saveQuiz(quiz);
+
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Quota exceeded', 'QuotaExceededError');
+    });
+
+    expect(deleteQuiz(quiz.id)).toBe(false);
+    // The failed write means it's still there.
+    expect(getQuiz(quiz.id)).toEqual(quiz);
+
+    setItem.mockRestore();
+    error.mockRestore();
   });
 });
 

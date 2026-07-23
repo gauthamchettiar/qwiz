@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { BuilderPage } from './pages/BuilderPage';
 import { HomePage } from './pages/HomePage';
-import { resetStorage } from './utils/storage';
+import { resetStorage, simulateStorageFull } from './utils/storage';
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
@@ -43,5 +43,23 @@ test('the title is required to save', async ({ page }) => {
   await builder.saveButton.click();
 
   await expect(page.getByText('Title is required.')).toBeVisible();
+  await expect(page).toHaveURL('/local/create');
+});
+
+test('shows an error instead of silently losing the quiz when storage is full', async ({
+  page
+}) => {
+  await simulateStorageFull(page);
+
+  const builder = new BuilderPage(page);
+  await builder.gotoCreate();
+  await builder.titleInput.fill('Will Not Fit');
+  await builder.addQuestion();
+  await builder.fillChoiceQuestion('Untitled question', 'a', 'b');
+  await builder.saveButton.click();
+
+  await expect(page.getByText(/storage might be full/)).toBeVisible();
+  // Never navigated away — a "Saved" flash or a redirect to /local/edit would both be lying
+  // about whether the quiz actually persisted.
   await expect(page).toHaveURL('/local/create');
 });
