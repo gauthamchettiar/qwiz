@@ -1,0 +1,426 @@
+# CLAUDE.md
+
+Operating manual for any Claude instance working in this repository.
+Read this fully before writing code. When a request conflicts with this file, say so and ask.
+
+This file is adapted from a generic static-Astro-site template to this project's actual, current
+state — not aspirational. If a rule below stops matching reality (a new dependency, a moved
+file), update this file in the same commit that causes the drift.
+
+---
+
+## 1. What this project is
+
+Qwiz — a **fully static, client-side-only Astro site** for authoring and playing quizzes. No
+server runtime, no SSR, no API routes, no secrets at runtime. Everything (quizzes, drafts,
+settings) lives in the visitor's own browser via `localStorage`; nothing is synced anywhere.
+
+Hard constraints — never violate without explicit approval:
+
+- `output: 'static'` (see `astro.config.mjs`). **Never** add an SSR adapter (`@astrojs/node`,
+  `vercel`, `cloudflare` serverless, etc.).
+- No `.astro` server endpoints (`src/pages/**/*.ts` returning `APIRoute`), no
+  `Astro.request`-dependent logic, no `export const prerender = false`.
+- Anything dynamic happens in the browser: `fetch`, `localStorage`, `crypto.randomUUID`. The
+  `/local/edit` and `/local/play` routes read a quiz id from `?id=` at runtime and render
+  `client:only="svelte"` — there is no dynamic route to prerender, since quiz ids only ever exist
+  in a visitor's own browser, never at build time.
+- The build output in `dist/` must be servable from any dumb static host with no config beyond
+  SPA-ish handling. Currently deployed to **Cloudflare Pages** (see §8) — no `base`/subpath
+  config needed there, unlike GitHub Pages.
+- No environment variable may contain a secret. Only `PUBLIC_*` vars exist, and they are public by
+  definition. (None are currently in use.)
+
+If a task genuinely requires a server, **stop and say so**. Propose the smallest possible external
+primitive rather than converting the project to SSR.
+
+---
+
+## 2. Stack
+
+| Concern         | Choice                                                                               | Notes                                                                |
+| --------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| Framework       | Astro 7                                                                              | static output, islands architecture                                  |
+| Interactive UI  | Svelte 5 (runes)                                                                     | `$state`, `$derived`, `$effect`, `$props` — no legacy stores API     |
+| Styling         | Tailwind CSS v4 (`@tailwindcss/vite`)                                                | no `tailwind.config.js`; theme lives in CSS via `@theme`             |
+| Components      | Hand-rolled Tailwind, no component library                                           | see §5 — daisyUI/Bits UI were evaluated and deliberately not adopted |
+| Icons           | `@lucide/svelte`                                                                     |                                                                      |
+| Validation      | zod                                                                                  | schemas in `src/lib/schemas/`; types derive via `z.infer`            |
+| Language        | TypeScript, `strict: true`                                                           | `astro/tsconfigs/strict` as base, plus a `@/*` path alias            |
+| Package manager | pnpm                                                                                 | lockfile committed (`pnpm-lock.yaml`), `--frozen-lockfile` in CI     |
+| E2E tests       | Playwright                                                                           | primary safety net — 80 tests across 4 browser projects              |
+| Unit tests      | Vitest                                                                               | pure logic in `src/lib/**` — 122 tests                               |
+| Lint / format   | ESLint (flat config) + Prettier + `prettier-plugin-astro` + `prettier-plugin-svelte` |                                                                      |
+| Deploy          | Cloudflare Pages                                                                     | via GitHub Actions, see §8                                           |
+
+Version numbers drift. Before pinning anything, check the installed version in `package.json` and
+the actual API in `node_modules`, not memory.
+
+**Do not add a dependency without asking.** State what it solves, its install size, and what it
+replaces. Prefer stdlib/platform APIs (`URL`, `structuredClone`, `Intl`, `AbortController`) over
+packages.
+
+### Why no daisyUI / Bits UI
+
+A generic version of this file recommends daisyUI (pre-styled components) and Bits UI (headless,
+accessible primitives) as the default before hand-rolling markup. Evaluated against this specific
+codebase and rejected: the existing hand-rolled components (`Button`, `Dialog`, `CardMenu`,
+`ConfirmDeleteButton` in `src/components/svelte/`) are already small (40–80 lines each), already
+use accessible native elements (`Dialog` wraps `<dialog>` + `showModal()`, which gets focus
+trapping and Escape-to-close for free from the browser), and encode app-specific interaction
+patterns (the two-step delete confirm, the suggestion-dropdown arrow-key handling) that no library
+would provide anyway. Adopting either would add two dependencies and a migration pass without
+reducing line count or complexity. **If this calculus changes** (new components that would
+genuinely benefit from headless accessibility primitives — a combobox, a real dropdown menu with
+roving tabindex), re-evaluate Bits UI specifically for that component rather than a wholesale
+migration.
+
+---
+
+## 3. Project structure
+
+```
+.
+├── e2e/                         # Playwright specs
+│   ├── fixtures/                # quizzes.ts — buildQuiz() factory, sample .qwiz source
+│   ├── pages/                   # Page Object Models: HomePage, BuilderPage, PlayPage
+│   ├── utils/                   # storage.ts (seed/reset localStorage), a11y.ts (axe helper)
+│   └── *.spec.ts
+├── public/                      # copied verbatim; favicon.svg
+├── src/
+│   ├── components/
+│   │   └── svelte/              # every interactive island (.svelte) — no astro/ subfolder yet,
+│   │                             # since nothing here is a static zero-JS component today
+│   ├── layouts/
+│   │   └── Base.astro           # page shell: header (logo, Import, + New Quiz), <main><slot /></main>
+│   ├── lib/                     # framework-agnostic TS: pure logic, no Svelte imports
+│   │   ├── schemas/quiz.ts      # zod Quiz/QuizQuestion schemas; Quiz/QuizDraft types derive from them
+│   │   ├── stores/quizzes.ts    # the only file that touches localStorage — list/get/save/delete
+│   │   └── utils/                # quizScript.ts (parser/serializer), grading.ts, shuffle.ts,
+│   │                             # youtube.ts, download.ts, suggestions.ts, sampleQuizzes.ts,
+│   │                             # importQwiz.ts, clickOutside.ts, questionFocus.ts
+│   ├── pages/
+│   │   ├── index.astro          # quiz list
+│   │   └── local/
+│   │       ├── create.astro     # QuizBuilder, client:load
+│   │       ├── edit.astro       # QuizEditPage, client:only (reads ?id= at runtime)
+│   │       └── play.astro       # QuizPlayPage, client:only (reads ?id= at runtime)
+│   └── styles/global.css        # Tailwind import + @theme tokens + the app's ~3 lines of custom CSS
+├── .github/workflows/ci.yml
+├── astro.config.mjs
+├── eslint.config.js
+├── playwright.config.ts
+├── vitest.config.ts
+└── CLAUDE.md
+```
+
+Rules:
+
+- **Pages are thin.** A page composes a layout and one top-level Svelte island, passes props, does
+  nothing else. All of this project's pages already follow this — if a page grows logic, move it
+  to the island or to `src/lib/`.
+- **Logic lives in `src/lib/` and is framework-free.** Every non-trivial function in `lib/utils/`
+  and `lib/stores/` is unit-tested (see `*.test.ts` siblings). Svelte components are the
+  _presentation_ of that logic, never the owner of it — e.g. `QuizPlayer.svelte` calls
+  `gradeDraft`/`gradeRun` from `lib/utils/grading.ts` rather than scoring anything itself.
+- Use the `@/*` path alias (`tsconfig.json` → `"@/*": ["src/*"]`). No `../../../` imports — the
+  only relative imports left in the codebase are Svelte components importing siblings in the same
+  `components/svelte/` folder (`import Button from './Button.svelte'`), which is intentional.
+- Colocation: `clickOutside.ts` and `questionFocus.ts` live in `lib/utils/` (not beside the
+  components that use them) because they're plain, framework-agnostic action/type helpers with no
+  Svelte import of their own — promote a helper out of a component folder the moment a second
+  component needs it too.
+
+---
+
+## 4. Astro + Svelte rules
+
+**Default to `.astro`.** Every Svelte island ships JS to the user. This app is unusual: nearly
+every page's primary content genuinely IS the interactive island (an authoring form, a player, a
+localStorage-backed list) rather than a static page with an interactive widget bolted on — so
+`client:load`/`client:only` dominate here, not `client:visible`/`client:idle`. That's a
+deliberate, load-bearing decision for _this_ app, not a license to reach for `client:load` by
+default elsewhere. A future addition that's genuinely below-the-fold or non-critical (e.g. a
+"recently played" widget) should still use the lighter directives below.
+
+Hydration directives, in order of preference for anything NEW:
+
+| Directive              | Use when                                                                                                                   |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| _(none)_               | Static markup — the default                                                                                                |
+| `client:visible`       | Below-the-fold interactive widgets                                                                                         |
+| `client:idle`          | Interactive but not immediately needed                                                                                     |
+| `client:load`          | Above-the-fold and immediately interactive (current: `QuizList`, `QuizBuilder` on `/local/create`, `ImportQuizDialog`)     |
+| `client:only="svelte"` | Component **cannot** render on the server — reads `?id=`/`localStorage` at mount (current: `QuizEditPage`, `QuizPlayPage`) |
+
+`client:only` skips SSR-time rendering entirely and produces layout shift — used deliberately on
+the two id-driven pages above, each of which renders nothing until `onMount` resolves whether the
+quiz exists.
+
+State:
+
+- Component-local state → runes inside the component.
+- State shared **within one island tree** → props / context (e.g. `QuizBuilder` → `QuestionCard` →
+  `QuestionForm`, all via props/callbacks).
+- State shared **across separate islands** → none currently exists in this app (every route
+  hydrates exactly one top-level island; there's no cross-island communication). If that changes,
+  follow the original template's guidance: a module in `src/lib/stores/*.svelte.ts` exporting
+  rune-backed state, not DOM/custom-event coupling between islands.
+- Persisted state → `src/lib/stores/quizzes.ts` is the **only** file that calls `localStorage`.
+  Never call `localStorage` from a component — this is enforced by convention, not tooling, so
+  watch for it in review.
+- A writable `$derived` (Svelte 5) is the pattern this app uses for "read once, then let local
+  interactions override it" state — see `QuizList.svelte`'s `quizzes` — instead of the
+  `$state` + `$effect` pair that used to do the same thing less directly.
+
+Every island must handle the states that are actually reachable for it. This app's convention:
+`{#if quiz} ... {:else if notFound} ... {/if}` for the two id-driven pages, and an explicit empty
+state (`QuizList`'s "No quizzes yet") wherever a list can legitimately be empty. A component that
+only renders the happy path is incomplete.
+
+---
+
+## 5. Styling — Tailwind utilities, no component library
+
+See §2 for why daisyUI/Bits UI aren't in use. The actual escalation ladder in this codebase:
+
+1. **Tailwind utilities** directly in markup — the overwhelming majority of styling.
+2. **A shared component** in `src/components/svelte/` once a pattern repeats — `Button.svelte`
+   (variant/size props over a class-string lookup), `Dialog.svelte` (shared modal shell),
+   `ConfirmDeleteButton.svelte` (the two-step delete pattern used on both quiz cards and
+   questions), `CardMenu.svelte` (the "⋮" overflow menu).
+3. **A design token** added to `@theme` in `src/styles/global.css` — currently just
+   `--font-sans`; the app hasn't needed more.
+4. **Custom CSS** — last resort. `global.css` currently has exactly two: `color-scheme: light`
+   (the app is a fixed light palette, not dark-mode-aware — this prevents the OS's dark-mode UA
+   styles from rendering `<datalist>`-style native chrome unreadably) and a `cursor: pointer`
+   restore on `<button>` (Tailwind's preflight resets it). Both are commented with why.
+
+Additional rules:
+
+- No arbitrary values (`w-[437px]`) except genuine one-offs like the code-mode breakout width in
+  `QuestionCard.svelte`, which is commented explaining the specific math.
+- Color palette is `slate` (neutral surfaces/text) + `indigo` (the one primary accent) +
+  semantic `red`/`green`/`amber` for destructive/correct/warning states. No daisyUI semantic
+  tokens (`bg-base-200`) since there's no theme-switching to abstract over.
+- **Contrast**: `text-slate-400` on this app's light backgrounds (`slate-50`/white) fails WCAG AA
+  (2.51:1, needs 4.5:1) — confirmed by the Playwright a11y suite. Use `text-slate-500` (4.5–4.8:1)
+  for any text-bearing element that needs a muted look; `slate-400` is only safe on icon-only
+  buttons and purely decorative icons, which convey no text for axe to check.
+- Repeated utility strings across components → extract a component, not an `@apply` block.
+  `@apply` is effectively banned (the two `global.css` exceptions above are structural CSS, not
+  component styling).
+- Dark mode: explicitly out of scope (`color-scheme: light`) — don't add `dark:` variants without
+  discussing the tradeoff first, since it's a real product decision, not just a CSS change.
+- Keyboard focus must always be visible. Respect `prefers-reduced-motion` for any new animation
+  (existing `fade` transitions in `QuizBuilder`/`QuizPlayer` are brief enough not to need a
+  reduced-motion fallback, but a longer one would).
+
+---
+
+## 6. DRY and code quality
+
+- **Rule of three**: duplicate once, extract on the third occurrence — or immediately if the
+  duplication is logic rather than markup.
+- One source of truth per concept. `Quiz`/`QuizQuestion` types derive from `quizSchema`
+  (`z.infer`), not hand-written twice. `QuizScriptSettings`/`SETTING_RULES` in
+  `lib/utils/quizScript.ts` are the single validation path both code-mode parsing and form-mode
+  fields go through — see that file's own extensive doc comments before touching it.
+- Functions in `src/lib/utils/` are pure: inputs → outputs, no ambient state, no `window` access.
+  The one exception by design is `lib/stores/quizzes.ts`, which exists specifically to own the
+  `localStorage` side effect so nothing else has to.
+- **Parse, don't validate**: `lib/stores/quizzes.ts`'s `readAll()` runs every record read from
+  `localStorage` through `quizSchema.safeParse` and drops anything that doesn't match (logging a
+  `console.warn`), so a hand-edited or stale-schema value in a visitor's browser can't crash the
+  app downstream. Follow this pattern for any new localStorage-backed state.
+- Errors: `parseQuizScriptQuestion`/`parseQwizFile` etc. return `{ result, errors }` shapes rather
+  than throwing — user-authored `.qwiz` source is expected to sometimes be invalid, and that's not
+  a programmer error. Reserve `throw` for actual programmer error.
+- No `any`, no `@ts-ignore` (use `@ts-expect-error` with a reason if truly unavoidable), no
+  non-null `!` on values that can genuinely be null. `astro check` and the ESLint
+  `@typescript-eslint` rules enforce most of this; `no-unused-expressions` specifically flags the
+  Svelte "reference a value inside `$effect` purely to track it as a dependency" pattern — prefix
+  those with `void` (see `QuizBuilder.svelte`'s category/tag-highlight-reset effects) rather than
+  disabling the rule.
+- Naming: predicates start `is/has/can` (`isTypedMatch`, `isDraftComplete`); async or
+  action-shaped functions read as actions (`saveQuiz`, not `quizData`). Files kebab-case except
+  Svelte components (PascalCase, matching the exported component name) and TS modules that export
+  one primary named thing camelCase (`quizScript.ts`, `grading.ts`).
+- Comments explain **why**, never what — this codebase already does this extensively and well
+  (e.g. `grading.ts`'s doc comments on why `cappedPositiveSum` exists). Match that density and
+  intent for new code; don't add comments that just restate the code.
+- Keep diffs small and reviewable. Do not reformat or "clean up" files you weren't asked to touch.
+
+---
+
+## 7. Testing
+
+### Unit tests (Vitest) — `src/lib/**/*.test.ts`
+
+Pure logic only: `grading.test.ts`, `quizScript.test.ts` (including parse → serialize → parse
+round-trips for every question/frontmatter shape, and every validation error path),
+`shuffle.test.ts`, `youtube.test.ts`, `download.test.ts`, `importQwiz.test.ts`, and
+`stores/quizzes.test.ts` (the one file that needs `// @vitest-environment jsdom` for a real
+`localStorage`, since everything else runs in plain `node`).
+
+**Node's own experimental global `localStorage`** (Node 22+, throws without
+`--localstorage-file`, shadows jsdom's working one) is why `pnpm test`/`pnpm test:watch` run with
+`NODE_OPTIONS=--no-experimental-webstorage` (via `cross-env` for cross-platform env vars — see
+`package.json`). Don't remove that flag; without it, every jsdom-environment test using
+`localStorage` fails with `localStorage.setItem is not a function`. This is also why
+`lib/stores/quizzes.ts` checks `typeof window === 'undefined'` rather than
+`typeof localStorage === 'undefined'` to detect SSR — the latter is no longer reliably `true`
+during Astro's build on modern Node.
+
+Run: `pnpm test` (once) / `pnpm test:watch`.
+
+### E2E tests (Playwright) — `e2e/`
+
+The primary contract for user-visible behavior. Config (`playwright.config.ts`):
+
+- `webServer` runs `pnpm build && pnpm preview` locally — tests always run against the **real
+  static build**, never `astro dev`. In CI, it runs just `pnpm preview` against a `dist/`
+  downloaded from the `build` job's artifact, so e2e never silently tests a differently-built copy
+  than what `build` produced.
+- Projects: `chromium`, `firefox`, `webkit`, `mobile` (`Pixel 5`).
+- `trace: 'on-first-retry'`, `screenshot: 'only-on-failure'`, `video: 'retain-on-failure'`.
+- `fullyParallel: true`, `forbidOnly: !!process.env.CI`, `retries: process.env.CI ? 2 : 0`.
+
+### Selector policy
+
+1. Role-based: `getByRole('button', { name: 'Save changes' })` — preferred, tests a11y for free.
+2. `getByLabel`, `getByPlaceholder`, `getByText` for content.
+3. `data-testid` — not currently used anywhere; the app's markup has been accessible enough that
+   role/label selectors always sufficed. Reach for it only when the above are genuinely ambiguous.
+4. **Never** CSS/XPath selectors tied to Tailwind classes or DOM shape — the one deliberate
+   exception is `e2e/keyboard.spec.ts`'s `main textarea.font-mono` locator, which needs a stable
+   way to distinguish the code-mode editor from two other textareas that share the page at
+   different times (the header's always-mounted import dialog, and the Description field once
+   Escape reveals it) — documented inline with why.
+
+### Arranging state: seed via localStorage, exercise via the UI
+
+`e2e/utils/storage.ts`'s `seedQuizzes()`/`resetStorage()` write/clear `qwiz:quizzes` directly,
+bypassing the builder UI, to arrange state for specs that test something _other_ than authoring
+(playing, listing, deep-linking). `e2e/fixtures/quizzes.ts`'s `buildQuiz()` is the one place that
+builds a schema-valid `Quiz` fixture — pin `settings.shuffle_questions: false` on any fixture a
+test asserts a specific question order against, since it defaults to `true`.
+
+The one thing genuinely under test — authoring — is always driven through the real UI
+(`e2e/create-quiz.spec.ts`), never shortcut via seeding.
+
+### What every new feature needs covered
+
+- Happy path, end to end, as a user would perform it.
+- Empty/not-found state where one is reachable (`notFound` on the id-driven pages, `QuizList`'s
+  empty state).
+- Persistence: reload the page and assert state survived (`create-quiz.spec.ts`,
+  `list-and-delete.spec.ts`, `deep-link.spec.ts` all do this — it's the app's core promise).
+- Keyboard behavior for anything with real custom keyboard logic (the category/tag
+  suggestion-dropdown arrow-key handling in `QuizBuilder.svelte`; Escape out of code mode) — not
+  generic Tab-order checks, since there's no custom tab management in this app to verify.
+- Mobile viewport: covered automatically by the `mobile` Playwright project running every spec, not
+  by separate mobile-only specs.
+- Accessibility: `e2e/accessibility.spec.ts` runs `@axe-core/playwright` on every major screen via
+  `e2e/utils/a11y.ts`'s `expectNoSeriousA11yViolations` — fails on any `serious`/`critical`
+  violation. It's what caught the color-contrast issue documented in §5; treat a new failure from
+  it as a real bug, not a test to loosen.
+
+### Discipline
+
+- **Never** `waitForTimeout`. Use web-first assertions (`await expect(locator).toBeVisible()`).
+- Tests are independent: every spec's `beforeEach` navigates to `/` and calls `resetStorage`.
+- No real network calls exist in this app to stub — everything is local/synchronous. If a feature
+  ever adds a `fetch` (there is none today), stub it via `page.route()` with a fixture, per the
+  general Playwright discipline, rather than hitting anything real from CI.
+- Page Object Models in `e2e/pages/` — locators and actions live there, assertions live in specs.
+- When fixing a bug: write the failing test first, then fix it. State in the response which test
+  now covers the regression.
+
+---
+
+## 8. CI/CD
+
+`.github/workflows/ci.yml`, triggered on push to `main` and on every PR:
+
+1. **verify** — `astro check` (types), `eslint .`, `prettier --check .`
+2. **unit** — `pnpm test` (Vitest)
+3. **build** — `astro build`, uploads `dist/` as an artifact
+4. **e2e** — depends on `build`; downloads its `dist/` artifact (never rebuilds), installs
+   Playwright browsers (cached by lockfile hash), runs the full 4-project suite; uploads
+   `playwright-report/` on failure with `if: always()`
+5. **deploy** — depends on all four above, only runs on `push` to `main`, deploys the `build`
+   job's artifact to **Cloudflare Pages** via `cloudflare/pages-action`, scoped to a `production`
+   `environment:`
+
+Rules already in place:
+
+- `verify`/`unit`/`build` run in parallel (no `needs:` between them); only `e2e` and `deploy`
+  declare dependencies.
+- `concurrency: { group: ${{ github.workflow }}-${{ github.ref }}, cancel-in-progress: true }` —
+  superseded runs on the same branch are cancelled.
+- Each job's `permissions:` block is least-privilege (`contents: read` almost everywhere;
+  `deployments: write` only on `deploy`).
+- A red CI is never "probably flaky." Investigate or quarantine explicitly with a linked issue.
+
+**Not yet done — needs a human**: the `deploy` job references `secrets.CLOUDFLARE_API_TOKEN` and
+`secrets.CLOUDFLARE_ACCOUNT_ID`, and a Cloudflare Pages project literally named `qwiz`
+(`projectName: qwiz` in the workflow). None of that exists yet — the repo itself was only just
+`git init`'d this session and has no GitHub remote. Before `deploy` can run: push to a GitHub repo,
+create the Cloudflare Pages project, and add the two secrets (Settings → Secrets and variables →
+Actions) plus a `production` environment if you want extra protection rules on it.
+
+---
+
+## 9. Commands
+
+```bash
+pnpm dev              # dev server
+pnpm build            # static build → dist/
+pnpm preview           # serve dist/ (what e2e tests run against)
+pnpm check            # astro check — types + template diagnostics
+pnpm lint             # eslint .
+pnpm format            # prettier --write .
+pnpm format:check      # prettier --check .
+pnpm test              # vitest run
+pnpm test:watch        # vitest (watch mode)
+pnpm test:e2e           # playwright test
+pnpm test:e2e:ui        # playwright test --ui  (debugging)
+```
+
+---
+
+## 10. Working agreement for Claude
+
+- **Plan before coding.** For anything beyond a trivial edit, state the approach in a few bullets —
+  files touched, components added, tests added — and wait for a go-ahead. Do not dump a large
+  implementation unprompted.
+- **Push back on complexity.** If the request can be satisfied with less machinery, say so. This
+  file's own §2 (daisyUI/Bits UI) is the model: a real evaluation, a real "no," documented so the
+  next session doesn't re-litigate it from scratch.
+- **Don't guess APIs.** Check `package.json`, read the actual source in `node_modules`, or ask.
+- **Surface tradeoffs, don't bury them.** If a choice has a real cost (bundle size, hydration,
+  a11y, browser support), name it in one line.
+- **Leave the repo runnable.** Never commit or hand over code that fails `pnpm check`, `pnpm
+lint`, `pnpm test`, or `pnpm test:e2e`.
+- Explain _why_ alongside _what_ — the reasoning is more valuable than the diff.
+
+### Definition of done
+
+- [ ] Types pass (`pnpm check`), lint and format clean
+- [ ] Vitest covers any new pure logic in `src/lib/`
+- [ ] Playwright specs cover the new happy path + empty/not-found + persistence, at minimum
+- [ ] No new custom CSS beyond a token, or a comment justifying it
+- [ ] No new dependency without prior agreement
+- [ ] `text-slate-400` never used on text-bearing elements (see §5) — `text-slate-500`+ instead
+- [ ] Still fully static: no adapter, no server route, no runtime secret
+- [ ] `localStorage` touched only from `src/lib/stores/quizzes.ts`
+- [ ] Works at mobile viewport, keyboard navigable, axe-clean (`pnpm test:e2e` covers all three)
+
+### Anti-patterns — flag these on sight
+
+Adding an SSR adapter · a new `localStorage` call outside `lib/stores/quizzes.ts` · `@apply`
+blocks · `text-slate-400` on real text · `waitForTimeout` in tests · CSS-class selectors in tests ·
+duplicated `.qwiz` parsing/validation logic outside `quizScript.ts` · `any` · a component that only
+renders the happy path · e2e tests running against `pnpm dev` instead of the build · re-adopting
+daisyUI/Bits UI wholesale without re-reading §2's reasoning first.
