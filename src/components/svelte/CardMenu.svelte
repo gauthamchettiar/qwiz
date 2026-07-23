@@ -42,7 +42,8 @@
   {#if open}
     <div
       role="menu"
-      class="absolute z-20 mt-1 min-w-44 rounded-md border border-slate-200 bg-white p-1 shadow-md {align === 'right'
+      class="absolute z-20 mt-1 min-w-44 rounded-md border border-slate-200 bg-white p-1 shadow-md {align ===
+      'right'
         ? 'right-0'
         : 'left-0'}"
     >

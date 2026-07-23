@@ -102,10 +102,18 @@
       <FileUp size={22} class="text-slate-400" />
       <p class="text-sm font-medium text-slate-600">Drop a .qwiz file here, or click to browse</p>
       {#if fileName}
-        <p class="text-xs text-slate-500">Selected: <span class="font-medium text-slate-700">{fileName}</span></p>
+        <p class="text-xs text-slate-500">
+          Selected: <span class="font-medium text-slate-700">{fileName}</span>
+        </p>
       {/if}
     </div>
-    <input bind:this={fileInputEl} type="file" accept=".qwiz,text/plain" onchange={onFileChange} class="hidden" />
+    <input
+      bind:this={fileInputEl}
+      type="file"
+      accept=".qwiz,text/plain"
+      onchange={onFileChange}
+      class="hidden"
+    />
 
     <div class="flex items-center gap-3 text-xs text-slate-400">
       <div class="h-px flex-1 bg-slate-200"></div>
@@ -116,15 +124,23 @@
     <textarea
       class="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
       rows="10"
-      placeholder={'---\ntitle: ...\n---\n\nchoice: ...'}
-      bind:value={code}
-    ></textarea>
+      placeholder="---
+title: ...
+---
+
+choice: ..."
+      bind:value={code}></textarea>
 
     <ErrorList {errors} />
   {/snippet}
   {#snippet footer()}
     <Button size="sm" onclick={() => dialog.close()}>Cancel</Button>
-    <Button size="sm" variant="primary" disabled={importing || code.trim().length === 0} onclick={importQuiz}>
+    <Button
+      size="sm"
+      variant="primary"
+      disabled={importing || code.trim().length === 0}
+      onclick={importQuiz}
+    >
       {importing ? 'Validating…' : 'Validate & Import'}
     </Button>
   {/snippet}

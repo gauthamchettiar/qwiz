@@ -24,7 +24,7 @@
   const options = $derived(suggestions.filter((s) => s.includes(value.trim().toLowerCase())));
 
   $effect(() => {
-    options;
+    void options;
     highlight = -1;
   });
 
@@ -74,14 +74,20 @@
     onkeydown={onKeydown}
   />
   {#if show && options.length > 0}
-    <div bind:this={dropdownEl} role="listbox" class="absolute inset-x-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-md border border-slate-200 bg-white py-1 shadow-md">
+    <div
+      bind:this={dropdownEl}
+      role="listbox"
+      class="absolute inset-x-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-md border border-slate-200 bg-white py-1 shadow-md"
+    >
       {#each options as option, i (option)}
         <button
           type="button"
           tabindex="-1"
           role="option"
           aria-selected={i === highlight}
-          class="block w-full truncate px-3 py-1.5 text-left text-xs {i === highlight ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}"
+          class="block w-full truncate px-3 py-1.5 text-left text-xs {i === highlight
+            ? 'bg-slate-100 text-slate-900'
+            : 'text-slate-600 hover:bg-slate-50'}"
           onmousedown={(e) => e.preventDefault()}
           onclick={() => select(option)}
         >

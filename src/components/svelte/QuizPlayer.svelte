@@ -1,7 +1,20 @@
 <script lang="ts">
   import { fade } from 'svelte/transition';
-  import { CircleCheck, CircleX, Eye, ChevronRight, ChevronLeft, RotateCcw, Trophy, ListChecks } from '@lucide/svelte';
-  import { parseQuizScriptQuestion, type QuizScriptOption, type QuizScriptQuestion } from '@/lib/utils/quizScript';
+  import {
+    CircleCheck,
+    CircleX,
+    Eye,
+    ChevronRight,
+    ChevronLeft,
+    RotateCcw,
+    Trophy,
+    ListChecks
+  } from '@lucide/svelte';
+  import {
+    parseQuizScriptQuestion,
+    type QuizScriptOption,
+    type QuizScriptQuestion
+  } from '@/lib/utils/quizScript';
   import {
     blankDraft,
     buildPlayRun,
@@ -40,8 +53,12 @@
   // in a way "at_end"/"never" are specifically designed to prevent. Only when NEITHER setting
   // reveals anything live is it safe to let the player move freely between questions and submit
   // once at the end (with a confirmation, since that's the point of no return for the whole run).
-  const revealAnswersSetting = $derived(settingString(quiz.settings.reveal_answers, 'after_every_question'));
-  const revealScoresSetting = $derived(settingString(quiz.settings.reveal_scores, 'after_every_question'));
+  const revealAnswersSetting = $derived(
+    settingString(quiz.settings.reveal_answers, 'after_every_question')
+  );
+  const revealScoresSetting = $derived(
+    settingString(quiz.settings.reveal_scores, 'after_every_question')
+  );
   const showAnswersLive = $derived(revealAnswersSetting === 'after_every_question');
   const showScoresLive = $derived(revealScoresSetting === 'after_every_question');
   const showAnswersAtEnd = $derived(revealAnswersSetting !== 'never');
@@ -56,7 +73,9 @@
   // it off (same "unset/anything else means on" convention `buildPlayRun` already uses for
   // `shuffle_questions`).
   const showScoreHeader = $derived(quiz.settings.show_score !== false);
-  const totalMaxPoints = $derived(run.reduce((sum, playQuestion) => sum + questionMaxPoints(playQuestion.question), 0));
+  const totalMaxPoints = $derived(
+    run.reduce((sum, playQuestion) => sum + questionMaxPoints(playQuestion.question), 0)
+  );
   const earnedSoFar = $derived(results.reduce((sum, r) => sum + r.earned, 0));
 
   // `show_intermediate_screen` (default true; forced true whenever `showAnswersLive`, since a
@@ -65,7 +84,9 @@
   // ever relevant when `showScoresLive` and NOT `showAnswersLive` — that's the sole combination
   // where a live reveal exists but doesn't require a full screen, just a number.
   const showIntermediateScreen = $derived(quiz.settings.show_intermediate_screen !== false);
-  const skipIntermediateScreen = $derived(showScoresLive && !showAnswersLive && !showIntermediateScreen);
+  const skipIntermediateScreen = $derived(
+    showScoresLive && !showAnswersLive && !showIntermediateScreen
+  );
 
   // The brief "+N" (or "0"/"-N") badge shown next to the persistent score header when
   // `skipIntermediateScreen` bypasses the usual per-question reveal screen — otherwise the player
@@ -171,7 +192,9 @@
   function confirmSubmitQuiz() {
     clearTimeout(confirmSubmitTimeout);
     confirmingSubmit = false;
-    const graded = run.map((playQuestion, i) => gradeDraft(playQuestion.question, draftAnswers[i] ?? blankDraft()));
+    const graded = run.map((playQuestion, i) =>
+      gradeDraft(playQuestion.question, draftAnswers[i] ?? blankDraft())
+    );
     results = graded.map((g) => g.result);
     answers = graded.map((g) => g.answer);
     finished = true;
@@ -197,7 +220,11 @@
   {#if content.kind === 'text'}
     <p class="text-sm text-slate-900">{content.text}</p>
   {:else if content.kind === 'image'}
-    <img src={content.url} alt={content.alt} class="max-h-56 rounded-md border border-slate-200 object-contain" />
+    <img
+      src={content.url}
+      alt={content.alt}
+      class="max-h-56 rounded-md border border-slate-200 object-contain"
+    />
   {:else}
     {@const videoId = extractYoutubeId(content.url)}
     {#if videoId}
@@ -224,7 +251,9 @@
     <div class="mt-1 flex flex-wrap gap-1.5">
       {#each q.options as option, i (i)}
         {#if option.content.kind === 'text'}
-          <span class="rounded-md border border-green-300 bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">
+          <span
+            class="rounded-md border border-green-300 bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700"
+          >
             {option.content.text}
           </span>
         {/if}
@@ -236,9 +265,16 @@
 {#snippet typedAnswerReview(q: QuizScriptQuestion, response: string | string[])}
   {#if typeof response === 'string'}
     {@const matched = typedSingleAnswerMatches(q.options, response, q.settings)}
-    <div class="rounded-md border p-3 {matched !== null ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50'}">
+    <div
+      class="rounded-md border p-3 {matched !== null
+        ? 'border-green-400 bg-green-50'
+        : 'border-red-400 bg-red-50'}"
+    >
       <p class="flex items-center gap-1.5 text-sm text-slate-900">
-        {#if matched !== null}<CircleCheck size={14} class="shrink-0 text-green-600" />{:else}<CircleX size={14} class="shrink-0 text-red-500" />{/if}
+        {#if matched !== null}<CircleCheck
+            size={14}
+            class="shrink-0 text-green-600"
+          />{:else}<CircleX size={14} class="shrink-0 text-red-500" />{/if}
         {response.trim() || '(left blank)'}
       </p>
     </div>
@@ -271,7 +307,9 @@
     {:else}
       <div class="flex flex-wrap gap-1.5">
         {#each response as guess, i (i)}
-          <span class="rounded-md border border-slate-300 bg-white px-2 py-0.5 text-xs font-medium text-slate-700">
+          <span
+            class="rounded-md border border-slate-300 bg-white px-2 py-0.5 text-xs font-medium text-slate-700"
+          >
             {guess.trim() || '(blank)'}
           </span>
         {/each}
@@ -295,10 +333,16 @@
   {#each q.extras as extra, i (i)}
     <div class="rounded-md border border-dashed border-slate-300 bg-slate-50 p-3">
       {#if answer.revealed.has(i)}
-        <p class="flex items-center gap-1 text-xs font-medium text-slate-500"><Eye size={12} /> {extra.label || 'Hint'}</p>
+        <p class="flex items-center gap-1 text-xs font-medium text-slate-500">
+          <Eye size={12} />
+          {extra.label || 'Hint'}
+        </p>
         <p class="mt-1 text-sm text-slate-700">{extra.content}</p>
       {:else}
-        <p class="flex items-center gap-1.5 text-sm text-slate-400"><Eye size={14} /> {extra.label || 'Hint'} (not revealed)</p>
+        <p class="flex items-center gap-1.5 text-sm text-slate-400">
+          <Eye size={14} />
+          {extra.label || 'Hint'} (not revealed)
+        </p>
       {/if}
     </div>
   {/each}
@@ -379,11 +423,17 @@
     <div class="space-y-4 rounded-lg border border-slate-200 bg-white p-6 text-center">
       {#if showScoresAtEnd}
         <div class="flex justify-center">
-          <div class="rounded-full p-3 {summary.won ? 'bg-green-50 text-green-600' : 'bg-slate-100 text-slate-400'}">
+          <div
+            class="rounded-full p-3 {summary.won
+              ? 'bg-green-50 text-green-600'
+              : 'bg-slate-100 text-slate-400'}"
+          >
             <Trophy size={28} />
           </div>
         </div>
-        <h2 class="text-xl font-bold text-slate-900">{summary.won ? 'You won!' : 'Quiz complete'}</h2>
+        <h2 class="text-xl font-bold text-slate-900">
+          {summary.won ? 'You won!' : 'Quiz complete'}
+        </h2>
         <p class="text-sm text-slate-500">
           {summary.earned} / {summary.max} points ({Math.round(summary.percentage)}%)
         </p>
@@ -399,7 +449,10 @@
         <h2 class="text-xl font-bold text-slate-900">Quiz complete</h2>
       {/if}
       <div class="flex flex-wrap items-center justify-center gap-3 pt-2">
-        <a href="/" class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+        <a
+          href="/"
+          class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+        >
           Back to quizzes
         </a>
         <button
@@ -421,7 +474,9 @@
   {:else if current}
     <div class="space-y-1">
       <div class="flex items-center justify-between gap-3">
-        <p class="text-xs font-medium text-slate-400">Question {currentIndex + 1} of {run.length}</p>
+        <p class="text-xs font-medium text-slate-400">
+          Question {currentIndex + 1} of {run.length}
+        </p>
         {#if showScoreHeader}
           <p class="flex items-center gap-1.5 text-xs font-medium text-slate-400">
             {#if scoreFlash}
@@ -489,7 +544,8 @@
               class="flex items-center gap-1.5 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
               onclick={nextQuestion}
             >
-              {isLast ? 'See results' : 'Next question'} <ChevronRight size={15} />
+              {isLast ? 'See results' : 'Next question'}
+              <ChevronRight size={15} />
             </button>
           {/if}
         {:else if isLast}

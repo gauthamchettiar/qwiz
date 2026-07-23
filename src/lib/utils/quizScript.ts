@@ -90,8 +90,7 @@ export interface QuizScriptFrontmatter {
 }
 
 export type QuizScriptMedia =
-  | { kind: 'image'; alt: string; url: string }
-  | { kind: 'video'; alt: string; url: string };
+  { kind: 'image'; alt: string; url: string } | { kind: 'video'; alt: string; url: string };
 
 /** An option's content is either plain text or the same image/video shape question-level media
  * uses — one option can BE a picture or a clip, not just describe one. */
@@ -189,17 +188,17 @@ export const SETTING_RULES: Record<string, SettingRule> = {
     kind: 'enum',
     values: ['list', 'grid'],
     description:
-      "For a choice question, how its options are laid out. Not meaningful for a typed question.\n\nAccepted values: list, grid\nDefault: list"
+      'For a choice question, how its options are laid out. Not meaningful for a typed question.\n\nAccepted values: list, grid\nDefault: list'
   },
   min_answers: {
     kind: 'number',
     description:
-      "Minimum number of options/answers the player must select or give before they can submit this question.\n\nAccepted values: any number\nDefault: none — any number given is enough, including zero"
+      'Minimum number of options/answers the player must select or give before they can submit this question.\n\nAccepted values: any number\nDefault: none — any number given is enough, including zero'
   },
   max_answers: {
     kind: 'number',
     description:
-      "Maximum number of options/answers the player is allowed to select or give for this question.\n\nAccepted values: any number\nDefault: none — any number is allowed"
+      'Maximum number of options/answers the player is allowed to select or give for this question.\n\nAccepted values: any number\nDefault: none — any number is allowed'
   },
   shuffle: {
     kind: 'boolean',
@@ -241,7 +240,12 @@ export const SUGGESTED_SETTING_KEYS = Object.keys(SETTING_RULES);
 /** Settings only ever read by typed-question grading/UI — a parse error when set on any other
  * variant (see `parseQuestionBlock`) and excluded from `suggestedSettingKeysForVariant`'s list for
  * a non-typed question. */
-export const TYPED_ONLY_SETTINGS = ['case_sensitive', 'numeric_tolerance', 'fuzzy_tolerance', 'input_display'];
+export const TYPED_ONLY_SETTINGS = [
+  'case_sensitive',
+  'numeric_tolerance',
+  'fuzzy_tolerance',
+  'input_display'
+];
 
 /** The inverse of `TYPED_ONLY_SETTINGS` — only ever read by choice's grading/UI, a parse error on
  * a `typed` question. `option_display` and `shuffle` have no meaning for typed: a typed question
@@ -274,11 +278,12 @@ export const QUIZ_SETTING_RULES: Record<string, SettingRule> = {
   percentage_points_to_win: {
     kind: 'number',
     description:
-      "Percentage of the quiz's maximum possible score a player must reach to \"win\".\n\nAccepted values: any number\nDefault: 75"
+      'Percentage of the quiz\'s maximum possible score a player must reach to "win".\n\nAccepted values: any number\nDefault: 75'
   },
   shuffle_questions: {
     kind: 'boolean',
-    description: "Whether this quiz's questions are shown in a random order each run.\n\nAccepted values: true, false\nDefault: true"
+    description:
+      "Whether this quiz's questions are shown in a random order each run.\n\nAccepted values: true, false\nDefault: true"
   },
   max_questions: {
     kind: 'number',
@@ -314,7 +319,10 @@ export const QUIZ_SUGGESTED_SETTING_KEYS = Object.keys(QUIZ_SETTING_RULES);
 /** The discrete values a constrained setting's VALUE field should suggest — "easy"/"medium"/
  * "hard" for difficulty, "true"/"false" for a boolean key. Empty for numeric or unknown keys.
  * `rules` defaults to the per-question table; pass `QUIZ_SETTING_RULES` for the quiz-wide one. */
-export function settingValueSuggestions(key: string, rules: Record<string, SettingRule> = SETTING_RULES): string[] {
+export function settingValueSuggestions(
+  key: string,
+  rules: Record<string, SettingRule> = SETTING_RULES
+): string[] {
   const rule = rules[key];
   if (!rule) return [];
   return rule.kind === 'boolean' ? ['true', 'false'] : (rule.values ?? []);
@@ -367,13 +375,17 @@ function parseRevealLine(text: string): QuizScriptReveal | null {
 function stripQuotes(value: string): string {
   const trimmed = value.trim();
   const quoted =
-    (trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"));
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"));
   return quoted ? trimmed.slice(1, -1) : trimmed;
 }
 
 function isQuoted(value: string): boolean {
   const trimmed = value.trim();
-  return (trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"));
+  return (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  );
 }
 
 /** Forces a line (or an option's content, after its `=`/`~` marker is stripped) to be read as
@@ -408,10 +420,17 @@ export function coerceSetting(raw: string): string | number | boolean {
  * are a closed set: a key outside `rules` is an error, not a freeform pass-through. `rules`
  * defaults to the per-question table; pass `QUIZ_SETTING_RULES` to validate a quiz-wide setting
  * instead — same function either way, so the two never drift into disagreeing validation. */
-export function validateSettingValue(key: string, raw: string, rules: Record<string, SettingRule> = SETTING_RULES): SettingValidation {
+export function validateSettingValue(
+  key: string,
+  raw: string,
+  rules: Record<string, SettingRule> = SETTING_RULES
+): SettingValidation {
   const rule = rules[key];
   if (!rule) {
-    return { value: coerceSetting(raw), error: `is not a recognized setting (must be one of ${Object.keys(rules).join('/')})` };
+    return {
+      value: coerceSetting(raw),
+      error: `is not a recognized setting (must be one of ${Object.keys(rules).join('/')})`
+    };
   }
 
   const trimmed = stripQuotes(raw).trim();
@@ -432,7 +451,10 @@ export function validateSettingValue(key: string, raw: string, rules: Record<str
 
   const lower = trimmed.toLowerCase();
   if (rule.values!.includes(lower)) return { value: lower };
-  return { value: coerceSetting(raw), error: `must be one of ${rule.values!.join('/')} (got "${trimmed}")` };
+  return {
+    value: coerceSetting(raw),
+    error: `must be one of ${rule.values!.join('/')} (got "${trimmed}")`
+  };
 }
 
 function parseInlineArray(raw: string): string[] {
@@ -460,7 +482,13 @@ function parseFrontmatter(
   lines: string[],
   errors: QuizScriptError[]
 ): { frontmatter: QuizScriptFrontmatter; bodyStart: number } {
-  const frontmatter: QuizScriptFrontmatter = { title: '', description: '', category: '', tags: [], settings: {} };
+  const frontmatter: QuizScriptFrontmatter = {
+    title: '',
+    description: '',
+    category: '',
+    tags: [],
+    settings: {}
+  };
 
   if (lines[0]?.trim() !== '---') return { frontmatter, bodyStart: 0 };
 
@@ -516,7 +544,10 @@ function parseFrontmatter(
   // QUIZ_SETTING_RULES) since an *effective* after_every_question is what actually matters here,
   // not just an explicitly-written one.
   const revealAnswers = frontmatter.settings.reveal_answers ?? 'after_every_question';
-  if (revealAnswers === 'after_every_question' && frontmatter.settings.show_intermediate_screen === false) {
+  if (
+    revealAnswers === 'after_every_question' &&
+    frontmatter.settings.show_intermediate_screen === false
+  ) {
     errors.push({
       line: 1,
       message:
@@ -563,7 +594,14 @@ function splitQuestionBlocks(lines: string[], start: number): SourceLine[][] {
 }
 
 function parseQuestionBlock(block: SourceLine[], errors: QuizScriptError[]): QuizScriptQuestion {
-  const question: QuizScriptQuestion = { variant: 'question', text: '', media: [], options: [], extras: [], settings: {} };
+  const question: QuizScriptQuestion = {
+    variant: 'question',
+    text: '',
+    media: [],
+    options: [],
+    extras: [],
+    settings: {}
+  };
   const textLines: string[] = [];
 
   let i = 0;
@@ -593,14 +631,24 @@ function parseQuestionBlock(block: SourceLine[], errors: QuizScriptError[]): Qui
           // Blocks never nest in this format — seeing a second "{" while still scanning options
           // means the first one was never closed, which also explains why the blank line that
           // should have separated these into two questions didn't: it landed "inside" the block.
-          errors.push({ line: openLine, message: 'Option block opened with "{" was never closed with "}" before another "{" started.' });
+          errors.push({
+            line: openLine,
+            message:
+              'Option block opened with "{" was never closed with "}" before another "{" started.'
+          });
         } else {
-          errors.push({ line: opt.num, message: `Expected an option starting with "=" or "~", got: "${opt.text}"` });
+          errors.push({
+            line: opt.num,
+            message: `Expected an option starting with "=" or "~", got: "${opt.text}"`
+          });
         }
         i++;
       }
       if (i >= block.length) {
-        errors.push({ line: openLine, message: 'Option block opened with "{" but never closed with "}".' });
+        errors.push({
+          line: openLine,
+          message: 'Option block opened with "{" but never closed with "}".'
+        });
       }
       i++; // consume the closing '}'
       continue;
@@ -614,7 +662,10 @@ function parseQuestionBlock(block: SourceLine[], errors: QuizScriptError[]): Qui
     } else if ((match = VARIANT_LINE.exec(text))) {
       const value = match[1].trim().toLowerCase();
       if (!(KNOWN_VARIANTS as string[]).includes(value)) {
-        errors.push({ line: num, message: `Unknown variant "${match[1].trim()}" (must be one of ${KNOWN_VARIANTS.join('/')}).` });
+        errors.push({
+          line: num,
+          message: `Unknown variant "${match[1].trim()}" (must be one of ${KNOWN_VARIANTS.join('/')}).`
+        });
       }
       question.variant = value;
     } else if ((match = VARIANT_HEADER_LINE.exec(text))) {
@@ -652,7 +703,8 @@ function parseQuestionBlock(block: SourceLine[], errors: QuizScriptError[]): Qui
       if (option.content.kind !== 'text') {
         errors.push({
           line: firstLine,
-          message: "Typed question options must be plain text — an image/video accepted answer isn't meaningful here."
+          message:
+            "Typed question options must be plain text — an image/video accepted answer isn't meaningful here."
         });
       }
     }
@@ -672,7 +724,8 @@ function parseQuestionBlock(block: SourceLine[], errors: QuizScriptError[]): Qui
   if ('numeric_tolerance' in question.settings && 'fuzzy_tolerance' in question.settings) {
     errors.push({
       line: firstLine,
-      message: 'A question can\'t set both "numeric_tolerance" and "fuzzy_tolerance" — pick one matching strategy.'
+      message:
+        'A question can\'t set both "numeric_tolerance" and "fuzzy_tolerance" — pick one matching strategy.'
     });
   }
 
@@ -720,7 +773,10 @@ function parseQuestionBlock(block: SourceLine[], errors: QuizScriptError[]): Qui
   const minAnswers = question.settings.min_answers;
   const maxAnswers = question.settings.max_answers;
   if (typeof minAnswers === 'number' && typeof maxAnswers === 'number' && minAnswers > maxAnswers) {
-    errors.push({ line: firstLine, message: '"min_answers" cannot be greater than "max_answers".' });
+    errors.push({
+      line: firstLine,
+      message: '"min_answers" cannot be greater than "max_answers".'
+    });
   }
   if (typeof maxAnswers === 'number' && maxAnswers > question.options.length) {
     errors.push({
@@ -742,7 +798,11 @@ function parseQuestionBlock(block: SourceLine[], errors: QuizScriptError[]): Qui
   // of what they answer. Worth a hard error rather than a silently unwinnable question, since
   // there's an easy, unambiguous fix either way (raise `max_answers`, or opt into partial credit).
   const correctCount = question.options.filter((o) => o.correct).length;
-  if (question.settings.partial_points !== true && typeof maxAnswers === 'number' && maxAnswers < correctCount) {
+  if (
+    question.settings.partial_points !== true &&
+    typeof maxAnswers === 'number' &&
+    maxAnswers < correctCount
+  ) {
     errors.push({
       line: firstLine,
       message: `"max_answers" (${maxAnswers}) is less than the number of correct options/accepted answers (${correctCount}), so an exact match is impossible — raise "max_answers" to at least ${correctCount}, or set "partial_points=true" to allow scoring less than all of them.`
@@ -755,7 +815,10 @@ function parseQuestionBlock(block: SourceLine[], errors: QuizScriptError[]): Qui
 /** Parses a single question's own source (no frontmatter) — the per-card "code" a question-first
  * editor operates on. A blank line outside `{ }` still means "next question" here, so pasted-in
  * content spanning more than one such block is flagged rather than silently merged or truncated. */
-export function parseQuizScriptQuestion(source: string): { question: QuizScriptQuestion; errors: QuizScriptError[] } {
+export function parseQuizScriptQuestion(source: string): {
+  question: QuizScriptQuestion;
+  errors: QuizScriptError[];
+} {
   const errors: QuizScriptError[] = [];
   const lines = source.split(/\r\n|\r|\n/);
   const blocks = splitQuestionBlocks(lines, 0);
@@ -763,7 +826,8 @@ export function parseQuizScriptQuestion(source: string): { question: QuizScriptQ
   if (blocks.length > 1) {
     errors.push({
       line: blocks[1][0].num,
-      message: 'A question can only contain one blank-line-separated block; found extra content after a blank line.'
+      message:
+        'A question can only contain one blank-line-separated block; found extra content after a blank line.'
     });
   }
 
@@ -775,7 +839,10 @@ export function parseQuizScriptQuestion(source: string): { question: QuizScriptQ
  * wide settings) from a standalone source snippet — the unit the quiz metadata card's own code
  * mode operates on, independent of any question. Mirrors `parseQuizScriptQuestion`'s role for a
  * single question. */
-export function parseQuizScriptFrontmatter(source: string): { frontmatter: QuizScriptFrontmatter; errors: QuizScriptError[] } {
+export function parseQuizScriptFrontmatter(source: string): {
+  frontmatter: QuizScriptFrontmatter;
+  errors: QuizScriptError[];
+} {
   const errors: QuizScriptError[] = [];
   const lines = source.split(/\r\n|\r|\n/);
   // `parseFrontmatter` treats a missing opening "---" as "no frontmatter block" and silently
@@ -798,18 +865,26 @@ export function parseQuizScriptFrontmatter(source: string): { frontmatter: QuizS
  * human-readable messages rather than `QuizScriptError` line numbers — a pasted/uploaded file's
  * line numbers aren't shown anywhere in the import UI, so "Question 3: ..." is more useful here
  * than "Line 47: ...". */
-export function parseQwizFile(source: string): { frontmatter: QuizScriptFrontmatter; questionCodes: string[]; errors: string[] } {
+export function parseQwizFile(source: string): {
+  frontmatter: QuizScriptFrontmatter;
+  questionCodes: string[];
+  errors: string[];
+} {
   const frontmatterErrors: QuizScriptError[] = [];
   const lines = source.split(/\r\n|\r|\n/);
   if (lines[0]?.trim() !== '---') {
     frontmatterErrors.push({ line: 1, message: 'File must start with "---".' });
   }
   const { frontmatter, bodyStart } = parseFrontmatter(lines, frontmatterErrors);
-  const questionCodes = splitQuestionBlocks(lines, bodyStart).map((block) => block.map((l) => l.text).join('\n'));
+  const questionCodes = splitQuestionBlocks(lines, bodyStart).map((block) =>
+    block.map((l) => l.text).join('\n')
+  );
 
   const errors = frontmatterErrors.map((e) => `Line ${e.line}: ${e.message}`);
   questionCodes.forEach((code, i) => {
-    parseQuizScriptQuestion(code).errors.forEach((e) => errors.push(`Question ${i + 1}: ${e.message}`));
+    parseQuizScriptQuestion(code).errors.forEach((e) =>
+      errors.push(`Question ${i + 1}: ${e.message}`)
+    );
   });
   if (questionCodes.length === 0) errors.push('File has no questions.');
 
@@ -820,7 +895,8 @@ export function parseQwizFile(source: string): { frontmatter: QuizScriptFrontmat
  * (to a boolean or number) the next time it's parsed. */
 function formatSettingValue(value: string | number | boolean): string {
   if (typeof value !== 'string') return String(value);
-  const looksTyped = value === 'true' || value === 'false' || (value !== '' && !Number.isNaN(Number(value)));
+  const looksTyped =
+    value === 'true' || value === 'false' || (value !== '' && !Number.isNaN(Number(value)));
   return looksTyped ? `"${value}"` : value;
 }
 
@@ -845,7 +921,10 @@ export function serializeQuizScriptFrontmatter(frontmatter: QuizScriptFrontmatte
  * `questionCodes` are each question's canonical source text as-is (see `QuizQuestion.code` in
  * types.ts), not re-derived from parsed `QuizScriptQuestion` objects, since raw source is what
  * the app actually stores per question. */
-export function serializeQuizScript(frontmatter: QuizScriptFrontmatter, questionCodes: string[]): string {
+export function serializeQuizScript(
+  frontmatter: QuizScriptFrontmatter,
+  questionCodes: string[]
+): string {
   return [serializeQuizScriptFrontmatter(frontmatter), ...questionCodes].join('\n\n');
 }
 
@@ -855,8 +934,21 @@ export function serializeQuizScript(frontmatter: QuizScriptFrontmatter, question
  * everything after it as literal, unparsed text. */
 function needsEscape(text: string, context: 'line' | 'option'): boolean {
   if (text.startsWith('\\') || isQuoted(text)) return true;
-  if (IMAGE_LINE.test(text) || VIDEO_LINE.test(text) || REVEAL_LINE.test(text) || OPTION_POINTS.test(text)) return true;
-  if (context === 'line') return VARIANT_LINE.test(text) || VARIANT_HEADER_LINE.test(text) || SETTING_LINE.test(text) || text === '{' || text === '}';
+  if (
+    IMAGE_LINE.test(text) ||
+    VIDEO_LINE.test(text) ||
+    REVEAL_LINE.test(text) ||
+    OPTION_POINTS.test(text)
+  )
+    return true;
+  if (context === 'line')
+    return (
+      VARIANT_LINE.test(text) ||
+      VARIANT_HEADER_LINE.test(text) ||
+      SETTING_LINE.test(text) ||
+      text === '{' ||
+      text === '}'
+    );
   return text.startsWith('=') || text.startsWith('~');
 }
 
@@ -906,7 +998,11 @@ export function serializeQuizScriptQuestion(question: QuizScriptQuestion): strin
   }
 
   for (const media of question.media) {
-    lines.push(media.kind === 'image' ? `![${media.alt}](${media.url})` : `!<youtube>[${media.alt}](${media.url})`);
+    lines.push(
+      media.kind === 'image'
+        ? `![${media.alt}](${media.url})`
+        : `!<youtube>[${media.alt}](${media.url})`
+    );
   }
 
   for (const extra of question.extras) lines.push(formatReveal(extra));

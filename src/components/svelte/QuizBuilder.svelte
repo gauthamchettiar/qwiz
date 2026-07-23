@@ -44,12 +44,18 @@
   // QuestionForm has between its settingsList and currentQuestion.settings.
   let settingsList = $state<{ key: string; value: string; _key: string }[]>(
     untrack(() =>
-      Object.entries(initial?.settings ?? {}).map(([key, value]) => ({ key, value: String(value), _key: crypto.randomUUID() }))
+      Object.entries(initial?.settings ?? {}).map(([key, value]) => ({
+        key,
+        value: String(value),
+        _key: crypto.randomUUID()
+      }))
     )
   );
   const quizSettings = $derived(
     Object.fromEntries(
-      settingsList.filter((s) => s.key.trim() !== '').map((s) => [s.key, validateSettingValue(s.key, s.value, QUIZ_SETTING_RULES).value])
+      settingsList
+        .filter((s) => s.key.trim() !== '')
+        .map((s) => [s.key, validateSettingValue(s.key, s.value, QUIZ_SETTING_RULES).value])
     )
   );
   let tagDraft = $state('');
@@ -104,11 +110,11 @@
   // Whenever the filtered list changes shape (typing, a selection, tags changing), whatever
   // index was highlighted may no longer make sense — drop back to "nothing highlighted".
   $effect(() => {
-    categoryDropdownOptions;
+    void categoryDropdownOptions;
     categoryHighlight = -1;
   });
   $effect(() => {
-    tagDropdownOptions;
+    void tagDropdownOptions;
     tagHighlight = -1;
   });
 
@@ -140,7 +146,11 @@
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
       showCategoryDropdown = true;
-      categoryHighlight = moveHighlight(categoryHighlight, categoryDropdownOptions.length, e.key === 'ArrowDown' ? 1 : -1);
+      categoryHighlight = moveHighlight(
+        categoryHighlight,
+        categoryDropdownOptions.length,
+        e.key === 'ArrowDown' ? 1 : -1
+      );
     } else if (e.key === 'Enter' && categoryHighlight >= 0) {
       e.preventDefault();
       selectCategory(categoryDropdownOptions[categoryHighlight]);
@@ -164,7 +174,11 @@
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
       showTagDropdown = true;
-      tagHighlight = moveHighlight(tagHighlight, tagDropdownOptions.length, e.key === 'ArrowDown' ? 1 : -1);
+      tagHighlight = moveHighlight(
+        tagHighlight,
+        tagDropdownOptions.length,
+        e.key === 'ArrowDown' ? 1 : -1
+      );
     } else if (e.key === 'Enter') {
       e.preventDefault();
       if (tagHighlight >= 0) selectTagSuggestion(tagDropdownOptions[tagHighlight]);
@@ -195,7 +209,8 @@
   // Editing: start from the saved quiz's own questions. Creating: start empty — use "Add
   // question" or Import/"Load sample" to get started, rather than a fixed demo seed.
   let questions = $state<QuizQuestion[]>(untrack(() => initial?.questions ?? []));
-  type ActiveEdit = { kind: 'meta' } | { kind: 'question'; questionId: string; mode: 'code' | 'form' };
+  type ActiveEdit =
+    { kind: 'meta' } | { kind: 'question'; questionId: string; mode: 'code' | 'form' };
   let activeEdit = $state<ActiveEdit | null>(null);
   // Only meaningful while activeEdit is meta or a question in code mode — lifted up here (rather
   // than living inside QuestionCard) because the keydown handler below needs to read and act on
@@ -204,7 +219,9 @@
   let activeDraft = $state('');
   let activeFocusTarget = $state<FocusTarget | null>(null);
   let metaTextareaEl: HTMLTextAreaElement | undefined = $state();
-  const metaDraftErrors = $derived(activeEdit?.kind === 'meta' ? parseQuizScriptFrontmatter(activeDraft).errors : []);
+  const metaDraftErrors = $derived(
+    activeEdit?.kind === 'meta' ? parseQuizScriptFrontmatter(activeDraft).errors : []
+  );
 
   $effect(() => {
     if (activeEdit?.kind === 'meta') metaTextareaEl?.focus();
@@ -258,7 +275,11 @@
   function enterCode(questionId: string) {
     // The <> button doubles as a close toggle for the card it's already open on — same
     // save-if-valid/discard-if-not-but-always-exit semantics as Escape, not a silent no-op.
-    if (activeEdit?.kind === 'question' && activeEdit.questionId === questionId && activeEdit.mode === 'code') {
+    if (
+      activeEdit?.kind === 'question' &&
+      activeEdit.questionId === questionId &&
+      activeEdit.mode === 'code'
+    ) {
       commitActiveDraft();
       activeEdit = null;
       return;
@@ -277,7 +298,9 @@
   // Form edits are always structurally valid by construction, so unlike code mode there's no
   // save gesture — every field change commits immediately.
   function commitForm(questionId: string, next: QuizScriptQuestion) {
-    questions = questions.map((q) => (q.id === questionId ? { ...q, code: serializeQuizScriptQuestion(next) } : q));
+    questions = questions.map((q) =>
+      q.id === questionId ? { ...q, code: serializeQuizScriptQuestion(next) } : q
+    );
   }
 
   // "choice: " (empty text) rather than a truly bare default: entering form mode right after
@@ -293,7 +316,9 @@
     activeEdit = { kind: 'question', questionId: blank.id, mode: 'form' };
     activeFocusTarget = { field: 'text' };
     await tick();
-    document.querySelector(`[data-question-id="${blank.id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    document
+      .querySelector(`[data-question-id="${blank.id}"]`)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   function cloneQuestion(questionId: string) {
@@ -347,7 +372,9 @@
     const nextQuestion = questions[idx + dir];
     if (!nextQuestion) return;
 
-    const beforeTop = document.querySelector(`[data-question-id="${activeEdit.questionId}"]`)?.getBoundingClientRect().top;
+    const beforeTop = document
+      .querySelector(`[data-question-id="${activeEdit.questionId}"]`)
+      ?.getBoundingClientRect().top;
 
     if (activeEdit.mode === 'code') {
       activeEdit = { kind: 'question', questionId: nextQuestion.id, mode: 'code' };
@@ -359,13 +386,17 @@
 
     if (beforeTop === undefined) return;
     await tick();
-    const afterTop = document.querySelector(`[data-question-id="${nextQuestion.id}"]`)?.getBoundingClientRect().top;
+    const afterTop = document
+      .querySelector(`[data-question-id="${nextQuestion.id}"]`)
+      ?.getBoundingClientRect().top;
     if (afterTop !== undefined) window.scrollBy(0, afterTop - beforeTop);
   }
 
   $effect(() => {
     function onKey(e: KeyboardEvent) {
-      const inCodeMode = activeEdit?.kind === 'meta' || (activeEdit?.kind === 'question' && activeEdit.mode === 'code');
+      const inCodeMode =
+        activeEdit?.kind === 'meta' ||
+        (activeEdit?.kind === 'question' && activeEdit.mode === 'code');
       if (inCodeMode && (e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault();
         commitActiveDraft();
@@ -458,7 +489,10 @@
   function downloadQwiz() {
     addTag();
     commitActiveDraft();
-    const doc = serializeQuizScript(currentFrontmatter(), questions.map((q) => q.code));
+    const doc = serializeQuizScript(
+      currentFrontmatter(),
+      questions.map((q) => q.code)
+    );
     downloadTextFile(`${slugify(title)}.qwiz`, doc);
   }
 
@@ -508,8 +542,7 @@
           class="w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
           rows={Math.min(16, Math.max(6, activeDraft.split('\n').length))}
           value={activeDraft}
-          oninput={(e) => (activeDraft = e.currentTarget.value)}
-        ></textarea>
+          oninput={(e) => (activeDraft = e.currentTarget.value)}></textarea>
         <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-slate-400">
           <span>Settings:</span>
           {#each QUIZ_SUGGESTED_SETTING_KEYS as key (key)}
@@ -524,166 +557,193 @@
         {/each}
       </div>
     {:else}
-    <div class="-mx-1 space-y-1">
-      <input
-        type="text"
-        class="w-full rounded-md px-1 py-1 text-2xl font-bold text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-200 {titleInvalid
-          ? 'border border-red-300 ring-1 ring-red-100'
-          : 'border-0 bg-transparent'}"
-        placeholder="Untitled quiz"
-        aria-label="Title"
-        bind:value={title}
-      />
-      <textarea
-        class="w-full resize-none rounded-md border-0 bg-transparent px-1 py-1 text-sm text-slate-500 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-200"
-        rows="2"
-        placeholder="Add a description…"
-        aria-label="Description"
-        bind:value={description}
-      ></textarea>
-      <!-- Category and tags share the metadata row treatment: a muted leading icon (the only
+      <div class="-mx-1 space-y-1">
+        <input
+          type="text"
+          class="w-full rounded-md px-1 py-1 text-2xl font-bold text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-200 {titleInvalid
+            ? 'border border-red-300 ring-1 ring-red-100'
+            : 'border-0 bg-transparent'}"
+          placeholder="Untitled quiz"
+          aria-label="Title"
+          bind:value={title}
+        />
+        <textarea
+          class="w-full resize-none rounded-md border-0 bg-transparent px-1 py-1 text-sm text-slate-500 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-200"
+          rows="2"
+          placeholder="Add a description…"
+          aria-label="Description"
+          bind:value={description}></textarea>
+        <!-- Category and tags share the metadata row treatment: a muted leading icon (the only
            thing distinguishing them, since neither carries a visible label) and a borderless
            input that sits flush with the title/description above. -->
-      <div class="flex items-center gap-1.5 px-1">
-        <FolderOpen size={13} class="shrink-0 text-slate-400" />
-        <!-- Free text with suggestions: they're a convenience, not a constraint, so authors can
+        <div class="flex items-center gap-1.5 px-1">
+          <FolderOpen size={13} class="shrink-0 text-slate-400" />
+          <!-- Free text with suggestions: they're a convenience, not a constraint, so authors can
              group quizzes under anything they like. -->
-        <div class="relative min-w-[8rem] flex-1">
-          <input
-            id="category"
-            type="text"
-            class="w-full border-0 bg-transparent px-1 py-0.5 text-xs text-slate-600 placeholder:text-slate-300 focus:outline-none"
-            placeholder="Add a category…"
-            aria-label="Category"
-            autocomplete="off"
-            role="combobox"
-            aria-expanded={showCategoryDropdown && categoryDropdownOptions.length > 0}
-            bind:value={category}
-            onfocus={() => (showCategoryDropdown = true)}
-            onblur={() => (showCategoryDropdown = false)}
-            onkeydown={onCategoryKeydown}
-          />
-          {#if showCategoryDropdown && categoryDropdownOptions.length > 0}
-            <div
-              bind:this={categoryDropdownEl}
-              role="listbox"
-              class="absolute inset-x-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-md border border-slate-200 bg-white py-1 shadow-md"
+          <div class="relative min-w-[8rem] flex-1">
+            <input
+              id="category"
+              type="text"
+              class="w-full border-0 bg-transparent px-1 py-0.5 text-xs text-slate-600 placeholder:text-slate-300 focus:outline-none"
+              placeholder="Add a category…"
+              aria-label="Category"
+              autocomplete="off"
+              role="combobox"
+              aria-expanded={showCategoryDropdown && categoryDropdownOptions.length > 0}
+              bind:value={category}
+              onfocus={() => (showCategoryDropdown = true)}
+              onblur={() => (showCategoryDropdown = false)}
+              onkeydown={onCategoryKeydown}
+            />
+            {#if showCategoryDropdown && categoryDropdownOptions.length > 0}
+              <div
+                bind:this={categoryDropdownEl}
+                role="listbox"
+                class="absolute inset-x-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-md border border-slate-200 bg-white py-1 shadow-md"
+              >
+                {#each categoryDropdownOptions as option, i (option)}
+                  <button
+                    type="button"
+                    tabindex="-1"
+                    role="option"
+                    aria-selected={i === categoryHighlight}
+                    class="block w-full truncate px-3 py-1.5 text-left text-xs {i ===
+                    categoryHighlight
+                      ? 'bg-slate-100 text-slate-900'
+                      : 'text-slate-600 hover:bg-slate-50'}"
+                    onmousedown={(e) => e.preventDefault()}
+                    onclick={() => selectCategory(option)}
+                  >
+                    {option}
+                  </button>
+                {/each}
+              </div>
+            {/if}
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-1.5 px-1">
+          <TagIcon size={13} class="shrink-0 text-slate-400" />
+          {#each tags as tag (tag)}
+            <span
+              class="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600"
             >
-              {#each categoryDropdownOptions as option, i (option)}
-                <button
-                  type="button"
-                  tabindex="-1"
-                  role="option"
-                  aria-selected={i === categoryHighlight}
-                  class="block w-full truncate px-3 py-1.5 text-left text-xs {i === categoryHighlight
-                    ? 'bg-slate-100 text-slate-900'
-                    : 'text-slate-600 hover:bg-slate-50'}"
-                  onmousedown={(e) => e.preventDefault()}
-                  onclick={() => selectCategory(option)}
-                >
-                  {option}
-                </button>
-              {/each}
-            </div>
-          {/if}
+              {tag}
+              <button
+                type="button"
+                onclick={() => removeTag(tag)}
+                aria-label={`Remove tag ${tag}`}
+                class="hover:text-slate-900"
+              >
+                <X size={12} />
+              </button>
+            </span>
+          {/each}
+          <div class="relative min-w-[8rem] flex-1">
+            <input
+              type="text"
+              class="w-full border-0 bg-transparent px-1 py-0.5 text-xs text-slate-600 placeholder:text-slate-300 focus:outline-none"
+              placeholder={tags.length ? 'Add tag…' : 'Add tags (press Enter)…'}
+              aria-label="Add tag"
+              autocomplete="off"
+              role="combobox"
+              aria-expanded={showTagDropdown && tagDropdownOptions.length > 0}
+              bind:value={tagDraft}
+              onfocus={() => (showTagDropdown = true)}
+              onkeydown={onTagKeydown}
+              onblur={() => {
+                addTag();
+                showTagDropdown = false;
+              }}
+            />
+            {#if showTagDropdown && tagDropdownOptions.length > 0}
+              <div
+                bind:this={tagDropdownEl}
+                role="listbox"
+                class="absolute inset-x-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-md border border-slate-200 bg-white py-1 shadow-md"
+              >
+                {#each tagDropdownOptions as option, i (option)}
+                  <button
+                    type="button"
+                    tabindex="-1"
+                    role="option"
+                    aria-selected={i === tagHighlight}
+                    class="block w-full truncate px-3 py-1.5 text-left text-xs {i === tagHighlight
+                      ? 'bg-slate-100 text-slate-900'
+                      : 'text-slate-600 hover:bg-slate-50'}"
+                    onmousedown={(e) => e.preventDefault()}
+                    onclick={() => selectTagSuggestion(option)}
+                  >
+                    {option}
+                  </button>
+                {/each}
+              </div>
+            {/if}
+          </div>
         </div>
       </div>
 
-      <div class="flex flex-wrap items-center gap-1.5 px-1">
-        <TagIcon size={13} class="shrink-0 text-slate-400" />
-        {#each tags as tag (tag)}
-          <span class="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-            {tag}
-            <button type="button" onclick={() => removeTag(tag)} aria-label={`Remove tag ${tag}`} class="hover:text-slate-900">
-              <X size={12} />
+      <div class="space-y-1.5">
+        <div
+          class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs font-medium text-slate-500"
+        >
+          <span>Settings</span>
+          {#each QUIZ_SUGGESTED_SETTING_KEYS as key (key)}
+            <span class="inline-flex items-center gap-0.5 font-normal text-slate-400">
+              {key}
+              <SettingHelp {key} rules={QUIZ_SETTING_RULES} />
+            </span>
+          {/each}
+        </div>
+        {#each settingsList as setting (setting._key)}
+          {@const usedElsewhere = settingsList
+            .filter((s) => s._key !== setting._key)
+            .map((s) => s.key)}
+          {@const valueSuggestions = settingValueSuggestions(setting.key, QUIZ_SETTING_RULES)}
+          {@const validation = setting.key.trim()
+            ? validateSettingValue(setting.key, setting.value, QUIZ_SETTING_RULES)
+            : null}
+          <div class="flex items-center gap-1.5">
+            <select
+              class="w-44 shrink-0 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-900 focus:border-slate-400 focus:outline-none"
+              bind:value={setting.key}
+              aria-label="Setting key"
+            >
+              <option value="">key</option>
+              {#each QUIZ_SUGGESTED_SETTING_KEYS.filter((k) => !usedElsewhere.includes(k)) as k (k)}
+                <option value={k}>{k}</option>
+              {/each}
+            </select>
+            <SuggestionInput
+              bind:value={setting.value}
+              suggestions={valueSuggestions}
+              placeholder="value"
+              class="flex-1"
+            />
+            {#if setting.key.trim()}
+              <SettingHelp key={setting.key} rules={QUIZ_SETTING_RULES} />
+            {/if}
+            <button
+              type="button"
+              class="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100"
+              onclick={() => removeSetting(setting._key)}
+              aria-label="Remove setting"
+            >
+              <X size={13} />
             </button>
-          </span>
-        {/each}
-        <div class="relative min-w-[8rem] flex-1">
-          <input
-            type="text"
-            class="w-full border-0 bg-transparent px-1 py-0.5 text-xs text-slate-600 placeholder:text-slate-300 focus:outline-none"
-            placeholder={tags.length ? 'Add tag…' : 'Add tags (press Enter)…'}
-            aria-label="Add tag"
-            autocomplete="off"
-            role="combobox"
-            aria-expanded={showTagDropdown && tagDropdownOptions.length > 0}
-            bind:value={tagDraft}
-            onfocus={() => (showTagDropdown = true)}
-            onkeydown={onTagKeydown}
-            onblur={() => {
-              addTag();
-              showTagDropdown = false;
-            }}
-          />
-          {#if showTagDropdown && tagDropdownOptions.length > 0}
-            <div
-              bind:this={tagDropdownEl}
-              role="listbox"
-              class="absolute inset-x-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-md border border-slate-200 bg-white py-1 shadow-md"
-            >
-              {#each tagDropdownOptions as option, i (option)}
-                <button
-                  type="button"
-                  tabindex="-1"
-                  role="option"
-                  aria-selected={i === tagHighlight}
-                  class="block w-full truncate px-3 py-1.5 text-left text-xs {i === tagHighlight
-                    ? 'bg-slate-100 text-slate-900'
-                    : 'text-slate-600 hover:bg-slate-50'}"
-                  onmousedown={(e) => e.preventDefault()}
-                  onclick={() => selectTagSuggestion(option)}
-                >
-                  {option}
-                </button>
-              {/each}
-            </div>
+          </div>
+          {#if validation?.error}
+            <p class="pl-[11.5rem] text-xs text-red-600">{validation.error}</p>
           {/if}
-        </div>
-      </div>
-    </div>
-
-    <div class="space-y-1.5">
-      <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs font-medium text-slate-500">
-        <span>Settings</span>
-        {#each QUIZ_SUGGESTED_SETTING_KEYS as key (key)}
-          <span class="inline-flex items-center gap-0.5 font-normal text-slate-400">
-            {key}
-            <SettingHelp {key} rules={QUIZ_SETTING_RULES} />
-          </span>
         {/each}
+        <button
+          type="button"
+          class="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+          onclick={addSetting}
+        >
+          <Plus size={13} /> Add setting
+        </button>
       </div>
-      {#each settingsList as setting (setting._key)}
-        {@const usedElsewhere = settingsList.filter((s) => s._key !== setting._key).map((s) => s.key)}
-        {@const valueSuggestions = settingValueSuggestions(setting.key, QUIZ_SETTING_RULES)}
-        {@const validation = setting.key.trim() ? validateSettingValue(setting.key, setting.value, QUIZ_SETTING_RULES) : null}
-        <div class="flex items-center gap-1.5">
-          <select
-            class="w-44 shrink-0 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-900 focus:border-slate-400 focus:outline-none"
-            bind:value={setting.key}
-            aria-label="Setting key"
-          >
-            <option value="">key</option>
-            {#each QUIZ_SUGGESTED_SETTING_KEYS.filter((k) => !usedElsewhere.includes(k)) as k (k)}
-              <option value={k}>{k}</option>
-            {/each}
-          </select>
-          <SuggestionInput bind:value={setting.value} suggestions={valueSuggestions} placeholder="value" class="flex-1" />
-          {#if setting.key.trim()}
-            <SettingHelp key={setting.key} rules={QUIZ_SETTING_RULES} />
-          {/if}
-          <button type="button" class="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100" onclick={() => removeSetting(setting._key)} aria-label="Remove setting">
-            <X size={13} />
-          </button>
-        </div>
-        {#if validation?.error}
-          <p class="pl-[11.5rem] text-xs text-red-600">{validation.error}</p>
-        {/if}
-      {/each}
-      <button type="button" class="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50" onclick={addSetting}>
-        <Plus size={13} /> Add setting
-      </button>
-    </div>
     {/if}
   </div>
 
@@ -695,11 +755,17 @@
   {#each questions as question (question.id)}
     <QuestionCard
       {question}
-      mode={activeEdit?.kind === 'question' && activeEdit.questionId === question.id ? activeEdit.mode : 'view'}
-      draft={activeEdit?.kind === 'question' && activeEdit.questionId === question.id && activeEdit.mode === 'code'
+      mode={activeEdit?.kind === 'question' && activeEdit.questionId === question.id
+        ? activeEdit.mode
+        : 'view'}
+      draft={activeEdit?.kind === 'question' &&
+      activeEdit.questionId === question.id &&
+      activeEdit.mode === 'code'
         ? activeDraft
         : question.code}
-      focusTarget={activeEdit?.kind === 'question' && activeEdit.questionId === question.id && activeEdit.mode === 'form'
+      focusTarget={activeEdit?.kind === 'question' &&
+      activeEdit.questionId === question.id &&
+      activeEdit.mode === 'form'
         ? activeFocusTarget
         : null}
       onEnterCode={() => enterCode(question.id)}
@@ -722,7 +788,10 @@
 
   <div class="flex items-center justify-end gap-3 border-t border-slate-200 pt-4">
     {#if saveState === 'saved'}
-      <span transition:fade={{ duration: 200 }} class="flex items-center gap-1 text-sm font-medium text-green-600">
+      <span
+        transition:fade={{ duration: 200 }}
+        class="flex items-center gap-1 text-sm font-medium text-green-600"
+      >
         <Check size={15} /> Saved
       </span>
     {/if}

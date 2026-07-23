@@ -7,7 +7,10 @@
   // have genuinely different data shapes, every quizScript question is one unified
   // {text, media, options, settings} shape regardless of `variant` — so there's exactly one
   // view component here, no registry, no per-variant dispatch.
-  let { question, onFocus }: { question: QuizScriptQuestion; onFocus?: (target: FocusTarget) => void } = $props();
+  let {
+    question,
+    onFocus
+  }: { question: QuizScriptQuestion; onFocus?: (target: FocusTarget) => void } = $props();
 
   const interactive = $derived(!!onFocus);
   const settingsEntries = $derived(Object.entries(question.settings));
@@ -29,10 +32,11 @@
   }
 </script>
 
-<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 <div class="space-y-3">
   {#if question.variant !== 'question'}
-    <span class="inline-block rounded-md border border-slate-200 px-2 py-0.5 text-xs font-medium text-slate-500">
+    <span
+      class="inline-block rounded-md border border-slate-200 px-2 py-0.5 text-xs font-medium text-slate-500"
+    >
       {question.variant}
     </span>
   {/if}
@@ -49,15 +53,22 @@
     </div>
   {/if}
 
-  {#snippet mediaBlock(media: { kind: 'image' | 'video'; alt: string; url: string }, size: 'question' | 'option')}
+  {#snippet mediaBlock(
+    media: { kind: 'image' | 'video'; alt: string; url: string },
+    size: 'question' | 'option'
+  )}
     {#if media.kind === 'image'}
       <img
         src={media.url}
         alt={media.alt}
-        class="rounded-md border border-slate-200 object-contain {size === 'question' ? 'max-h-80' : 'max-h-40'}"
+        class="rounded-md border border-slate-200 object-contain {size === 'question'
+          ? 'max-h-80'
+          : 'max-h-40'}"
       />
     {:else}
-      <div class="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+      <div
+        class="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600"
+      >
         <Video size={15} class="shrink-0 text-slate-400" />
         <span class="truncate">{media.alt || media.url}</span>
       </div>
@@ -92,7 +103,11 @@
       </p>
       <p class="mt-0.5 whitespace-pre-wrap text-sm text-slate-900">{extra.content}</p>
       {#if extra.points !== 0}
-        <span class="mt-1 inline-block text-xs font-semibold {extra.points > 0 ? 'text-green-700' : 'text-red-600'}">
+        <span
+          class="mt-1 inline-block text-xs font-semibold {extra.points > 0
+            ? 'text-green-700'
+            : 'text-red-600'}"
+        >
           {extra.points >= 0 ? '+' : ''}{extra.points} pts
         </span>
       {/if}
@@ -106,7 +121,9 @@
              green/red split here would be uninformative, so this just shows the text and,
              only when the author actually gave it its own %N% weight, a plain points badge. -->
         <div
-          class="rounded-md border border-slate-200 p-3 {interactive ? 'cursor-pointer hover:ring-2 hover:ring-slate-300' : ''}"
+          class="rounded-md border border-slate-200 p-3 {interactive
+            ? 'cursor-pointer hover:ring-2 hover:ring-slate-300'
+            : ''}"
           role={interactive ? 'button' : undefined}
           tabindex={interactive ? 0 : undefined}
           onclick={() => onFocus?.({ field: 'option', index })}
@@ -125,7 +142,9 @@
         </div>
       {:else}
         <div
-          class="rounded-md border p-3 {option.correct ? 'border-green-400 border-dashed' : 'border-slate-200'} {interactive
+          class="rounded-md border p-3 {option.correct
+            ? 'border-green-400 border-dashed'
+            : 'border-slate-200'} {interactive
             ? 'cursor-pointer hover:ring-2 hover:ring-slate-300'
             : ''}"
           role={interactive ? 'button' : undefined}
@@ -140,11 +159,13 @@
           {/if}
           {#if option.correct}
             <span class="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-green-700">
-              <CircleCheck size={13} /> {pointsLabel(option)}
+              <CircleCheck size={13} />
+              {pointsLabel(option)}
             </span>
           {:else}
             <span class="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-red-600">
-              <CircleX size={13} /> {pointsLabel(option)}
+              <CircleX size={13} />
+              {pointsLabel(option)}
             </span>
           {/if}
         </div>
@@ -154,14 +175,18 @@
 
   {#if settingsEntries.length > 0}
     <div
-      class="flex flex-wrap items-center gap-1.5 rounded-md p-2 {interactive ? 'cursor-pointer hover:ring-2 hover:ring-slate-300' : ''}"
+      class="flex flex-wrap items-center gap-1.5 rounded-md p-2 {interactive
+        ? 'cursor-pointer hover:ring-2 hover:ring-slate-300'
+        : ''}"
       role={interactive ? 'button' : undefined}
       tabindex={interactive ? 0 : undefined}
       onclick={() => onFocus?.({ field: 'settings' })}
       onkeydown={(e) => e.key === 'Enter' && onFocus?.({ field: 'settings' })}
     >
       {#each settingsEntries as [key, value] (key)}
-        <span class="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{key}: {String(value)}</span>
+        <span class="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600"
+          >{key}: {String(value)}</span
+        >
       {/each}
     </div>
   {/if}

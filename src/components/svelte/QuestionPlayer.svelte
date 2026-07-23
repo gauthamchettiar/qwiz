@@ -126,14 +126,12 @@
 
   function toggleOption(optionIndex: number) {
     if (isLocked) return;
-    const next = new Set(selected);
-    if (next.has(optionIndex)) {
-      next.delete(optionIndex);
+    if (selected.has(optionIndex)) {
+      selected = new Set([...selected].filter((i) => i !== optionIndex));
     } else {
       if (maxAnswers !== undefined && selected.size >= maxAnswers) return; // already at the cap
-      next.add(optionIndex);
+      selected = new Set([...selected, optionIndex]);
     }
-    selected = next;
   }
 
   function selectSingle(optionIndex: number) {
@@ -225,7 +223,11 @@
   {#if content.kind === 'text'}
     <p class="text-sm text-slate-900">{content.text}</p>
   {:else if content.kind === 'image'}
-    <img src={content.url} alt={content.alt} class="max-h-56 rounded-md border border-slate-200 object-contain" />
+    <img
+      src={content.url}
+      alt={content.alt}
+      class="max-h-56 rounded-md border border-slate-200 object-contain"
+    />
   {:else}
     {@const videoId = extractYoutubeId(content.url)}
     {#if videoId}
@@ -279,7 +281,9 @@
     <div class="mt-1 flex flex-wrap gap-1.5">
       {#each question.options as option, i (i)}
         {#if option.content.kind === 'text'}
-          <span class="rounded-md border border-green-300 bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">
+          <span
+            class="rounded-md border border-green-300 bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700"
+          >
             {option.content.text}
           </span>
         {/if}
@@ -292,9 +296,16 @@
 {#snippet typedRevealed(response: string | string[])}
   {#if typeof response === 'string'}
     {@const matched = typedSingleAnswerMatches(question.options, response, question.settings)}
-    <div class="rounded-md border p-3 {matched !== null ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50'}">
+    <div
+      class="rounded-md border p-3 {matched !== null
+        ? 'border-green-400 bg-green-50'
+        : 'border-red-400 bg-red-50'}"
+    >
       <p class="flex items-center gap-1.5 text-sm text-slate-900">
-        {#if matched !== null}<CircleCheck size={14} class="shrink-0 text-green-600" />{:else}<CircleX size={14} class="shrink-0 text-red-500" />{/if}
+        {#if matched !== null}<CircleCheck
+            size={14}
+            class="shrink-0 text-green-600"
+          />{:else}<CircleX size={14} class="shrink-0 text-red-500" />{/if}
         {response.trim() || '(left blank)'}
       </p>
     </div>
@@ -327,7 +338,9 @@
     {:else}
       <div class="flex flex-wrap gap-1.5">
         {#each response as guess, i (i)}
-          <span class="rounded-md border border-slate-300 bg-white px-2 py-0.5 text-xs font-medium text-slate-700">
+          <span
+            class="rounded-md border border-slate-300 bg-white px-2 py-0.5 text-xs font-medium text-slate-700"
+          >
             {guess.trim() || '(blank)'}
           </span>
         {/each}
@@ -346,7 +359,10 @@
   {#each question.extras as extra, i (i)}
     <div class="rounded-md border border-dashed border-slate-300 bg-slate-50 p-3">
       {#if revealedHints.has(i)}
-        <p class="flex items-center gap-1 text-xs font-medium text-slate-500"><Eye size={12} /> {extra.label || 'Hint'}</p>
+        <p class="flex items-center gap-1 text-xs font-medium text-slate-500">
+          <Eye size={12} />
+          {extra.label || 'Hint'}
+        </p>
         <p class="mt-1 text-sm text-slate-700">{extra.content}</p>
       {:else}
         <button
@@ -358,7 +374,9 @@
           <Eye size={14} />
           {extra.label || 'Reveal hint'}
           {#if extra.points !== 0}
-            <span class="text-xs text-slate-400">({extra.points > 0 ? '+' : ''}{extra.points} pts)</span>
+            <span class="text-xs text-slate-400"
+              >({extra.points > 0 ? '+' : ''}{extra.points} pts)</span
+            >
           {/if}
         </button>
       {/if}
@@ -366,7 +384,11 @@
   {/each}
 
   {#if isTyped}
-    {@const response = isMultiGuess ? typedGuesses : isBoxes ? boxAnswer(boxChars, boxGroups) : typedSingleAnswer}
+    {@const response = isMultiGuess
+      ? typedGuesses
+      : isBoxes
+        ? boxAnswer(boxChars, boxGroups)
+        : typedSingleAnswer}
     {#if isLocked}
       {#if revealAnswers}
         {@render typedRevealed(response)}
@@ -377,9 +399,16 @@
       {#if typedGuesses.length > 0}
         <div class="flex flex-wrap gap-1.5">
           {#each typedGuesses as guess, i (i)}
-            <span class="flex items-center gap-1 rounded-md border border-slate-300 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-700">
+            <span
+              class="flex items-center gap-1 rounded-md border border-slate-300 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-700"
+            >
               {guess}
-              <button type="button" onclick={() => removeGuess(i)} aria-label={`Remove guess "${guess}"`} class="text-slate-400 hover:text-slate-700">
+              <button
+                type="button"
+                onclick={() => removeGuess(i)}
+                aria-label={`Remove guess "${guess}"`}
+                class="text-slate-400 hover:text-slate-700"
+              >
                 <X size={12} />
               </button>
             </span>
@@ -392,7 +421,9 @@
           <button
             type="button"
             class="flex items-center gap-1 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={boxChars.length === 0 || !boxChars.every((c) => c !== '') || (maxAnswers !== undefined && typedGuesses.length >= maxAnswers)}
+            disabled={boxChars.length === 0 ||
+              !boxChars.every((c) => c !== '') ||
+              (maxAnswers !== undefined && typedGuesses.length >= maxAnswers)}
             onclick={bankGuess}
           >
             <Plus size={14} /> Add
@@ -417,7 +448,8 @@
           <button
             type="button"
             class="flex items-center gap-1 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={typedGuessDraft.trim() === '' || (maxAnswers !== undefined && typedGuesses.length >= maxAnswers)}
+            disabled={typedGuessDraft.trim() === '' ||
+              (maxAnswers !== undefined && typedGuesses.length >= maxAnswers)}
             onclick={bankGuess}
           >
             <Plus size={14} /> Add
@@ -440,7 +472,9 @@
       {#each pq.optionOrder as optionIndex (optionIndex)}
         {@const option = question.options[optionIndex]}
         <label
-          class="flex cursor-pointer items-start gap-2 rounded-md border p-3 transition-colors {selected.has(optionIndex)
+          class="flex cursor-pointer items-start gap-2 rounded-md border p-3 transition-colors {selected.has(
+            optionIndex
+          )
             ? 'border-indigo-300 bg-indigo-50'
             : 'border-slate-200 hover:bg-slate-50'} {isLocked && revealAnswers
             ? option.correct
@@ -464,7 +498,10 @@
               type="checkbox"
               class="mt-1 h-4 w-4 shrink-0 accent-indigo-600"
               checked={selected.has(optionIndex)}
-              disabled={isLocked || (maxAnswers !== undefined && selected.size >= maxAnswers && !selected.has(optionIndex))}
+              disabled={isLocked ||
+                (maxAnswers !== undefined &&
+                  selected.size >= maxAnswers &&
+                  !selected.has(optionIndex))}
               onchange={() => toggleOption(optionIndex)}
             />
           {/if}
@@ -487,7 +524,8 @@
     {@const noun = isTyped ? 'answer' : 'option'}
     <p class="text-xs text-slate-400">
       {#if minAnswers > 0 && maxAnswers !== undefined}
-        {isTyped ? 'Give' : 'Select'} between {minAnswers} and {maxAnswers} {noun}{maxAnswers === 1 ? '' : 's'}.
+        {isTyped ? 'Give' : 'Select'} between {minAnswers} and {maxAnswers}
+        {noun}{maxAnswers === 1 ? '' : 's'}.
       {:else if minAnswers > 0}
         {isTyped ? 'Give' : 'Select'} at least {minAnswers} {noun}{minAnswers === 1 ? '' : 's'}.
       {:else}

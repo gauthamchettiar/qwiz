@@ -6,12 +6,10 @@
   import type { Quiz } from '@/lib/schemas/quiz';
   import CardMenu from './CardMenu.svelte';
 
-  // Read on mount rather than at module scope: the page is prerendered to static HTML, where
-  // localStorage doesn't exist yet.
-  let quizzes = $state<Quiz[]>([]);
-  $effect(() => {
-    quizzes = listQuizzes();
-  });
+  // A writable $derived: it reads from localStorage once at hydration time (the page is
+  // prerendered to static HTML, where localStorage doesn't exist yet — listQuizzes() already
+  // guards for that), then removeQuiz below overrides it directly for the optimistic update.
+  let quizzes = $derived(listQuizzes());
 
   // Which card's Delete item is showing its "Confirm delete?" state — at most one at a time,
   // and CardMenu's onClose resets it, so it can never linger open on a card whose menu closed.
@@ -24,7 +22,13 @@
 
   function downloadQuiz(quiz: Quiz) {
     const doc = serializeQuizScript(
-      { title: quiz.title, description: quiz.description, category: quiz.category, tags: quiz.tags, settings: quiz.settings },
+      {
+        title: quiz.title,
+        description: quiz.description,
+        category: quiz.category,
+        tags: quiz.tags,
+        settings: quiz.settings
+      },
       quiz.questions.map((q) => q.code)
     );
     downloadTextFile(`${slugify(quiz.title)}.qwiz`, doc);
@@ -47,12 +51,16 @@
            one opening a dropdown of more buttons) inside an <a> is invalid HTML and browsers
            handle its click/focus behavior inconsistently, so this also sidesteps ever needing to
            stopPropagation a click meant for one from reaching the other. -->
-      <li class="relative rounded-lg border border-slate-200 bg-white transition-colors hover:border-slate-300 hover:shadow-sm">
+      <li
+        class="relative rounded-lg border border-slate-200 bg-white transition-colors hover:border-slate-300 hover:shadow-sm"
+      >
         <a href={`/local/edit?id=${quiz.id}`} class="block p-4 pr-10">
           <div class="flex items-baseline justify-between gap-3">
             <h2 class="font-semibold text-slate-900">{quiz.title || 'Untitled quiz'}</h2>
             {#if quiz.category}
-              <span class="shrink-0 rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
+              <span
+                class="shrink-0 rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700"
+              >
                 {quiz.category}
               </span>
             {/if}
@@ -63,7 +71,9 @@
           {#if quiz.tags.length > 0}
             <div class="mt-2 flex flex-wrap gap-1.5">
               {#each quiz.tags as tag (tag)}
-                <span class="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{tag}</span>
+                <span class="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600"
+                  >{tag}</span
+                >
               {/each}
             </div>
           {/if}

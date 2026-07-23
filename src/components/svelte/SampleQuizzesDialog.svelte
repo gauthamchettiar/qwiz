@@ -29,7 +29,8 @@
 <Dialog bind:this={dialog} title="Load a sample quiz">
   {#snippet body()}
     <p class="text-sm text-slate-500">
-      Loads a copy into your saved quizzes so you can explore and edit it — nothing here is read-only.
+      Loads a copy into your saved quizzes so you can explore and edit it — nothing here is
+      read-only.
     </p>
     <ul class="space-y-3">
       {#each sampleQuizzes as sample (sample.title)}

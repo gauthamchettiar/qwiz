@@ -61,7 +61,14 @@
     untrack(() => [
       ...question.media.map((m) => ({ ...m, _key: crypto.randomUUID() }) as ElementItem),
       ...question.extras.map(
-        (e) => ({ kind: 'reveal' as const, label: e.label, content: e.content, points: e.points.toString(), _key: crypto.randomUUID() }) as ElementItem
+        (e) =>
+          ({
+            kind: 'reveal' as const,
+            label: e.label,
+            content: e.content,
+            points: e.points.toString(),
+            _key: crypto.randomUUID()
+          }) as ElementItem
       )
     ])
   );
@@ -70,11 +77,22 @@
   // here mutates that cached snapshot in place, instead of only flowing back up through `emit()`.
   let options = $state(
     untrack(() =>
-      question.options.map((o) => ({ ...o, content: { ...o.content }, points: o.points?.toString() ?? '', _key: crypto.randomUUID() }))
+      question.options.map((o) => ({
+        ...o,
+        content: { ...o.content },
+        points: o.points?.toString() ?? '',
+        _key: crypto.randomUUID()
+      }))
     )
   );
   let settingsList = $state(
-    untrack(() => Object.entries(question.settings).map(([key, value]) => ({ key, value: String(value), _key: crypto.randomUUID() })))
+    untrack(() =>
+      Object.entries(question.settings).map(([key, value]) => ({
+        key,
+        value: String(value),
+        _key: crypto.randomUUID()
+      }))
+    )
   );
 
   let textRef: HTMLTextAreaElement | undefined = $state();
@@ -104,12 +122,17 @@
     media: elements
       .filter((e): e is Extract<ElementItem, { kind: 'image' | 'video' }> => e.kind !== 'reveal')
       .map(({ _key, ...m }) => m),
-    options: options.map(({ _key, points, ...o }) => ({ ...o, points: points.trim() === '' ? undefined : Number(points) })),
+    options: options.map(({ _key, points, ...o }) => ({
+      ...o,
+      points: points.trim() === '' ? undefined : Number(points)
+    })),
     extras: elements
       .filter((e): e is Extract<ElementItem, { kind: 'reveal' }> => e.kind === 'reveal')
-      .map(({ _key, kind, points, ...e }) => ({ ...e, points: Number(points) || 0 })),
+      .map(({ _key, kind: _kind, points, ...e }) => ({ ...e, points: Number(points) || 0 })),
     settings: Object.fromEntries(
-      settingsList.filter((s) => s.key.trim() !== '').map((s) => [s.key, validateSettingValue(s.key, s.value).value])
+      settingsList
+        .filter((s) => s.key.trim() !== '')
+        .map((s) => [s.key, validateSettingValue(s.key, s.value).value])
     )
   });
 
@@ -130,7 +153,15 @@
   }
 
   function addOption() {
-    options = [...options, { _key: crypto.randomUUID(), content: { kind: 'text', text: '' }, correct: isTyped, points: '' }];
+    options = [
+      ...options,
+      {
+        _key: crypto.randomUUID(),
+        content: { kind: 'text', text: '' },
+        correct: isTyped,
+        points: ''
+      }
+    ];
     emit();
   }
   function removeOption(key: string) {
@@ -156,7 +187,11 @@
   function setOptionKind(optionKey: string, kind: 'text' | 'image' | 'video') {
     options = options.map((o) =>
       o._key === optionKey && o.content.kind !== kind
-        ? { ...o, content: kind === 'text' ? { kind: 'text' as const, text: '' } : { kind, alt: '', url: '' } }
+        ? {
+            ...o,
+            content:
+              kind === 'text' ? { kind: 'text' as const, text: '' } : { kind, alt: '', url: '' }
+          }
         : o
     );
     emit();
@@ -174,7 +209,9 @@
   // A typed accepted answer is always plain text — unlike setOptionText, deliberately skips the
   // paste-an-image/video-link auto-detection, since that would never make sense here.
   function setTypedAnswerText(optionKey: string, raw: string) {
-    options = options.map((o) => (o._key === optionKey ? { ...o, content: { kind: 'text' as const, text: raw } } : o));
+    options = options.map((o) =>
+      o._key === optionKey ? { ...o, content: { kind: 'text' as const, text: raw } } : o
+    );
     emit();
   }
   function addElement(kind: 'image' | 'video' | 'reveal') {
@@ -187,7 +224,9 @@
   }
   // Same reset-to-blank convention as switching an option's kind or the whole question's variant.
   function setElementKind(key: string, kind: 'image' | 'video' | 'reveal') {
-    elements = elements.map((e) => (e._key === key && e.kind !== kind ? { ...blankElement(kind), _key: key } : e));
+    elements = elements.map((e) =>
+      e._key === key && e.kind !== kind ? { ...blankElement(kind), _key: key } : e
+    );
     emit();
   }
   function addSetting() {
@@ -226,8 +265,7 @@
         class="w-full resize-y rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
         rows="2"
         bind:value={text}
-        oninput={emit}
-      ></textarea>
+        oninput={emit}></textarea>
     </div>
 
     <div class="space-y-1.5">
@@ -236,7 +274,8 @@
           <select
             class="shrink-0 rounded-md border border-slate-300 px-1 py-1 text-xs text-slate-600 focus:border-slate-400 focus:outline-none"
             value={item.kind}
-            onchange={(e) => setElementKind(item._key, e.currentTarget.value as 'image' | 'video' | 'reveal')}
+            onchange={(e) =>
+              setElementKind(item._key, e.currentTarget.value as 'image' | 'video' | 'reveal')}
             aria-label="Element type"
           >
             <option value="image">Image</option>
@@ -280,19 +319,36 @@
               oninput={emit}
             />
           {/if}
-          <button type="button" class="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100" onclick={() => removeElement(item._key)} aria-label="Remove element">
+          <button
+            type="button"
+            class="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100"
+            onclick={() => removeElement(item._key)}
+            aria-label="Remove element"
+          >
             <X size={13} />
           </button>
         </div>
       {/each}
       <div class="flex gap-1.5">
-        <button type="button" class="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50" onclick={() => addElement('image')}>
+        <button
+          type="button"
+          class="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+          onclick={() => addElement('image')}
+        >
           <Image size={13} /> Add image
         </button>
-        <button type="button" class="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50" onclick={() => addElement('video')}>
+        <button
+          type="button"
+          class="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+          onclick={() => addElement('video')}
+        >
           <VideoIcon size={13} /> Add video
         </button>
-        <button type="button" class="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50" onclick={() => addElement('reveal')}>
+        <button
+          type="button"
+          class="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+          onclick={() => addElement('reveal')}
+        >
           <Eye size={13} /> Add reveal
         </button>
       </div>
@@ -312,11 +368,17 @@
             oninput={(e) => setTypedAnswerText(option._key, e.currentTarget.value)}
           />
         {:else}
-          <input type="checkbox" bind:checked={option.correct} onchange={emit} aria-label="Correct" />
+          <input
+            type="checkbox"
+            bind:checked={option.correct}
+            onchange={emit}
+            aria-label="Correct"
+          />
           <select
             class="shrink-0 rounded-md border border-slate-300 px-1 py-1 text-xs text-slate-600 focus:border-slate-400 focus:outline-none"
             value={option.content.kind}
-            onchange={(e) => setOptionKind(option._key, e.currentTarget.value as 'text' | 'image' | 'video')}
+            onchange={(e) =>
+              setOptionKind(option._key, e.currentTarget.value as 'text' | 'image' | 'video')}
             aria-label="Option content type"
           >
             <option value="text">Text</option>
@@ -372,13 +434,23 @@
         >
           <ChevronDown size={13} />
         </button>
-        <button type="button" class="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100" onclick={() => removeOption(option._key)} aria-label={isTyped ? 'Remove accepted answer' : 'Remove option'}>
+        <button
+          type="button"
+          class="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100"
+          onclick={() => removeOption(option._key)}
+          aria-label={isTyped ? 'Remove accepted answer' : 'Remove option'}
+        >
           <X size={13} />
         </button>
       </div>
     {/each}
-    <button type="button" class="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50" onclick={addOption}>
-      <Plus size={13} /> {isTyped ? 'Add accepted answer' : 'Add option'}
+    <button
+      type="button"
+      class="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+      onclick={addOption}
+    >
+      <Plus size={13} />
+      {isTyped ? 'Add accepted answer' : 'Add option'}
     </button>
   </div>
 
@@ -395,7 +467,9 @@
     {#each settingsList as setting (setting._key)}
       {@const usedElsewhere = settingsList.filter((s) => s._key !== setting._key).map((s) => s.key)}
       {@const valueSuggestions = settingValueSuggestions(setting.key)}
-      {@const validation = setting.key.trim() ? validateSettingValue(setting.key, setting.value) : null}
+      {@const validation = setting.key.trim()
+        ? validateSettingValue(setting.key, setting.value)
+        : null}
       <div class="flex items-center gap-1.5">
         <select
           class="w-28 shrink-0 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-900 focus:border-slate-400 focus:outline-none"
@@ -418,7 +492,12 @@
         {#if setting.key.trim()}
           <SettingHelp key={setting.key} />
         {/if}
-        <button type="button" class="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100" onclick={() => removeSetting(setting._key)} aria-label="Remove setting">
+        <button
+          type="button"
+          class="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100"
+          onclick={() => removeSetting(setting._key)}
+          aria-label="Remove setting"
+        >
           <X size={13} />
         </button>
       </div>
@@ -426,7 +505,11 @@
         <p class="pl-[7.5rem] text-xs text-red-600">{validation.error}</p>
       {/if}
     {/each}
-    <button type="button" class="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50" onclick={addSetting}>
+    <button
+      type="button"
+      class="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+      onclick={addSetting}
+    >
       <Plus size={13} /> Add setting
     </button>
   </div>

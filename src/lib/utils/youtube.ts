@@ -3,7 +3,8 @@ export function extractYoutubeId(input: string): string | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
 
-  const urlPattern = /(?:youtube\.com\/watch\?v=|youtube\.com\/embed\/|youtu\.be\/|youtube\.com\/shorts\/)([\w-]{11})/;
+  const urlPattern =
+    /(?:youtube\.com\/watch\?v=|youtube\.com\/embed\/|youtu\.be\/|youtube\.com\/shorts\/)([\w-]{11})/;
   const match = trimmed.match(urlPattern);
   if (match) return match[1];
 

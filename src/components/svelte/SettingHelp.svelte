@@ -3,7 +3,8 @@
   import { SETTING_RULES, type SettingRule } from '@/lib/utils/quizScript';
 
   // `rules` defaults to the per-question table; pass `QUIZ_SETTING_RULES` for a quiz-wide key.
-  let { key, rules = SETTING_RULES }: { key: string; rules?: Record<string, SettingRule> } = $props();
+  let { key, rules = SETTING_RULES }: { key: string; rules?: Record<string, SettingRule> } =
+    $props();
 
   // Settings are a closed set (see SETTING_RULES / QUIZ_SETTING_RULES) — every key this is ever
   // called with is known.

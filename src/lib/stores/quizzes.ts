@@ -1,12 +1,25 @@
-import type { Quiz } from '@/lib/schemas/quiz';
+import { quizSchema, type Quiz } from '@/lib/schemas/quiz';
 
 const STORAGE_KEY = 'qwiz:quizzes';
 
+/** Validates each stored record against `quizSchema` and drops anything that doesn't match,
+ * so a hand-edited or stale-schema localStorage value can't crash the app downstream — it just
+ * quietly disappears from the list instead of blowing up a component that assumes a valid Quiz. */
 function readAll(): Record<string, Quiz> {
   if (typeof localStorage === 'undefined') return {};
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (typeof parsed !== 'object' || parsed === null) return {};
+
+    const valid: Record<string, Quiz> = {};
+    for (const [id, candidate] of Object.entries(parsed)) {
+      const result = quizSchema.safeParse(candidate);
+      if (result.success) valid[id] = result.data;
+      else console.warn(`Dropping invalid stored quiz "${id}":`, result.error.message);
+    }
+    return valid;
   } catch {
     return {};
   }

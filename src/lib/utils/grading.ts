@@ -22,7 +22,10 @@ export function settingBoolean(value: string | number | boolean | undefined): bo
  * `reveal_scores` — with its default already applied, the same way `settingNumber` covers numeric
  * ones. A valid enum setting is always stored as a lowercase string once parsed; `fallback` covers
  * both "not set" and any other, non-string value. */
-export function settingString(value: string | number | boolean | undefined, fallback: string): string {
+export function settingString(
+  value: string | number | boolean | undefined,
+  fallback: string
+): string {
   return typeof value === 'string' ? value : fallback;
 }
 
@@ -31,7 +34,10 @@ export function settingString(value: string | number | boolean | undefined, fall
  * correct option (a right answer is worth *something* by default) or 0 for an incorrect one (no
  * penalty unless the author opts in) — the reconciliation `QuizScriptOption.points` docs in
  * quizScript.ts call out as a scoring concern left to whatever actually grades a run. */
-export function effectivePoints(option: Pick<QuizScriptOption, 'correct' | 'points'>, settings: QuizScriptSettings): number {
+export function effectivePoints(
+  option: Pick<QuizScriptOption, 'correct' | 'points'>,
+  settings: QuizScriptSettings
+): number {
   if (option.points !== undefined) return option.points;
   if (option.correct) return settingNumber(settings.point) ?? 1;
   return settingNumber(settings.penalty) ?? 0;
@@ -40,7 +46,10 @@ export function effectivePoints(option: Pick<QuizScriptOption, 'correct' | 'poin
 /** Reveal-hint scoring: sum of revealed extras' (usually negative) cost, and the max sums only
  * the positive-cost ones (a hint that can only cost points, never gain them, shouldn't inflate the
  * achievable max). Shared by every question kind's grade function — choice and typed alike. */
-function gradeRevealExtras(extras: QuizScriptQuestion['extras'], revealed: ReadonlySet<number>): QuestionResult {
+function gradeRevealExtras(
+  extras: QuizScriptQuestion['extras'],
+  revealed: ReadonlySet<number>
+): QuestionResult {
   const earned = extras.reduce((sum, e, i) => sum + (revealed.has(i) ? e.points : 0), 0);
   const max = extras.reduce((sum, e) => sum + Math.max(e.points, 0), 0);
   return { earned, max };
@@ -92,7 +101,10 @@ export function gradeQuestion(
     optionsMax = cappedPositiveSum(effective, settingNumber(question.settings.max_answers));
   } else {
     const isExact = question.options.every((o, i) => selected.has(i) === o.correct);
-    const correctSum = question.options.reduce((sum, o, i) => sum + (o.correct ? effective[i] : 0), 0);
+    const correctSum = question.options.reduce(
+      (sum, o, i) => sum + (o.correct ? effective[i] : 0),
+      0
+    );
     optionsEarned = isExact ? correctSum : 0;
     optionsMax = correctSum;
   }
@@ -154,7 +166,11 @@ export function levenshteinDistance(a: string, b: string): number {
  * quizScript.ts — but a hand-built question object bypasses that): numeric wins whenever both
  * sides actually parse as numbers, since edit-distance on numbers is fairly meaningless ("31.4" vs
  * "3.14" is 2 edits but a very different value). */
-export function isTypedMatch(response: string, answer: string, settings: QuizScriptSettings): boolean {
+export function isTypedMatch(
+  response: string,
+  answer: string,
+  settings: QuizScriptSettings
+): boolean {
   const numericTolerance = settingNumber(settings.numeric_tolerance);
   if (numericTolerance !== undefined) {
     const rRaw = response.trim();
@@ -183,7 +199,10 @@ export function isTypedMatch(response: string, answer: string, settings: QuizScr
 function typedAnswerPool(options: QuizScriptOption[]): { index: number; text: string }[] {
   return options
     .map((o, index) => ({ index, content: o.content }))
-    .filter((entry): entry is { index: number; content: { kind: 'text'; text: string } } => entry.content.kind === 'text')
+    .filter(
+      (entry): entry is { index: number; content: { kind: 'text'; text: string } } =>
+        entry.content.kind === 'text'
+    )
     .map(({ index, content }) => ({ index, text: content.text }));
 }
 
@@ -191,7 +210,11 @@ function typedAnswerPool(options: QuizScriptOption[]): { index: number; text: st
  * UI can show match/no-match feedback independent of point value (a deliberate `%0%`-weighted
  * correct match must still visibly read as "matched", not be indistinguishable from wrong by
  * checking `earned > 0`). */
-export function typedSingleAnswerMatches(options: QuizScriptOption[], response: string, settings: QuizScriptSettings): number | null {
+export function typedSingleAnswerMatches(
+  options: QuizScriptOption[],
+  response: string,
+  settings: QuizScriptSettings
+): number | null {
   const pool = typedAnswerPool(options);
   const hit = pool.find(({ text }) => isTypedMatch(response, text, settings));
   return hit ? hit.index : null;
@@ -269,7 +292,11 @@ export function matchTypedGuesses(
  *   is the full sum of every accepted answer's points, uncapped by `max_answers` (same reasoning as
  *   choice's own exact-match path — see `gradeQuestion` — including that `max_answers` set below
  *   the number of accepted answers is rejected at parse time rather than reaching here). */
-export function gradeTypedQuestion(question: QuizScriptQuestion, response: string | string[], revealed: ReadonlySet<number>): QuestionResult {
+export function gradeTypedQuestion(
+  question: QuizScriptQuestion,
+  response: string | string[],
+  revealed: ReadonlySet<number>
+): QuestionResult {
   const settings = question.settings;
   let optionsEarned: number;
   let optionsMax: number;
@@ -282,7 +309,14 @@ export function gradeTypedQuestion(question: QuizScriptQuestion, response: strin
     const { perGuess, wrongCount } = matchTypedGuesses(question.options, response, settings);
     const wrongGuessPenalty = effectivePoints({ correct: false, points: undefined }, settings);
     optionsEarned =
-      perGuess.reduce((sum, g) => sum + (g.status === 'matched' ? effectivePoints(question.options[g.optionIndex!], settings) : 0), 0) +
+      perGuess.reduce(
+        (sum, g) =>
+          sum +
+          (g.status === 'matched'
+            ? effectivePoints(question.options[g.optionIndex!], settings)
+            : 0),
+        0
+      ) +
       wrongCount * wrongGuessPenalty;
     optionsMax = cappedPositiveSum(
       question.options.map((o) => effectivePoints(o, settings)),
@@ -290,7 +324,9 @@ export function gradeTypedQuestion(question: QuizScriptQuestion, response: strin
     );
   } else {
     const { perGuess, wrongCount } = matchTypedGuesses(question.options, response, settings);
-    const matchedCount = new Set(perGuess.filter((g) => g.status === 'matched').map((g) => g.optionIndex)).size;
+    const matchedCount = new Set(
+      perGuess.filter((g) => g.status === 'matched').map((g) => g.optionIndex)
+    ).size;
     const isExact = wrongCount === 0 && matchedCount === question.options.length;
     const correctSum = question.options.reduce((sum, o) => sum + effectivePoints(o, settings), 0);
     optionsEarned = isExact ? correctSum : 0;
@@ -314,7 +350,10 @@ export function typedBoxGroups(question: QuizScriptQuestion): number[] {
   const pool = typedAnswerPool(question.options);
   if (pool.length === 0) return [];
   const normalized = normalizeTypedAnswer(pool[0].text, question.settings);
-  return normalized.split(' ').filter((word) => word.length > 0).map((word) => word.length);
+  return normalized
+    .split(' ')
+    .filter((word) => word.length > 0)
+    .map((word) => word.length);
 }
 
 /** Total character-box count across every group (see `typedBoxGroups`) — the flat count a box
@@ -341,7 +380,14 @@ export interface QuestionDraft {
 }
 
 export function blankDraft(): QuestionDraft {
-  return { selected: new Set(), revealed: new Set(), typedSingleAnswer: '', boxChars: [], typedGuesses: [], typedGuessDraft: '' };
+  return {
+    selected: new Set(),
+    revealed: new Set(),
+    typedSingleAnswer: '',
+    boxChars: [],
+    typedGuesses: [],
+    typedGuessDraft: ''
+  };
 }
 
 /** Reassembles a flat `boxChars` array back into the answer string grading actually compares
@@ -359,10 +405,14 @@ export function boxAnswer(chars: string[], groups: number[]): string {
   return words.join(' ');
 }
 
-function typedResponseFromDraft(question: QuizScriptQuestion, draft: QuestionDraft): string | string[] {
+function typedResponseFromDraft(
+  question: QuizScriptQuestion,
+  draft: QuestionDraft
+): string | string[] {
   const maxAnswers = settingNumber(question.settings.max_answers);
   if (maxAnswers !== undefined && maxAnswers > 1) return draft.typedGuesses;
-  if (question.settings.input_display === 'boxes') return boxAnswer(draft.boxChars, typedBoxGroups(question));
+  if (question.settings.input_display === 'boxes')
+    return boxAnswer(draft.boxChars, typedBoxGroups(question));
   return draft.typedSingleAnswer;
 }
 
@@ -374,7 +424,8 @@ export function isDraftComplete(question: QuizScriptQuestion, draft: QuestionDra
   if (question.variant !== 'typed') return draft.selected.size >= minAnswers;
   const maxAnswers = settingNumber(question.settings.max_answers);
   if (maxAnswers !== undefined && maxAnswers > 1) return draft.typedGuesses.length >= minAnswers;
-  if (question.settings.input_display === 'boxes') return draft.boxChars.length > 0 && draft.boxChars.every((c) => c !== '');
+  if (question.settings.input_display === 'boxes')
+    return draft.boxChars.length > 0 && draft.boxChars.every((c) => c !== '');
   return draft.typedSingleAnswer.trim().length > 0;
 }
 
@@ -388,7 +439,10 @@ export type AnswerRecord =
  * assembling the matching `AnswerRecord` in one call — the one place that turns a draft into both
  * a score and a recorded answer, so a live per-question submit (immediate reveal) and a batched
  * end-of-run grade (deferred reveal — see QuizPlayer.svelte) always compute both identically. */
-export function gradeDraft(question: QuizScriptQuestion, draft: QuestionDraft): { result: QuestionResult; answer: AnswerRecord } {
+export function gradeDraft(
+  question: QuizScriptQuestion,
+  draft: QuestionDraft
+): { result: QuestionResult; answer: AnswerRecord } {
   if (question.variant === 'typed') {
     const response = typedResponseFromDraft(question, draft);
     return {
@@ -423,18 +477,26 @@ export interface PlayQuestion {
  * bank is larger) and `shuffle_questions` (defaults true) to the quiz-wide order, and each
  * question's own `shuffle` setting to its option order — all resolved once, up front, so the run
  * stays stable across re-renders instead of re-shuffling on every read. */
-export function buildPlayRun(questions: QuizScriptQuestion[], quizSettings: QuizScriptSettings): PlayQuestion[] {
+export function buildPlayRun(
+  questions: QuizScriptQuestion[],
+  quizSettings: QuizScriptSettings
+): PlayQuestion[] {
   const maxQuestions = settingNumber(quizSettings.max_questions);
   const shuffleQuestions = quizSettings.shuffle_questions !== false;
 
   // Picking a subset is itself already a random choice (something has to decide which ones to
   // drop) — shuffle_questions=false only opts out of shuffling whatever the pool ends up being.
-  const pool = maxQuestions !== undefined && maxQuestions < questions.length ? shuffledArray(questions).slice(0, maxQuestions) : questions;
+  const pool =
+    maxQuestions !== undefined && maxQuestions < questions.length
+      ? shuffledArray(questions).slice(0, maxQuestions)
+      : questions;
   const ordered = shuffleQuestions ? shuffledArray(pool) : pool;
 
   return ordered.map((question) => {
     const indices = question.options.map((_, i) => i);
-    const optionOrder = settingBoolean(question.settings.shuffle) ? shuffledArray(indices) : indices;
+    const optionOrder = settingBoolean(question.settings.shuffle)
+      ? shuffledArray(indices)
+      : indices;
     return { question, optionOrder };
   });
 }
@@ -449,14 +511,19 @@ export interface QuizRunResult {
 /** Combines every question's grade into the run's total and applies the quiz-wide win
  * threshold — `points_to_win` if set (an absolute target), else `percentage_points_to_win`
  * (defaults to 75, per QUIZ_SETTING_RULES) against this run's own achievable max. */
-export function gradeRun(results: QuestionResult[], quizSettings: QuizScriptSettings): QuizRunResult {
+export function gradeRun(
+  results: QuestionResult[],
+  quizSettings: QuizScriptSettings
+): QuizRunResult {
   const earned = results.reduce((sum, r) => sum + r.earned, 0);
   const max = results.reduce((sum, r) => sum + r.max, 0);
   const percentage = max > 0 ? (earned / max) * 100 : 0;
 
   const pointsToWin = settingNumber(quizSettings.points_to_win);
   const won =
-    pointsToWin !== undefined ? earned >= pointsToWin : percentage >= (settingNumber(quizSettings.percentage_points_to_win) ?? 75);
+    pointsToWin !== undefined
+      ? earned >= pointsToWin
+      : percentage >= (settingNumber(quizSettings.percentage_points_to_win) ?? 75);
 
   return { earned, max, percentage, won };
 }

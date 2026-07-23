@@ -11,7 +11,8 @@ export interface SampleQuiz {
 export const sampleQuizzes: SampleQuiz[] = [
   {
     title: 'World Capitals',
-    description: 'A plain single-select quiz — the simplest shape a quiz gets. Good starting point.',
+    description:
+      'A plain single-select quiz — the simplest shape a quiz gets. Good starting point.',
     code: `---
 title: World Capitals
 description: A quick trip around the globe — match each country to its capital city.
@@ -63,7 +64,8 @@ choice: What is the capital of Egypt?
   },
   {
     title: 'Media & Hints Showcase',
-    description: 'Image options, a video option, and a reveal hint in both places it can go — before the options and tucked inside them.',
+    description:
+      'Image options, a video option, and a reveal hint in both places it can go — before the options and tucked inside them.',
     code: `---
 title: Media & Hints Showcase
 description: Demonstrates image options, a video option, and reveal hints — both as a question-level extra and interspersed inside the options block.
@@ -89,7 +91,8 @@ choice: Which of these is the classic "Never Gonna Give You Up" video?
   },
   {
     title: 'Advanced Scoring',
-    description: 'Multi-select with partial credit, per-option point weights, quiz-wide win thresholds, and text-escaping edge cases.',
+    description:
+      'Multi-select with partial credit, per-option point weights, quiz-wide win thresholds, and text-escaping edge cases.',
     code: `---
 title: Advanced Scoring
 description: Multi-select partial credit, per-option point weights, and quiz-wide win thresholds — for authors who want more than plain right/wrong.
@@ -129,7 +132,8 @@ choice: Escaping demo — one option's text starts with a literal "=", the other
   },
   {
     title: 'Type the Answer',
-    description: 'The typed variant in all its shapes: a single input, character boxes (single and multi-guess), partial credit, and fuzzy/numeric matching.',
+    description:
+      'The typed variant in all its shapes: a single input, character boxes (single and multi-guess), partial credit, and fuzzy/numeric matching.',
     code: `---
 title: Type the Answer
 description: Demonstrates the typed variant — single input, character-box input (single and multi-guess), multi-guess partial credit, and the fuzzy/numeric matching settings.

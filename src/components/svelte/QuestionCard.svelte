@@ -1,6 +1,10 @@
 <script lang="ts">
   import { Code, Copy, Play, Square } from '@lucide/svelte';
-  import { parseQuizScriptQuestion, suggestedSettingKeysForVariant, type QuizScriptQuestion } from '@/lib/utils/quizScript';
+  import {
+    parseQuizScriptQuestion,
+    suggestedSettingKeysForVariant,
+    type QuizScriptQuestion
+  } from '@/lib/utils/quizScript';
   import type { QuizQuestion } from '@/lib/schemas/quiz';
   import type { FocusTarget } from '@/lib/utils/questionFocus';
   import QuestionView from './QuestionView.svelte';
@@ -41,7 +45,11 @@
   // The legend below the code textarea only offers keys that actually apply to whatever variant
   // is currently written in `draft` (see `suggestedSettingKeysForVariant`) — re-parsed live so
   // switching a question's variant mid-edit (e.g. `choice:` -> `typed:`) updates it immediately.
-  const draftSuggestedKeys = $derived(mode === 'code' ? suggestedSettingKeysForVariant(parseQuizScriptQuestion(draft).question.variant) : []);
+  const draftSuggestedKeys = $derived(
+    mode === 'code'
+      ? suggestedSettingKeysForVariant(parseQuizScriptQuestion(draft).question.variant)
+      : []
+  );
   // Auto-grows with content so PageUp/PageDown (which this app dedicates entirely to switching
   // which question is in code mode — see QuizBuilder's keydown handler) rarely needs to fight
   // the textarea's own native scroll-within behavior in the first place.
@@ -74,10 +82,9 @@
      has enough headroom above that threshold to never hit it while resizing. -->
 <div
   data-question-id={question.id}
-  class="relative rounded-lg border p-4 {mode === 'view' ? 'border-slate-200 bg-white' : 'border-slate-400 bg-white'} {mode ===
-  'code'
-    ? 'xl:w-[150%] xl:-mx-[25%]'
-    : ''}"
+  class="relative rounded-lg border p-4 {mode === 'view'
+    ? 'border-slate-200 bg-white'
+    : 'border-slate-400 bg-white'} {mode === 'code' ? 'xl:w-[150%] xl:-mx-[25%]' : ''}"
 >
   <!-- right-full + mr-2 (rather than a corner-straddling negative offset) puts the button
        entirely outside the card with a real gap, its top aligned exactly with the card's own
@@ -85,7 +92,9 @@
   <div class="absolute right-full top-0 mr-2 flex flex-col gap-1">
     <button
       type="button"
-      class="rounded-md border border-slate-200 bg-white p-1.5 hover:bg-slate-50 {playing ? 'bg-slate-100 text-slate-900' : 'text-slate-400'}"
+      class="rounded-md border border-slate-200 bg-white p-1.5 hover:bg-slate-50 {playing
+        ? 'bg-slate-100 text-slate-900'
+        : 'text-slate-400'}"
       onclick={() => (playing = !playing)}
       aria-label={playing ? 'Stop testing this question' : 'Try this question'}
       title={playing ? 'Stop testing this question' : 'Try this question'}
@@ -129,8 +138,7 @@
           class="w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
           {rows}
           value={draft}
-          oninput={(e) => onDraftChange(e.currentTarget.value)}
-        ></textarea>
+          oninput={(e) => onDraftChange(e.currentTarget.value)}></textarea>
         <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-slate-400">
           <span>Settings:</span>
           {#each draftSuggestedKeys as key (key)}
@@ -154,7 +162,9 @@
 
   {#if playing}
     <div class="mt-4 rounded-md border border-dashed border-indigo-200 bg-indigo-50/40 p-4">
-      <p class="mb-3 flex items-center gap-1 text-xs font-medium text-indigo-600"><Play size={12} /> Try this question</p>
+      <p class="mb-3 flex items-center gap-1 text-xs font-medium text-indigo-600">
+        <Play size={12} /> Try this question
+      </p>
       <QuestionPlayer question={parsedSaved} standalone />
     </div>
   {/if}
