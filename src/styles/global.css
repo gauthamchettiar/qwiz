@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, sans-serif;
+}
+
+/* The app is a fixed light palette, not dark-mode-aware. Without this, a browser/OS in dark
+   mode renders native form-control chrome — including <datalist> dropdowns like the category
+   and tag suggestions — using its own dark heuristics, which can pick text/background colors
+   independently and land on unreadable combinations (e.g. white-on-white). */
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900;
+}
+
+/* Tailwind's preflight resets <button> to the browser default (cursor: default) — restore the
+   pointer cursor so every clickable button gives the same hover feedback as links. */
+button:not(:disabled) {
+  cursor: pointer;
+}

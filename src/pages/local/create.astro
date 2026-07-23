@@ -1,0 +1,8 @@
+---
+import Base from '../../layouts/Base.astro';
+import QuizBuilder from '../../lib/components/QuizBuilder.svelte';
+---
+
+<Base title="Create Quiz">
+  <QuizBuilder client:load heading="Create a new quiz" />
+</Base>

@@ -1,0 +1,39 @@
+---
+import '../styles/global.css';
+import ImportQuizDialog from '../lib/components/ImportQuizDialog.svelte';
+
+interface Props {
+  title?: string;
+}
+
+const { title = 'Qwiz' } = Astro.props;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title} · Qwiz</title>
+  </head>
+  <body class="min-h-screen">
+    <div class="mx-auto max-w-3xl px-4 py-8">
+      <header class="mb-8 flex items-center justify-between">
+        <a href="/" class="text-xl font-bold text-slate-900">Qwiz</a>
+        <div class="flex items-center gap-2">
+          <ImportQuizDialog client:load />
+          <a
+            href="/local/create"
+            class="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700"
+          >
+            + New Quiz
+          </a>
+        </div>
+      </header>
+      <main>
+        <slot />
+      </main>
+    </div>
+  </body>
+</html>
