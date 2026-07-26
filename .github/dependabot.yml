@@ -4,6 +4,12 @@ updates:
     directory: '/'
     schedule:
       interval: 'weekly'
+    ignore:
+      # TypeScript 7's native compiler doesn't expose the programmatic API `astro check` relies
+      # on yet (@astrojs/language-server throws on it) — see
+      # https://github.com/withastro/roadmap/discussions/1321. Remove once Astro supports it.
+      - dependency-name: 'typescript'
+        versions: ['>=7.0.0']
 
   - package-ecosystem: 'github-actions'
     directory: '/'
