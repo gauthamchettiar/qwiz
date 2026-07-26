@@ -4,6 +4,7 @@
   "version": "0.0.1",
   "private": true,
   "description": "Build and play quizzes entirely in the browser — a static Astro + Svelte app with no server, no accounts, nothing stored anywhere but localStorage.",
+  "license": "MIT",
   "packageManager": "pnpm@11.16.0",
   "engines": {
     "node": ">=22.12.0"
