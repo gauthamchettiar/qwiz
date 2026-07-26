@@ -77,16 +77,17 @@ choice: Which of these is the Eiffel Tower?
 !<reveal>[Need a hint?](It's in Paris, France, and made of wrought iron.) %-1%
 :option_display=grid
 {
-=!<image>[Eiffel Tower](https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Tour_Eiffel_Wikimedia_Commons.jpg/440px-Tour_Eiffel_Wikimedia_Commons.jpg)
-~![Big Ben](https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Clock_Tower_-_Palace_of_Westminster%2C_London_-_September_2006-2.jpg/440px-Clock_Tower_-_Palace_of_Westminster%2C_London_-_September_2006-2.jpg)
-~![Colosseum](https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Colosseo_2020.jpg/440px-Colosseo_2020.jpg)
+=![Eiffel Tower](https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/La_tour_d%27eiffel_en_journ%C3%A9e_%287_ao%C3%BBt_2023%29.jpg/3840px-La_tour_d%27eiffel_en_journ%C3%A9e_%287_ao%C3%BBt_2023%29.jpg)
+~![Big Ben](https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/Big_Ben_at_sunset_-_2014-10-27_17-30.jpg/960px-Big_Ben_at_sunset_-_2014-10-27_17-30.jpg)
+~![Pisa](https://upload.wikimedia.org/wikipedia/commons/thumb/9/98/Exterior_of_the_Leaning_Tower_%28Pisa%29_04.jpg/960px-Exterior_of_the_Leaning_Tower_%28Pisa%29_04.jpg)
+~![Colosseum](https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Rom_%28IT%29%2C_Kolosseum_--_2024_--_0610.jpg/960px-Rom_%28IT%29%2C_Kolosseum_--_2024_--_0610.jpg)
 }
 
-choice: Which of these is the classic "Never Gonna Give You Up" video?
+choice: Which of these is the classic video used as "Rick Roll"?
 {
 =!<youtube>[Rick Astley - Never Gonna Give You Up](https://www.youtube.com/watch?v=dQw4w9WgXcQ)
 ~!<youtube>[Some other video](https://www.youtube.com/watch?v=9bZkp7q19f0)
-!<reveal>[Why does this matter?](It's the internet's most famous rickroll.)
+!<reveal>[Why does this matter?](It's the internet's most famouse harmless prank!)
 }`
   },
   {
@@ -106,7 +107,7 @@ choice: Which of these are primary colors? (select all that apply)
 :partial_points=true
 {
 =Red %3%
-~Green
+=Green %3%
 =Blue %3%
 =Yellow %3%
 ~Purple
@@ -116,6 +117,7 @@ choice: Which of these are primary colors? (select all that apply)
 choice: Which of these are noble gases?
 :penalty=-1
 :point=5
+:max_answers=3
 {
 =Helium
 ~Oxygen
@@ -154,13 +156,13 @@ typed: What is the value of pi, to two decimal places?
 =3.14
 }
 
-typed: Guess the 5-letter fruit. (character-box input)
+typed: Guess the 5-letter fruit that keeps doctors away. (character-box input)
 :input_display=boxes
 {
 =apple
 }
 
-typed: Name two of these three fruits. (partial credit for each one you get right)
+typed: Name two of these three fruits that starts with A-B-C. (partial credit for each one you get right)
 :partial_points=true
 :min_answers=1
 :max_answers=2
