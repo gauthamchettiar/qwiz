@@ -303,11 +303,12 @@
     );
   }
 
-  // "choice: " (empty text) rather than a truly bare default: entering form mode right after
-  // needs `question.variant` to already be "choice" so the variant <select> (which only ever
-  // offers "choice" — see SELECTABLE_VARIANTS in QuestionForm) has something valid to show,
-  // instead of landing on a value with no matching <option>.
-  const BLANK_QUESTION_CODE = 'choice: \n{\n=\n~\n}';
+  // "multiple_choice: " (empty text) rather than a truly bare default: entering form mode right
+  // after needs `question.variant` to already be one of SELECTABLE_VARIANTS in QuestionForm, or
+  // the variant <select> lands on a value with no matching <option>. multiple_choice (not
+  // single_choice) since it allows 1+ correct options, matching the old single-variant "choice"
+  // default's own permissiveness.
+  const BLANK_QUESTION_CODE = 'multiple_choice: \n{\n=\n~\n}';
 
   async function addQuestion() {
     if (!commitActiveDraft()) return;

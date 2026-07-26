@@ -44,7 +44,8 @@
   const draftErrors = $derived(mode === 'code' ? parseQuizScriptQuestion(draft).errors : []);
   // The legend below the code textarea only offers keys that actually apply to whatever variant
   // is currently written in `draft` (see `suggestedSettingKeysForVariant`) — re-parsed live so
-  // switching a question's variant mid-edit (e.g. `choice:` -> `typed:`) updates it immediately.
+  // switching a question's variant mid-edit (e.g. `multiple_choice:` -> `typed:`) updates it
+  // immediately.
   const draftSuggestedKeys = $derived(
     mode === 'code'
       ? suggestedSettingKeysForVariant(parseQuizScriptQuestion(draft).question.variant)

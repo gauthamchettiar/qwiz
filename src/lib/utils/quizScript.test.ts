@@ -99,8 +99,9 @@ describe('validateSettingValue', () => {
 });
 
 describe('suggestedSettingKeysForVariant / settingValueSuggestions', () => {
-  it('excludes typed-only settings for a choice question', () => {
-    expect(suggestedSettingKeysForVariant('choice')).not.toContain('case_sensitive');
+  it('excludes typed-only settings for single_choice/multiple_choice questions', () => {
+    expect(suggestedSettingKeysForVariant('single_choice')).not.toContain('case_sensitive');
+    expect(suggestedSettingKeysForVariant('multiple_choice')).not.toContain('case_sensitive');
   });
 
   it('excludes choice-only settings for a typed question', () => {
@@ -127,12 +128,39 @@ describe('parseQuizScriptQuestion', () => {
     ]);
   });
 
-  it('parses a compact variant header line', () => {
-    const source = ['choice: What is H2O?', '{', '=Water', '}'].join('\n');
+  it('parses a compact variant header line for single_choice and multiple_choice', () => {
+    for (const variant of ['single_choice', 'multiple_choice']) {
+      const source = [`${variant}: What is H2O?`, '{', '=Water', '}'].join('\n');
+      const { question, errors } = parseQuizScriptQuestion(source);
+      expect(errors).toEqual([]);
+      expect(question.variant).toBe(variant);
+      expect(question.text).toBe('What is H2O?');
+    }
+  });
+
+  it('upgrades the legacy "choice" variant to "multiple_choice" on parse', () => {
+    const source = ['choice: What is H2O?', '{', '=Water', '~Salt', '}'].join('\n');
     const { question, errors } = parseQuizScriptQuestion(source);
     expect(errors).toEqual([]);
-    expect(question.variant).toBe('choice');
-    expect(question.text).toBe('What is H2O?');
+    expect(question.variant).toBe('multiple_choice');
+  });
+
+  it('rejects more than one correct option on a single_choice question', () => {
+    const source = ['single_choice: Pick one', '{', '=a', '=b', '~c', '}'].join('\n');
+    const { errors } = parseQuizScriptQuestion(source);
+    expect(errors.some((e) => /single_choice.*requires exactly one/.test(e.message))).toBe(true);
+  });
+
+  it('allows exactly one correct option on a single_choice question', () => {
+    const source = ['single_choice: Pick one', '{', '=a', '~b', '~c', '}'].join('\n');
+    const { errors } = parseQuizScriptQuestion(source);
+    expect(errors).toEqual([]);
+  });
+
+  it('allows any number of correct options on a multiple_choice question', () => {
+    const source = ['multiple_choice: Pick some', '{', '=a', '=b', '~c', '}'].join('\n');
+    const { errors } = parseQuizScriptQuestion(source);
+    expect(errors).toEqual([]);
   });
 
   it('reads an explicit %N% point weight on an option', () => {
@@ -239,8 +267,22 @@ describe('parseQuizScriptQuestion', () => {
 
 describe('serializeQuizScriptQuestion round-trips through parseQuizScriptQuestion', () => {
   const cases = [
-    ['plain choice', ['What is H2O?', '{', '=Water', '~Salt', '}'].join('\n')],
-    ['compact variant header', ['choice: What is H2O?', '{', '=Water', '}'].join('\n')],
+    [
+      'plain question (defaults to multi-select)',
+      ['What is H2O?', '{', '=Water', '~Salt', '}'].join('\n')
+    ],
+    [
+      'legacy "choice" header upgrades to multiple_choice',
+      ['choice: What is H2O?', '{', '=Water', '}'].join('\n')
+    ],
+    [
+      'single_choice header',
+      ['single_choice: What is H2O?', '{', '=Water', '~Salt', '}'].join('\n')
+    ],
+    [
+      'multiple_choice header',
+      ['multiple_choice: Pick some', '{', '=Water', '=Steam', '~Salt', '}'].join('\n')
+    ],
     [
       'typed with settings',
       ['typed: Capital of France?', '{', '=Paris', '}', ':fuzzy_tolerance=15'].join('\n')

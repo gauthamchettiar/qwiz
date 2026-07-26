@@ -16,9 +16,10 @@
   import SettingHelp from './SettingHelp.svelte';
 
   // "question" isn't offered here — it's not a real variant, just what a question gets by not
-  // declaring anything (see KNOWN_VARIANTS in quizScript.ts). More real variants can be added to
-  // this list as they're actually built.
-  const SELECTABLE_VARIANTS = ['choice', 'typed'];
+  // declaring anything (see KNOWN_VARIANTS in quizScript.ts). "choice" (the pre-split variant)
+  // isn't offered either — still parses (see LEGACY_VARIANT_ALIASES), just no longer suggested to
+  // new authors. More real variants can be added to this list as they're actually built.
+  const SELECTABLE_VARIANTS = ['single_choice', 'multiple_choice', 'typed'];
 
   // "Elements" is one unified list in form mode (image/video/reveal, switchable per row, same
   // idea as quizare's extras editor) even though the underlying data keeps them in two separate
@@ -55,6 +56,11 @@
   // implicitly correct and plain text (see quizScript.ts's parseQuestionBlock), so the options
   // list below renders a simpler row for it: no correct checkbox, no image/video kind picker.
   const isTyped = $derived(variant === 'typed');
+  // A single_choice question's "correct" marker renders as a radio group instead of independent
+  // checkboxes, so an author can't accidentally mark two options correct in form mode in the
+  // first place — code mode still catches it via formErrors below either way, but this avoids the
+  // mistake happening at all rather than just reporting it after the fact.
+  const isSingleChoice = $derived(variant === 'single_choice');
   const suggestedKeys = $derived(suggestedSettingKeysForVariant(variant));
   let text = $state(untrack(() => question.text));
   let elements: ElementItem[] = $state(
@@ -166,6 +172,14 @@
   }
   function removeOption(key: string) {
     options = options.filter((o) => o._key !== key);
+    emit();
+  }
+  // Marks exactly one option correct and every other one incorrect — the radio-group behavior
+  // isSingleChoice's rendering relies on, computed explicitly here rather than leaned on the
+  // browser's native same-`name` radio exclusivity, since that would leave other options' own
+  // bound `correct` fields stale (the browser unchecks their input, but nothing tells Svelte).
+  function selectSingleCorrect(key: string) {
+    options = options.map((o) => ({ ...o, correct: o._key === key }));
     emit();
   }
   // Swaps this option with its neighbor — the only thing option order actually affects is
@@ -368,12 +382,22 @@
             oninput={(e) => setTypedAnswerText(option._key, e.currentTarget.value)}
           />
         {:else}
-          <input
-            type="checkbox"
-            bind:checked={option.correct}
-            onchange={emit}
-            aria-label="Correct"
-          />
+          {#if isSingleChoice}
+            <input
+              type="radio"
+              name="correct-option"
+              checked={option.correct}
+              onchange={() => selectSingleCorrect(option._key)}
+              aria-label="Correct"
+            />
+          {:else}
+            <input
+              type="checkbox"
+              bind:checked={option.correct}
+              onchange={emit}
+              aria-label="Correct"
+            />
+          {/if}
           <select
             class="shrink-0 rounded-md border border-slate-300 px-1 py-1 text-xs text-slate-600 focus:border-slate-400 focus:outline-none"
             value={option.content.kind}

@@ -9,7 +9,7 @@
  *   :max_questions=5
  *   ---
  *
- *   choice : What is H2O?
+ *   multiple_choice : What is H2O?
  *   ![alt](image link)
  *   !<image>[alt](image link)
  *   !<youtube>[alt](youtube link)
@@ -21,13 +21,18 @@
  *   }
  *   :shuffle=true
  *
- * A question's variant can also be declared with its text in one line — `choice: What is H2O?`
- * — instead of the two-line `variant : choice` + separate text form; both set the same field.
- * `typed` is the other recognized variant: same `{ }` block, but every line in it is an accepted
- * answer instead of a right/wrong choice — the player types a response instead of picking one.
- * `=`/`~` still mark each line, but a typed question's parser forces every option `correct: true`
- * regardless, so both markers are accepted purely as authoring convenience; `%N%` weights still
- * work per accepted answer exactly as for `choice`. Matching is controlled by settings
+ * A question's variant can also be declared with its text in one line —
+ * `multiple_choice: What is H2O?` — instead of the two-line `variant : multiple_choice` + separate
+ * text form; both set the same field. `single_choice` is `multiple_choice`'s sibling — identical
+ * syntax, but the parser rejects more than one option marked `=` (a `single_choice` question with
+ * zero or exactly one correct option is fine; two or more is a parse error). `choice` is a
+ * recognized legacy alias for `multiple_choice` — quizzes saved before the single/multiple split
+ * still parse unchanged, see `LEGACY_VARIANT_ALIASES` — but new authoring should use the explicit
+ * names. `typed` is the other recognized variant: same `{ }` block, but every line in it is an
+ * accepted answer instead of a right/wrong choice — the player types a response instead of picking
+ * one. `=`/`~` still mark each line, but a typed question's parser forces every option
+ * `correct: true` regardless, so both markers are accepted purely as authoring convenience; `%N%`
+ * weights still work per accepted answer exactly as for choice. Matching is controlled by settings
  * (`case_sensitive`, `numeric_tolerance`, `fuzzy_tolerance`, `input_display` — see `SETTING_RULES`)
  * rather than exact string equality, e.g.:
  *
@@ -59,9 +64,9 @@
  *
  * Inside the option block, every line is exactly one option, starting with `=` (correct) or `~`
  * (incorrect), optionally ending with an explicit point value — `=Water %4%` — instead of relying
- * on question-level `:point=`/`:penalty=` settings. The number of `=` lines isn't constrained by
- * variant — `choice` covers both single-select (one `=`) and multi-select (several `=`) alike.
- * An option's own content can be an image or video the same way question-level media is written
+ * on question-level `:point=`/`:penalty=` settings. `multiple_choice` allows any number of `=`
+ * lines (one or more); `single_choice` allows at most one. An option's own content can be an image
+ * or video the same way question-level media is written
  * — `=![a cat](url)` or `=!<youtube>[intro](url)` — checked against whatever remains after
  * stripping the `=`/`~` marker (and any `%N%` weight); anything not matching that shape is plain
  * text. (A `!<reveal>` line inside `{ }` has no `=`/`~` marker of its own — see above.)
@@ -153,8 +158,26 @@ const FRONTMATTER_LINE = /^([A-Za-z_][\w-]*)\s*:\s*(.*)$/;
  * like "Ratio: 3:4") isn't mistaken for a variant declaration. "question" is deliberately absent —
  * it's just the default a question gets by not declaring anything, not a real variant, so a
  * hand-typed `question: ...` header isn't recognized (it just reads as plain question text). */
-export const KNOWN_VARIANTS = ['choice', 'typed'];
-const VARIANT_HEADER_LINE = new RegExp(`^(${KNOWN_VARIANTS.join('|')})\\s*:\\s*(.*)$`, 'i');
+export const KNOWN_VARIANTS = ['single_choice', 'multiple_choice', 'typed'];
+
+/** `choice` used to be the only choice-like variant (covering both single- and multi-select,
+ * distinguished only implicitly by option count / `max_answers`), before it was split into
+ * `single_choice`/`multiple_choice`. Kept recognized here — mapped to `multiple_choice`, the more
+ * permissive of the two, matching its old behavior exactly — so a quiz saved before the split
+ * keeps parsing unchanged; only new authoring surfaces (the variant dropdown, docs, samples) stop
+ * offering it. Never remove this without a real migration path for already-saved quizzes. */
+const LEGACY_VARIANT_ALIASES: Record<string, string> = { choice: 'multiple_choice' };
+const VARIANT_HEADER_LINE = new RegExp(
+  `^(${[...KNOWN_VARIANTS, ...Object.keys(LEGACY_VARIANT_ALIASES)].join('|')})\\s*:\\s*(.*)$`,
+  'i'
+);
+
+/** Resolves a legacy variant name (e.g. "choice") to its current replacement, or returns `value`
+ * unchanged if it isn't a legacy alias — the one place both variant-declaration forms (compact
+ * header and `variant : x`) normalize what they parse before storing it on the question. */
+function resolveVariant(value: string): string {
+  return LEGACY_VARIANT_ALIASES[value] ?? value;
+}
 
 export interface SettingRule {
   kind: 'number' | 'boolean' | 'enum';
@@ -661,15 +684,15 @@ function parseQuestionBlock(block: SourceLine[], errors: QuizScriptError[]): Qui
       textLines.push(escaped);
     } else if ((match = VARIANT_LINE.exec(text))) {
       const value = match[1].trim().toLowerCase();
-      if (!(KNOWN_VARIANTS as string[]).includes(value)) {
+      if (!(KNOWN_VARIANTS as string[]).includes(value) && !(value in LEGACY_VARIANT_ALIASES)) {
         errors.push({
           line: num,
           message: `Unknown variant "${match[1].trim()}" (must be one of ${KNOWN_VARIANTS.join('/')}).`
         });
       }
-      question.variant = value;
+      question.variant = resolveVariant(value);
     } else if ((match = VARIANT_HEADER_LINE.exec(text))) {
-      question.variant = match[1].toLowerCase();
+      question.variant = resolveVariant(match[1].toLowerCase());
       if (match[2].trim() !== '') textLines.push(match[2]);
     } else if ((match = IMAGE_LINE.exec(text))) {
       question.media.push({ kind: 'image', alt: match[1], url: match[2] });
@@ -715,6 +738,15 @@ function parseQuestionBlock(block: SourceLine[], errors: QuizScriptError[]): Qui
     errors.push({ line: firstLine, message: 'Question has no options.' });
   } else if (!question.options.some((o) => o.correct)) {
     errors.push({ line: firstLine, message: 'Question has no option marked correct ("=").' });
+  } else if (
+    question.variant === 'single_choice' &&
+    question.options.filter((o) => o.correct).length > 1
+  ) {
+    errors.push({
+      line: firstLine,
+      message:
+        '"single_choice" requires exactly one correct option ("=") — use "multiple_choice" for more than one.'
+    });
   }
 
   // Checked by key *presence*, not truthiness, so e.g. `:numeric_tolerance=0` still counts as

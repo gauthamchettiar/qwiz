@@ -22,7 +22,7 @@ tags: [geography, capitals, easy]
 :shuffle_questions=true
 ---
 
-choice: What is the capital of France?
+single_choice: What is the capital of France?
 {
 =Paris
 ~London
@@ -30,7 +30,7 @@ choice: What is the capital of France?
 ~Madrid
 }
 
-choice: What is the capital of Japan?
+single_choice: What is the capital of Japan?
 {
 =Tokyo
 ~Seoul
@@ -38,7 +38,7 @@ choice: What is the capital of Japan?
 ~Bangkok
 }
 
-choice: What is the capital of Australia?
+single_choice: What is the capital of Australia?
 {
 =Canberra
 ~Sydney
@@ -46,7 +46,7 @@ choice: What is the capital of Australia?
 ~Perth
 }
 
-choice: What is the capital of Canada?
+single_choice: What is the capital of Canada?
 {
 =Ottawa
 ~Toronto
@@ -54,7 +54,7 @@ choice: What is the capital of Canada?
 ~Montreal
 }
 
-choice: What is the capital of Egypt?
+single_choice: What is the capital of Egypt?
 {
 =Cairo
 ~Alexandria
@@ -73,7 +73,7 @@ category: demo
 tags: [demo, media, hints]
 ---
 
-choice: Which of these is the Eiffel Tower?
+single_choice: Which of these is the Eiffel Tower?
 !<reveal>[Need a hint?](It's in Paris, France, and made of wrought iron.) %-1%
 :option_display=grid
 {
@@ -83,7 +83,7 @@ choice: Which of these is the Eiffel Tower?
 ~![Colosseum](https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Rom_%28IT%29%2C_Kolosseum_--_2024_--_0610.jpg/960px-Rom_%28IT%29%2C_Kolosseum_--_2024_--_0610.jpg)
 }
 
-choice: Which of these is the classic video used as "Rick Roll"?
+single_choice: Which of these is the classic video used as "Rick Roll"?
 {
 =!<youtube>[Rick Astley - Never Gonna Give You Up](https://www.youtube.com/watch?v=dQw4w9WgXcQ)
 ~!<youtube>[Some other video](https://www.youtube.com/watch?v=9bZkp7q19f0)
@@ -103,7 +103,7 @@ tags: [demo, scoring, advanced]
 :percentage_points_to_win=70
 ---
 
-choice: Which of these are primary colors? (select all that apply)
+multiple_choice: Which of these are primary colors? (select all that apply)
 :partial_points=true
 {
 =Red %3%
@@ -114,7 +114,7 @@ choice: Which of these are primary colors? (select all that apply)
 }
 :difficulty=easy
 
-choice: Which of these are noble gases?
+multiple_choice: Which of these are noble gases?
 :penalty=-1
 :point=5
 :max_answers=3
@@ -126,7 +126,7 @@ choice: Which of these are noble gases?
 }
 :difficulty=hard
 
-choice: Escaping demo — one option's text starts with a literal "=", the other is quoted.
+single_choice: Escaping demo — one option's text starts with a literal "=", the other is quoted.
 {
 =\\=mc^2 is Einstein's famous equation
 ~"This whole option is quoted, so it stays plain text"

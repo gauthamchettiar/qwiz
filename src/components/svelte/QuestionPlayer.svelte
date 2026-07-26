@@ -103,7 +103,11 @@
 
   const minAnswers = $derived(settingNumber(question.settings.min_answers) ?? 0);
   const maxAnswers = $derived(settingNumber(question.settings.max_answers));
-  const isSingleSelect = $derived(maxAnswers === 1);
+  // Keyed off the variant itself (not `maxAnswers === 1`, the old proxy) — a single_choice
+  // question always renders as a radio group regardless of whether it also sets max_answers, and
+  // a multiple_choice question with max_answers=1 (a real, if unusual, thing to author) still
+  // renders as checkboxes, since it's still a "pick from a set" question, just capped at one pick.
+  const isSingleSelect = $derived(question.variant === 'single_choice');
   const isMultiGuess = $derived(isTyped && maxAnswers !== undefined && maxAnswers > 1);
   const isBoxes = $derived(isTyped && question.settings.input_display === 'boxes');
   const boxGroups = $derived(isBoxes ? typedBoxGroups(question) : []);
