@@ -385,8 +385,10 @@ The one thing genuinely under test — authoring — is always driven through th
    Playwright browsers (cached by lockfile hash), runs the full 4-project suite; uploads
    `playwright-report/` on failure with `if: always()`
 5. **deploy** — depends on all four above, only runs on `push` to `main`, deploys the `build`
-   job's artifact to **Cloudflare Pages** via `cloudflare/pages-action`, scoped to a `production`
-   `environment:`
+   job's artifact to **Cloudflare Pages** via `cloudflare/wrangler-action`
+   (`command: pages deploy dist --project-name=qwiz`), scoped to a `production` `environment:`.
+   `cloudflare/pages-action` (the previous action here) is deprecated upstream with no newer
+   release — `wrangler-action` is its maintained successor, hence the switch.
 
 Rules already in place:
 
@@ -397,13 +399,18 @@ Rules already in place:
 - Each job's `permissions:` block is least-privilege (`contents: read` almost everywhere;
   `deployments: write` only on `deploy`).
 - A red CI is never "probably flaky." Investigate or quarantine explicitly with a linked issue.
+- All pinned Action versions (`actions/checkout`, `actions/setup-node`, `actions/cache`,
+  `actions/upload-artifact`, `actions/download-artifact`, `pnpm/action-setup`) and
+  `env.NODE_VERSION` are kept at their latest major. `.github/dependabot.yml` covers the
+  `github-actions` and `npm` ecosystems on a weekly schedule, opening a PR whenever a newer
+  version lands, for a human to review and merge or close.
 
-**Not yet done — needs a human**: the `deploy` job references `secrets.CLOUDFLARE_API_TOKEN` and
-`secrets.CLOUDFLARE_ACCOUNT_ID`, and a Cloudflare Pages project literally named `qwiz`
-(`projectName: qwiz` in the workflow). None of that exists yet — the repo itself was only just
-`git init`'d this session and has no GitHub remote. Before `deploy` can run: push to a GitHub repo,
-create the Cloudflare Pages project, and add the two secrets (Settings → Secrets and variables →
-Actions) plus a `production` environment if you want extra protection rules on it.
+**Not yet done — needs a human**: a Cloudflare Pages project literally named `qwiz`
+(`--project-name=qwiz` in the `wrangler pages deploy` command) doesn't exist yet, and the `deploy`
+job's `secrets.CLOUDFLARE_API_TOKEN`/`secrets.CLOUDFLARE_ACCOUNT_ID` aren't set. The repo now has a
+GitHub remote (`origin` → `gauthamchettiar/qwiz`) but hasn't been pushed. Before `deploy` can run:
+push to GitHub, create the Cloudflare Pages project, and add the two secrets (Settings → Secrets
+and variables → Actions) plus a `production` environment if you want extra protection rules on it.
 
 ---
 

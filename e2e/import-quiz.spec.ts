@@ -14,6 +14,7 @@ test('importing a pasted .qwiz document adds it to the list', async ({ page }) =
   await home.importButton.click();
 
   const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
   await dialog.locator('textarea').fill(SAMPLE_QWIZ_SOURCE);
   await dialog.getByRole('button', { name: 'Validate & Import' }).click();
 
@@ -27,6 +28,7 @@ test('shows parse errors instead of importing when the source is invalid', async
   await home.importButton.click();
 
   const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
   await dialog.locator('textarea').fill('not a valid document at all');
   await dialog.getByRole('button', { name: 'Validate & Import' }).click();
 
