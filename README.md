@@ -22,6 +22,8 @@ either through the form-based builder or directly in code; both stay in sync.
 
 - [Introduction](./docs/introduction.md) — core concepts, authoring modes, import/export
 - [`.qwiz` format reference](./docs/qwiz-format.md) — full authoring syntax and scoring rules
+- [Settings reference](./docs/settings.md) — every quiz-wide/per-question setting, validation
+  rules, and how settings behave in combination
 
 ## Development
 

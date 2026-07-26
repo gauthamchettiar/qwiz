@@ -44,18 +44,12 @@ The block between the two `---` lines. All fields are optional.
 
 ## Quiz-wide settings
 
-Written as `:key=value` lines inside the frontmatter block.
-
-| Key                        | Type                                          | Default                                     | Meaning                                                                                                               |
-| -------------------------- | --------------------------------------------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `points_to_win`            | number                                        | — (uses `percentage_points_to_win` instead) | Absolute score a player must reach to win                                                                             |
-| `percentage_points_to_win` | number                                        | `75`                                        | % of max achievable score needed to win, if `points_to_win` isn't set                                                 |
-| `shuffle_questions`        | boolean                                       | `true`                                      | Randomize question order each run                                                                                     |
-| `max_questions`            | number                                        | — (all shown)                               | Max questions sampled per run, when the bank is larger                                                                |
-| `reveal_answers`           | `after_every_question` \| `at_end` \| `never` | `after_every_question`                      | When correct answers become visible                                                                                   |
-| `reveal_scores`            | `after_every_question` \| `at_end` \| `never` | `after_every_question`                      | When points earned become visible (independent of `reveal_answers`)                                                   |
-| `show_score`               | boolean                                       | `true`                                      | Persistent running score header during the run                                                                        |
-| `show_intermediate_screen` | boolean                                       | `true`                                      | Pause on a per-question reveal screen before advancing. Cannot be `false` while `reveal_answers=after_every_question` |
+Written as `:key=value` lines inside the frontmatter block. Full reference — every key, its type
+and default, and how settings behave in combination — lives in
+[`settings.md`](./settings.md#quiz-wide-settings), kept as the one place this is documented rather
+than a second copy here that could drift. In brief: win threshold (`points_to_win`/
+`percentage_points_to_win`), ordering/sampling (`shuffle_questions`, `max_questions`), and reveal
+timing (`reveal_answers`, `reveal_scores`, `show_score`, `show_intermediate_screen`).
 
 ## Questions
 
@@ -161,26 +155,14 @@ character_input: Guess the capital of France
 
 ### Per-question settings
 
-Written as `:key=value` lines, before or after the option block.
-
-| Key                 | Type                            | Applies to             | Default    | Meaning                                                                                                                                                                                     |
-| ------------------- | ------------------------------- | ---------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `point`             | number                          | all                    | `1`        | Points for each correct option/answer/letter without its own `%N%`                                                                                                                          |
-| `penalty`           | number                          | all                    | `0`        | Points deducted for each incorrect option/wrong guess without its own `%N%`                                                                                                                 |
-| `partial_points`    | boolean                         | choice, typed          | `false`    | Award credit for some (not all) correct picks/guesses, instead of requiring an exact match                                                                                                  |
-| `min_answers`       | number                          | choice, typed          | — (none)   | Minimum selections/guesses required before submitting                                                                                                                                       |
-| `max_answers`       | number                          | choice, typed          | — (none)   | Maximum selections/guesses allowed. `>1` on a `typed` question enables multi-guess mode                                                                                                     |
-| `option_display`    | `list` \| `grid`                | choice only            | `list`     | Option layout                                                                                                                                                                               |
-| `shuffle`           | boolean                         | choice only            | `false`    | Randomize this question's option order each run                                                                                                                                             |
-| `difficulty`        | `easy` \| `medium` \| `hard`    | all                    | —          | Informational only, doesn't affect grading                                                                                                                                                  |
-| `case_sensitive`    | boolean                         | typed, character_input | `false`    | Require exact letter case                                                                                                                                                                   |
-| `numeric_tolerance` | number                          | typed only             | — (off)    | Allowed absolute numeric difference (e.g. `0.5` lets "3.5" match "3"). Mutually exclusive with `fuzzy_tolerance`                                                                            |
-| `fuzzy_tolerance`   | number                          | typed only             | — (off)    | Allowed typos as % of answer length (edit distance). Mutually exclusive with `numeric_tolerance`                                                                                            |
-| `input_display`     | `text` \| `boxes`               | typed only             | `text`     | Plain text box vs. one box per character                                                                                                                                                    |
-| `letter_bank`       | `alphabet` \| `auto` \| `fixed` | character_input only   | `alphabet` | Which letters appear in the bank. `alphabet`: full A–Z. `auto`: every distinct letter in the answer plus a handful of decoys not in it. `fixed`: exactly the letters in `letter_bank_chars` |
-| `letter_bank_chars` | text                            | character_input only   | —          | The exact letters offered — only read when `letter_bank=fixed`                                                                                                                              |
-| `reveal_mode`       | `all` \| `sequence` \| `random` | character_input only   | `all`      | How a correct guess reveals repeated letters: all occurrences at once, one in reading order per guess, or one random occurrence per guess                                                   |
-| `prereveal_count`   | number                          | character_input only   | `0`        | Extra random characters (beyond any `[X]` brackets) revealed free at the start                                                                                                              |
+Written as `:key=value` lines, before or after the option block. Full reference — every key, its
+type/default/applicable variant(s), and how settings behave in combination (which combinations are
+rejected, which are harmless no-ops, and which are valid but non-obvious) — lives in
+[`settings.md`](./settings.md#per-question-settings). In brief: scoring (`point`, `penalty`,
+`partial_points`), selection limits (`min_answers`, `max_answers`), choice-only display
+(`option_display`, `shuffle`), typed matching (`case_sensitive`, `numeric_tolerance`,
+`fuzzy_tolerance`, `input_display`), and character_input's own (`letter_bank`,
+`letter_bank_chars`, `reveal_mode`, `prereveal_count`).
 
 A setting outside its applicable variant is a parse error, not a silent no-op — e.g. `shuffle` on
 a `typed` question, or `letter_bank` on a `choice` question.

@@ -154,18 +154,19 @@
       : revealedPositions
   );
   // A bank letter disables once it can't do anything more: guessed wrong (no more tries), or
-  // guessed correct with every one of its occurrences already revealed (reveal_mode=all always
-  // reaches this the instant it's guessed; sequence/random only once enough repeat clicks have
-  // happened for a repeating letter).
+  // every one of its occurrences is already revealed — which covers two cases with the same
+  // check, since `revealedPositions` starts out equal to the pre-reveal set (bracket/
+  // prereveal_count) and only grows from there: a letter that's entirely pre-revealed disables
+  // from the very first render (nothing left for a click to do), and a correctly-guessed letter
+  // disables once reveal_mode has finished trickling out all its occurrences (immediately for
+  // `all`; only after enough repeat clicks for `sequence`/`random` on a repeating letter).
   const disabledBankLetters = $derived(
     new Set(
-      bankLetters.filter((letter) => {
-        const status = guessedLetters.get(letter);
-        if (status === 'wrong') return true;
-        if (status === 'correct')
-          return characterInputLetterFullyRevealed(question, revealedPositions, letter);
-        return false;
-      })
+      bankLetters.filter(
+        (letter) =>
+          guessedLetters.get(letter) === 'wrong' ||
+          characterInputLetterFullyRevealed(question, revealedPositions, letter)
+      )
     )
   );
 

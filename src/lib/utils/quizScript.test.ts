@@ -335,6 +335,75 @@ describe('character_input parsing', () => {
   });
 });
 
+describe('setting interactions', () => {
+  it('letter_bank=fixed with no letter_bank_chars is a parse error (would produce an empty, unplayable bank)', () => {
+    const source = ['character_input: q', '{', '=cat', '}', ':letter_bank=fixed'].join('\n');
+    const { errors } = parseQuizScriptQuestion(source);
+    expect(
+      errors.some((e) => /letter_bank=fixed.*requires.*letter_bank_chars/.test(e.message))
+    ).toBe(true);
+  });
+
+  it('letter_bank=fixed with only non-letter characters is also a parse error', () => {
+    const source = [
+      'character_input: q',
+      '{',
+      '=cat',
+      '}',
+      ':letter_bank=fixed',
+      ':letter_bank_chars=123'
+    ].join('\n');
+    const { errors } = parseQuizScriptQuestion(source);
+    expect(
+      errors.some((e) => /letter_bank=fixed.*requires.*letter_bank_chars/.test(e.message))
+    ).toBe(true);
+  });
+
+  it('letter_bank=fixed with at least one real letter is fine', () => {
+    const source = [
+      'character_input: q',
+      '{',
+      '=cat',
+      '}',
+      ':letter_bank=fixed',
+      ':letter_bank_chars=c'
+    ].join('\n');
+    expect(parseQuizScriptQuestion(source).errors).toEqual([]);
+  });
+
+  it('single_choice + partial_points is allowed — a harmless no-op, not an error', () => {
+    // single_choice never has more than one correct option, so there's no "some but not all"
+    // scenario for partial credit to apply to — deliberately not rejected, just meaningless.
+    const source = ['single_choice: q', '{', '=a', '~b', '}', ':partial_points=true'].join('\n');
+    expect(parseQuizScriptQuestion(source).errors).toEqual([]);
+  });
+
+  it("points_to_win and percentage_points_to_win can't both be set on the same quiz", () => {
+    // points_to_win always wins (see gradeRun) — setting both silently drops the percentage one,
+    // which is worth flagging the same way numeric_tolerance/fuzzy_tolerance's conflict is.
+    const source = [
+      '---',
+      'title: T',
+      ':points_to_win=10',
+      ':percentage_points_to_win=90',
+      '---'
+    ].join('\n');
+    const { errors } = parseQuizScriptFrontmatter(source);
+    expect(errors.some((e) => /can't both be set/.test(e.message))).toBe(true);
+  });
+
+  it('points_to_win alone, or percentage_points_to_win alone, is fine', () => {
+    expect(
+      parseQuizScriptFrontmatter(['---', 'title: T', ':points_to_win=10', '---'].join('\n')).errors
+    ).toEqual([]);
+    expect(
+      parseQuizScriptFrontmatter(
+        ['---', 'title: T', ':percentage_points_to_win=90', '---'].join('\n')
+      ).errors
+    ).toEqual([]);
+  });
+});
+
 describe('serializeQuizScriptQuestion round-trips through parseQuizScriptQuestion', () => {
   const cases = [
     [

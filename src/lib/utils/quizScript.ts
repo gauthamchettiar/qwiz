@@ -671,6 +671,22 @@ function parseFrontmatter(
     });
   }
 
+  // `points_to_win` always wins over `percentage_points_to_win` when both are set (see
+  // gradeRun) — so setting both isn't a conflict grading can't resolve, but it does mean
+  // percentage_points_to_win is silently dead, which an author almost certainly didn't intend.
+  // Same category of "you set two things that can't both take effect" as numeric_tolerance/
+  // fuzzy_tolerance being mutually exclusive on a question, just at the quiz-wide level instead.
+  if (
+    'points_to_win' in frontmatter.settings &&
+    'percentage_points_to_win' in frontmatter.settings
+  ) {
+    errors.push({
+      line: 1,
+      message:
+        '"points_to_win" and "percentage_points_to_win" can\'t both be set — "points_to_win" always wins, silently ignoring the other. Remove one.'
+    });
+  }
+
   return { frontmatter, bodyStart: closingIndex + 1 };
 }
 
@@ -851,6 +867,25 @@ function parseQuestionBlock(block: SourceLine[], errors: QuizScriptError[]): Qui
         prerevealed: prerevealed.length > 0 ? prerevealed : undefined
       };
     });
+
+    // `letter_bank=fixed` with no (or no letter-containing) `letter_bank_chars` produces a
+    // completely empty bank — an unplayable question with nothing to click, not a merely-degraded
+    // one, so this is worth a hard error rather than silently shipping something the player can
+    // never actually answer. Checked with the same `\p{L}` rule `isGuessableChar` (grading.ts)
+    // uses, so "letter_bank_chars=123" (digits only) is caught too, not just an empty string.
+    if (question.settings.letter_bank === 'fixed') {
+      const chars =
+        typeof question.settings.letter_bank_chars === 'string'
+          ? question.settings.letter_bank_chars
+          : '';
+      if (![...chars].some((c) => /\p{L}/u.test(c))) {
+        errors.push({
+          line: firstLine,
+          message:
+            '"letter_bank=fixed" requires "letter_bank_chars" to list at least one letter — got none.'
+        });
+      }
+    }
   }
 
   if (question.options.length === 0) {

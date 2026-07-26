@@ -195,6 +195,19 @@ describe('isTypedMatch', () => {
     expect(isTypedMatch('pari', 'paris', { fuzzy_tolerance: 20 })).toBe(true);
     expect(isTypedMatch('pa', 'paris', { fuzzy_tolerance: 20 })).toBe(false);
   });
+
+  it('case_sensitive changes what fuzzy_tolerance actually compares — case differences count as edit distance', () => {
+    // "PARIS" vs "Paris": identical case-insensitively (distance 0), but every letter differs in
+    // case once case_sensitive is on (distance 4) — enough to fall outside a 20% tolerance (1).
+    expect(isTypedMatch('PARIS', 'Paris', { fuzzy_tolerance: 20 })).toBe(true);
+    expect(isTypedMatch('PARIS', 'Paris', { case_sensitive: true, fuzzy_tolerance: 20 })).toBe(
+      false
+    );
+  });
+
+  it('numeric_tolerance ignores case_sensitive entirely — numbers have no case', () => {
+    expect(isTypedMatch('3', '3', { numeric_tolerance: 0.5, case_sensitive: true })).toBe(true);
+  });
 });
 
 describe('typedSingleAnswerMatches', () => {
@@ -413,6 +426,27 @@ describe('characterInputRevealPositionsAfterGuess / characterInputLetterFullyRev
     const q = makeQuestion({ variant: 'character_input', options: [characterInputOption('cat')] });
     const revealed = new Set([0]);
     expect(characterInputRevealPositionsAfterGuess(q, revealed, 'c')).toEqual(revealed);
+  });
+
+  it('a letter that is entirely pre-revealed reads as fully revealed even with no guess at all', () => {
+    // This is what QuestionPlayer.svelte's bank-button disabling relies on to disable a
+    // pre-revealed letter from the very first render, before the player has clicked anything —
+    // `revealedPositions` starts out equal to the pre-reveal set, so this check doesn't need to
+    // know or care whether a letter was ever actually guessed.
+    const q = makeQuestion({
+      variant: 'character_input',
+      options: [characterInputOption('cat', [0])] // "c" pre-revealed
+    });
+    const initialRevealed = characterInputPrerevealedPositions(q, new Set());
+    expect(characterInputLetterFullyRevealed(q, initialRevealed, 'c')).toBe(true);
+  });
+
+  it('a letter that never appears in the answer at all is NOT "fully revealed"', () => {
+    // Regression test: an empty occurrence list would make `.every(...)` vacuously true, which
+    // would wrongly read as "fully revealed" for every letter not in the word — pre-disabling
+    // the entire rest of the bank instead of leaving it genuinely guessable.
+    const q = makeQuestion({ variant: 'character_input', options: [characterInputOption('cat')] });
+    expect(characterInputLetterFullyRevealed(q, new Set(), 'z')).toBe(false);
   });
 });
 

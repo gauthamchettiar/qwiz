@@ -518,7 +518,11 @@ export function characterInputRevealPositionsAfterGuess(
 /** Whether every occurrence of `letter` in the answer is currently revealed — what a bank button
  * checks (alongside a 'wrong' guess) to decide whether it should disable itself. Always true
  * immediately after a correct guess under `reveal_mode=all`; only true once enough repeat clicks
- * have happened under `sequence`/`random` for a letter that repeats in the answer. */
+ * have happened under `sequence`/`random` for a letter that repeats in the answer. `false` for a
+ * letter that isn't in the answer at all — `.every()` on its empty occurrence list would
+ * otherwise be vacuously `true`, which would wrongly pre-disable every never-guessed, not-in-the-
+ * word bank letter from the very first render (there's nothing to "fully reveal" for a letter
+ * that was never there — that's what a genuine wrong guess is for). */
 export function characterInputLetterFullyRevealed(
   question: QuizScriptQuestion,
   revealedPositions: ReadonlySet<number>,
@@ -526,7 +530,8 @@ export function characterInputLetterFullyRevealed(
 ): boolean {
   const caseSensitive = settingBoolean(question.settings.case_sensitive);
   const text = characterInputAnswerText(question);
-  return letterOccurrences(text, letter, caseSensitive).every((i) => revealedPositions.has(i));
+  const occurrences = letterOccurrences(text, letter, caseSensitive);
+  return occurrences.length > 0 && occurrences.every((i) => revealedPositions.has(i));
 }
 
 /** Grades a character_input question. Scoring is per DISTINCT guessable letter, not per
