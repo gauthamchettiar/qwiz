@@ -27,6 +27,17 @@ test('creating a quiz through the builder saves it and lists it on the home page
   await expect(page).toHaveURL(/\/local\/edit\?id=.+/);
   await expect(builder.titleInput).toHaveValue('Capitals Quiz');
 
+  // Regression check (mobile project): the quiz metadata card's code-toggle button and each
+  // question card's play/code/clone/delete strip used to be absolutely positioned to the left of
+  // their card unconditionally, relying on desktop-only margin outside the page's max-w-3xl
+  // container that doesn't exist on narrow viewports — pushing them off-screen and inflating the
+  // page's scrollable width even though nothing looked wrong until you actually looked for a
+  // horizontal scrollbar.
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - window.innerWidth
+  );
+  expect(overflow).toBeLessThanOrEqual(0);
+
   await home.goto();
   await home.expectListed('Capitals Quiz');
 

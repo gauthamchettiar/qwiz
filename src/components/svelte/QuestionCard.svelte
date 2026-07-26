@@ -87,10 +87,19 @@
     ? 'border-slate-200 bg-white'
     : 'border-slate-400 bg-white'} {mode === 'code' ? 'xl:w-[150%] xl:-mx-[25%]' : ''}"
 >
-  <!-- right-full + mr-2 (rather than a corner-straddling negative offset) puts the button
-       entirely outside the card with a real gap, its top aligned exactly with the card's own
-       top edge — no overlap in either direction. -->
-  <div class="absolute right-full top-0 mr-2 flex flex-col gap-1">
+  <!-- `lg:right-full` + `lg:mr-2` (rather than a corner-straddling negative offset) puts the
+       button strip entirely outside the card with a real gap, its top aligned exactly with the
+       card's own top edge — no overlap in either direction. Only switches to that absolute,
+       outside-the-card treatment at `lg:` (1024px) — Base.astro's page container is
+       `max-w-3xl` (768px) with `px-4` (16px) padding, so there's zero margin outside the card
+       below 768px and only a thin, insufficient sliver just above it; `lg:` leaves ~144px of
+       real margin on each side, comfortably more than this strip's own ~40px width. Below that,
+       it renders as a plain in-flow horizontal row above the card's content instead — the
+       absolute version would otherwise get pushed off-screen to the left with nowhere to go,
+       which is what was causing horizontal overflow / a phantom empty gap on mobile. -->
+  <div
+    class="mb-3 flex items-center gap-1 lg:absolute lg:right-full lg:top-0 lg:mb-0 lg:mr-2 lg:flex-col"
+  >
     <button
       type="button"
       class="rounded-md border border-slate-200 bg-white p-1.5 hover:bg-slate-50 {playing

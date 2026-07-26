@@ -535,9 +535,12 @@
   <ErrorList {errors} />
 
   <div class="relative space-y-5 rounded-lg border border-slate-200 bg-white p-6">
+    <!-- Same `lg:`-gated absolute/in-flow switch as QuestionCard.svelte's button strip — see its
+         comment for why: Base.astro's page container leaves no margin outside this card below
+         `lg:` (1024px), so the button would otherwise be pushed off-screen on mobile. -->
     <button
       type="button"
-      class="absolute right-full top-0 mr-2 rounded-md border border-slate-200 bg-white p-1.5 hover:bg-slate-50 {activeEdit?.kind ===
+      class="mb-3 rounded-md border border-slate-200 bg-white p-1.5 hover:bg-slate-50 lg:absolute lg:right-full lg:top-0 lg:mb-0 lg:mr-2 {activeEdit?.kind ===
       'meta'
         ? 'bg-slate-100 text-slate-900'
         : 'text-slate-400'}"
