@@ -73,18 +73,25 @@
   let typedGuessDraft = $state(seed.typedGuessDraft);
   let guessedLetters = $state<Map<string, 'correct' | 'wrong'>>(new Map(seed.guessedLetters));
   // `extraPrerevealed` (prereveal_count's random extra positions) is resolved once here, at
-  // mount, exactly like `boxChars` above — reused from a persisted draft if one exists, otherwise
-  // freshly randomized via `resolveExtraPrereveal` (which `blankDraft()` deliberately can't do
-  // itself, since it has no `question` to resolve against — see QuestionDraft's own doc comment).
+  // mount, exactly like `boxChars`/`runBoxChars()` above — reused from a persisted draft if one
+  // exists, otherwise freshly randomized (which `blankDraft()` deliberately can't do itself, since
+  // it has no `question` to resolve against — see QuestionDraft's own doc comment). Routed through
+  // a local function, same as `runBoxChars()`, so this one-time-capture-at-mount read of `question`
+  // doesn't read as a missed-reactivity bug (Svelte's `state_referenced_locally` check only looks
+  // for a state/prop reference directly inside a `$state(...)` initializer, not one hidden behind
+  // a function call — intentional here, not an oversight, per this component's own doc comment on
+  // reading `draft` once at creation rather than staying in sync with prop changes afterwards).
+  function runExtraPrereveal(): Set<number> {
+    return resolveExtraPrereveal(question);
+  }
   let extraPrerevealed = $state<Set<number>>(
-    seed.extraPrerevealed.size > 0
-      ? new Set(seed.extraPrerevealed)
-      : resolveExtraPrereveal(question)
+    seed.extraPrerevealed.size > 0 ? new Set(seed.extraPrerevealed) : runExtraPrereveal()
   );
+  function runRevealedPositions(): Set<number> {
+    return new Set(characterInputPrerevealedPositions(question, extraPrerevealed));
+  }
   let revealedPositions = $state<Set<number>>(
-    seed.revealedPositions.size > 0
-      ? new Set(seed.revealedPositions)
-      : new Set(characterInputPrerevealedPositions(question, extraPrerevealed))
+    seed.revealedPositions.size > 0 ? new Set(seed.revealedPositions) : runRevealedPositions()
   );
   let boxRefs: HTMLInputElement[] = $state([]);
   let typedSingleInputRef: HTMLInputElement | undefined = $state();
@@ -311,8 +318,8 @@
     guessedLetters = new Map();
     // A fresh game re-rolls prereveal_count's random picks, same as a real Hangman round starting
     // over — a "Try again" is a new session, not a resumption of the old one.
-    extraPrerevealed = resolveExtraPrereveal(question);
-    revealedPositions = new Set(characterInputPrerevealedPositions(question, extraPrerevealed));
+    extraPrerevealed = runExtraPrereveal();
+    revealedPositions = runRevealedPositions();
   }
 </script>
 
