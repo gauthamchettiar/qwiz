@@ -214,6 +214,24 @@
   }
 
   const summary = $derived(finished ? gradeRun(results, quiz.settings) : null);
+
+  // Warn before leaving an in-progress run — this app has no SSR router, so every way of
+  // "leaving" (the header's logo/nav links, browser back/forward, a typed URL, tab close,
+  // refresh) is a real navigation, which `beforeunload` catches uniformly rather than needing to
+  // separately intercept each one. Re-runs whenever `finished` changes: cleanup removes the
+  // listener before the effect body re-executes, so it's only ever attached while a run is
+  // genuinely still in progress. The confirmation dialog's own text is entirely browser-
+  // controlled — every modern browser ignores a custom message and shows its own generic wording,
+  // by design, so a compromised site can't fake a more alarming/deceptive prompt.
+  $effect(() => {
+    if (finished) return;
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  });
 </script>
 
 {#snippet optionContent(content: QuizScriptOption['content'])}
