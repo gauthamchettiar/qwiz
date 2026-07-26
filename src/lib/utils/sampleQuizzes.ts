@@ -181,5 +181,33 @@ typed: Name these two cities. (multi-guess character-box input)
 =new york
 =san jose
 }`
+  },
+  {
+    title: 'Hangman Challenge',
+    description:
+      'The character_input variant: guess a word letter-by-letter from an on-screen bank, Hangman-style — pre-revealed characters, a per-wrong-guess penalty, and both reveal_mode options.',
+    code: `---
+title: Hangman Challenge
+description: Guess each word one letter at a time. A wrong guess costs a point.
+category: demo
+tags: [demo, character_input, hangman]
+---
+
+character_input: Guess the capital of France (one letter pre-revealed)
+{
+=[P]aris
+}
+:letter_bank=alphabet
+:reveal_mode=all
+:penalty=-1
+
+character_input: Name a primary color (repeated letters reveal one at a time)
+{
+=yellow
+}
+:letter_bank=auto
+:reveal_mode=sequence
+:prereveal_count=1
+:penalty=-1`
   }
 ];

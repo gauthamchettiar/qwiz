@@ -108,6 +108,11 @@ export interface QuizScriptOption {
    * `undefined` when not given — this is NOT auto-filled from a question's `:point`/`:penalty`
    * settings; reconciling those two mechanisms is a scoring concern left to a later consumer. */
   points?: number;
+  /** `character_input` only: character indices into `content.text` (only ever `kind: 'text'` for
+   * this variant) that are pre-revealed from the start — authored with a `[X]` bracket around
+   * that character, e.g. `=[P]aris` pre-reveals index 0. `undefined`/empty when none are marked.
+   * Never set for any other variant. */
+  prerevealed?: number[];
 }
 
 /** A question-level hint: `label` is the prompt shown before it's revealed (e.g. "Need a hint?"),
@@ -158,7 +163,7 @@ const FRONTMATTER_LINE = /^([A-Za-z_][\w-]*)\s*:\s*(.*)$/;
  * like "Ratio: 3:4") isn't mistaken for a variant declaration. "question" is deliberately absent —
  * it's just the default a question gets by not declaring anything, not a real variant, so a
  * hand-typed `question: ...` header isn't recognized (it just reads as plain question text). */
-export const KNOWN_VARIANTS = ['single_choice', 'multiple_choice', 'typed'];
+export const KNOWN_VARIANTS = ['single_choice', 'multiple_choice', 'typed', 'character_input'];
 
 /** `choice` used to be the only choice-like variant (covering both single- and multi-select,
  * distinguished only implicitly by option count / `max_answers`), before it was split into
@@ -179,10 +184,26 @@ function resolveVariant(value: string): string {
   return LEGACY_VARIANT_ALIASES[value] ?? value;
 }
 
+/** The three settings-applicability groups a question variant maps to (see
+ * `settingsGroupForVariant`) — `single_choice`/`multiple_choice` (plus the bare/default variant
+ * and the legacy `choice` alias) share one group, since nothing here distinguishes between them. */
+export type SettingsGroup = 'choice' | 'typed' | 'character_input';
+
 export interface SettingRule {
-  kind: 'number' | 'boolean' | 'enum';
+  kind: 'number' | 'boolean' | 'enum' | 'string';
   /** Only present for `kind: 'enum'`. */
   values?: string[];
+  /** Which variant group(s) this setting is meaningful for — checked in `parseQuestionBlock` (a
+   * key set on a question outside its `appliesTo` is a parse error) and by
+   * `suggestedSettingKeysForVariant` (so a key a question's variant can't use is never even
+   * offered). Optional because `QUIZ_SETTING_RULES` shares this same interface for quiz-wide
+   * settings, which have no per-question variant to be scoped to — every `SETTING_RULES` (the
+   * per-question table) entry always sets it; nothing ever reads it off a `QUIZ_SETTING_RULES`
+   * entry. Replaces what used to be two separate typed-only/choice-only exclusion lists —
+   * those couldn't express a setting like `case_sensitive` applying to two groups (typed AND
+   * character_input) but not the third (choice), a real need once character_input exists
+   * alongside typed. */
+  appliesTo?: readonly SettingsGroup[];
   /** Shown in the "?" hover hint next to this key, in both code and form mode. */
   description: string;
 }
@@ -194,96 +215,127 @@ export interface SettingRule {
 export const SETTING_RULES: Record<string, SettingRule> = {
   point: {
     kind: 'number',
+    appliesTo: ['choice', 'typed', 'character_input'],
     description:
       "Points awarded for each correct option that doesn't specify its own %N% weight.\n\nAccepted values: any number\nDefault: 1"
   },
   penalty: {
     kind: 'number',
+    appliesTo: ['choice', 'typed', 'character_input'],
     description:
       "Points deducted for each incorrect option that doesn't specify its own %N% weight.\n\nAccepted values: any number\nDefault: 0"
   },
   partial_points: {
     kind: 'boolean',
+    appliesTo: ['choice', 'typed'],
     description:
       "Whether getting some (not all) correct options/accepted answers earns partial credit instead of requiring an exact match — e.g. for a typed question with 3 accepted answers, matching only 1 of them awards that one's points instead of 0.\n\nOnly meaningful for choice, or a multi-guess typed question (max_answers > 1) — single-input typed matching has no concept of partial.\n\nAccepted values: true, false\nDefault: false"
   },
   option_display: {
     kind: 'enum',
     values: ['list', 'grid'],
+    appliesTo: ['choice'],
     description:
       'For a choice question, how its options are laid out. Not meaningful for a typed question.\n\nAccepted values: list, grid\nDefault: list'
   },
   min_answers: {
     kind: 'number',
+    appliesTo: ['choice', 'typed'],
     description:
       'Minimum number of options/answers the player must select or give before they can submit this question.\n\nAccepted values: any number\nDefault: none — any number given is enough, including zero'
   },
   max_answers: {
     kind: 'number',
+    appliesTo: ['choice', 'typed'],
     description:
       'Maximum number of options/answers the player is allowed to select or give for this question.\n\nAccepted values: any number\nDefault: none — any number is allowed'
   },
   shuffle: {
     kind: 'boolean',
+    appliesTo: ['choice'],
     description:
       "For a choice question, whether its options are shown in a random order each time it's played. Not meaningful for a typed question.\n\nAccepted values: true, false\nDefault: false"
   },
   difficulty: {
     kind: 'enum',
     values: ['easy', 'medium', 'hard'],
+    appliesTo: ['choice', 'typed', 'character_input'],
     description:
       "How difficult this question is, for organizing or filtering later — purely informational, doesn't affect grading or play.\n\nAccepted values: easy, medium, hard\nDefault: none"
   },
   case_sensitive: {
     kind: 'boolean',
+    appliesTo: ['typed', 'character_input'],
     description:
-      "For a typed question, whether a player's answer must match an accepted answer's exact letter case instead of being compared case-insensitively. Other normalization (whitespace, punctuation, accents) always applies regardless of this setting.\n\nAccepted values: true, false\nDefault: false"
+      "For a typed or character_input question, whether a player's answer must match an accepted answer's exact letter case instead of being compared case-insensitively. Other normalization (whitespace, punctuation, accents) always applies regardless of this setting.\n\nAccepted values: true, false\nDefault: false"
   },
   numeric_tolerance: {
     kind: 'number',
+    appliesTo: ['typed'],
     description:
       'For a typed question, the allowed absolute difference between a numeric answer and a numeric response (e.g. 0.5 lets "3.5" match "3"). Falls back to normalized text comparison when either side isn\'t a number. Cannot be combined with fuzzy_tolerance on the same question.\n\nAccepted values: any number\nDefault: none — numeric-tolerance matching is off'
   },
   fuzzy_tolerance: {
     kind: 'number',
+    appliesTo: ['typed'],
     description:
       "For a typed question, how many typos a response may have and still match, as a percentage of the accepted answer's length (edit distance). Cannot be combined with numeric_tolerance on the same question.\n\nAccepted values: a number from 0 to 100\nDefault: none — fuzzy matching is off"
   },
   input_display: {
     kind: 'enum',
     values: ['text', 'boxes'],
+    appliesTo: ['typed'],
     description:
       "How a typed question's answer field is displayed: a plain text box, or one box per character (grouped by word) sized to the first accepted answer's shape. Works in both single-answer and multi-guess (max_answers > 1) mode.\n\nAccepted values: text, boxes\nDefault: text"
+  },
+  letter_bank: {
+    kind: 'enum',
+    values: ['alphabet', 'auto', 'fixed'],
+    appliesTo: ['character_input'],
+    description:
+      'Which letters appear in the on-screen letter bank. "alphabet": the full A-Z. "auto": every distinct letter actually in the answer, plus a handful of random decoy letters that aren\'t (so a guess still carries real risk). "fixed": exactly the letters in letter_bank_chars.\n\nAccepted values: alphabet, auto, fixed\nDefault: alphabet'
+  },
+  letter_bank_chars: {
+    kind: 'string',
+    appliesTo: ['character_input'],
+    description:
+      'The exact letters offered in the bank — only read when letter_bank=fixed. E.g. "abcdefghijklmnop".\n\nAccepted values: any text\nDefault: none'
+  },
+  reveal_mode: {
+    kind: 'enum',
+    values: ['all', 'sequence', 'random'],
+    appliesTo: ['character_input'],
+    description:
+      'How a correct letter guess reveals its occurrences in the answer. "all": every occurrence at once (classic Hangman), and that letter\'s bank button disables immediately. "sequence"/"random": one not-yet-revealed occurrence per guess (next-in-order, or a random remaining one) — the bank button stays clickable until every occurrence of that letter is revealed.\n\nAccepted values: all, sequence, random\nDefault: all'
+  },
+  prereveal_count: {
+    kind: 'number',
+    appliesTo: ['character_input'],
+    description:
+      'Additional random characters (on top of any explicit [x] pre-reveal brackets in the answer) revealed from the start, free of charge.\n\nAccepted values: any number\nDefault: 0'
   }
 };
 
 /** Single source of truth for the key-suggestion list too — see `SETTING_RULES` above. */
 export const SUGGESTED_SETTING_KEYS = Object.keys(SETTING_RULES);
 
-/** Settings only ever read by typed-question grading/UI — a parse error when set on any other
- * variant (see `parseQuestionBlock`) and excluded from `suggestedSettingKeysForVariant`'s list for
- * a non-typed question. */
-export const TYPED_ONLY_SETTINGS = [
-  'case_sensitive',
-  'numeric_tolerance',
-  'fuzzy_tolerance',
-  'input_display'
-];
-
-/** The inverse of `TYPED_ONLY_SETTINGS` — only ever read by choice's grading/UI, a parse error on
- * a `typed` question. `option_display` and `shuffle` have no meaning for typed: a typed question
- * never renders a selectable option list to lay out or shuffle the reveal order of, it's always a
- * plain text comparison against every accepted answer. `partial_points`, unlike those two, IS
- * meaningful for typed (multi-guess scoring — see `gradeTypedQuestion`), so it's deliberately not
- * in this list. */
-export const CHOICE_ONLY_SETTINGS = ['option_display', 'shuffle'];
+/** Maps a question's raw `variant` string to the settings-applicability group it behaves as —
+ * `single_choice`, `multiple_choice`, the bare/default variant, and the legacy `choice` alias all
+ * collapse to `'choice'`, since no setting here distinguishes between them. */
+function settingsGroupForVariant(variant: string): SettingsGroup {
+  if (variant === 'typed') return 'typed';
+  if (variant === 'character_input') return 'character_input';
+  return 'choice';
+}
 
 /** Which of `SUGGESTED_SETTING_KEYS` actually apply to a question of this variant — the list a
  * settings-key suggestion dropdown should offer, so an author isn't offered (and can't
  * accidentally pick) a key that `parseQuestionBlock` would immediately reject for this variant. */
 export function suggestedSettingKeysForVariant(variant: string): string[] {
-  const excluded = variant === 'typed' ? CHOICE_ONLY_SETTINGS : TYPED_ONLY_SETTINGS;
-  return SUGGESTED_SETTING_KEYS.filter((key) => !excluded.includes(key));
+  const group = settingsGroupForVariant(variant);
+  return SUGGESTED_SETTING_KEYS.filter((key) =>
+    (SETTING_RULES[key].appliesTo ?? []).includes(group)
+  );
 }
 
 /** Same idea as `SETTING_RULES`, scoped to the whole quiz instead of one question — written as
@@ -370,6 +422,40 @@ export function parseOptionContent(text: string): QuizScriptOptionContent {
   const video = VIDEO_LINE.exec(text);
   if (video) return { kind: 'video', alt: video[1], url: video[2] };
   return { kind: 'text', text };
+}
+
+/** `character_input`-only: strips `[X]` pre-reveal markers from a raw accepted-answer line,
+ * returning the plain text plus the (stripped-text-relative) index of each marked character —
+ * e.g. `"[P]a[r]is"` → `{ text: "Paris", prerevealed: [0, 2] }`. Only a single character inside
+ * the brackets is recognized (`[Pa]` isn't treated specially — its brackets stay as literal
+ * characters in the answer text, same as any other shape this format doesn't recognize). */
+function parsePrerevealedText(raw: string): { text: string; prerevealed: number[] } {
+  const prerevealed: number[] = [];
+  let text = '';
+  let i = 0;
+  while (i < raw.length) {
+    if (raw[i] === '[' && raw[i + 2] === ']') {
+      prerevealed.push(text.length);
+      text += raw[i + 1];
+      i += 3;
+    } else {
+      text += raw[i];
+      i++;
+    }
+  }
+  return { text, prerevealed };
+}
+
+/** Inverse of `parsePrerevealedText` — re-inserts `[X]` markers at the given (text-relative)
+ * indices, so a `character_input` option round-trips through serialization unchanged. */
+function insertPrerevealMarkers(text: string, prerevealed: number[] | undefined): string {
+  if (!prerevealed || prerevealed.length === 0) return text;
+  const marked = new Set(prerevealed);
+  let out = '';
+  for (let i = 0; i < text.length; i++) {
+    out += marked.has(i) ? `[${text[i]}]` : text[i];
+  }
+  return out;
 }
 
 function parseOption(rest: string, correct: boolean): QuizScriptOption {
@@ -470,6 +556,13 @@ export function validateSettingValue(
     if (lower === 'true' || lower === 'yes') return { value: true };
     if (lower === 'false' || lower === 'no') return { value: false };
     return { value: coerceSetting(raw), error: `must be true/false or yes/no (got "${trimmed}")` };
+  }
+
+  // A free-form string setting (currently just `letter_bank_chars`) — any value is accepted
+  // as-is, never coerced to a number/boolean the way the generic `:key=value` fallback would
+  // (coerceSetting), since e.g. a bank of only digit characters must stay a literal string.
+  if (rule.kind === 'string') {
+    return { value: trimmed };
   }
 
   const lower = trimmed.toLowerCase();
@@ -734,6 +827,32 @@ function parseQuestionBlock(block: SourceLine[], errors: QuizScriptError[]): Qui
     question.options = question.options.map((o) => ({ ...o, correct: true }));
   }
 
+  // Same "every option is an accepted answer, forced correct" invariant as `typed` above, plus
+  // stripping this variant's own `[X]` pre-reveal marker syntax out of the answer text (see
+  // `parsePrerevealedText`) — only meaningful/parsed for `character_input`, so a literal `[P]aris`
+  // typed into a `choice`/`typed` option stays exactly that: plain text, brackets included.
+  if (question.variant === 'character_input') {
+    for (const option of question.options) {
+      if (option.content.kind !== 'text') {
+        errors.push({
+          line: firstLine,
+          message:
+            "character_input options must be plain text — an image/video accepted answer isn't meaningful here."
+        });
+      }
+    }
+    question.options = question.options.map((o) => {
+      if (o.content.kind !== 'text') return { ...o, correct: true };
+      const { text, prerevealed } = parsePrerevealedText(o.content.text);
+      return {
+        ...o,
+        content: { kind: 'text' as const, text },
+        correct: true,
+        prerevealed: prerevealed.length > 0 ? prerevealed : undefined
+      };
+    });
+  }
+
   if (question.options.length === 0) {
     errors.push({ line: firstLine, message: 'Question has no options.' });
   } else if (!question.options.some((o) => o.correct)) {
@@ -761,35 +880,22 @@ function parseQuestionBlock(block: SourceLine[], errors: QuizScriptError[]): Qui
     });
   }
 
-  // Unlike most settings here (which stay meaningful, if sometimes unused, regardless of
-  // variant), these are only ever read by typed-question grading/UI — setting them on a `choice`
-  // question (or the bare default variant) is always a mistake, not just a no-op, so it's a parse
-  // error rather than something silently ignored. Same "no leading `Setting "`" wording rule as
-  // the check above, for the same reason.
-  if (question.variant !== 'typed') {
-    for (const key of TYPED_ONLY_SETTINGS) {
-      if (key in question.settings) {
+  // Every setting declares which variant group(s) it's meaningful for (`SettingRule.appliesTo`) —
+  // a key set outside its own group(s) is always a mistake, not just a no-op, so it's a parse
+  // error rather than something silently ignored. A single pass covers every group uniformly
+  // (this used to be two separate typed-only/choice-only checks, which couldn't express a setting
+  // like `case_sensitive` applying to typed AND character_input but not choice). Unrecognized keys
+  // aren't checked here — `validateSettingValue` already flagged those separately. Same "no
+  // leading `Setting "`" wording rule as the check above, for the same reason.
+  {
+    const group = settingsGroupForVariant(question.variant);
+    for (const key of Object.keys(question.settings)) {
+      const rule = SETTING_RULES[key];
+      const appliesTo = rule?.appliesTo ?? [];
+      if (rule && !appliesTo.includes(group)) {
         errors.push({
           line: firstLine,
-          message: `"${key}" only applies to typed questions (this question's variant is "${question.variant}").`
-        });
-      }
-    }
-  }
-
-  // The inverse restriction: `option_display` and `shuffle` are only ever read by choice's
-  // grading/UI (see `QuestionView.svelte`'s layout and `buildPlayRun`'s render-order shuffling in
-  // grading.ts, neither of which a typed question's grading/UI ever consults) — a typed question
-  // never renders a selectable option list to lay out or shuffle the reveal order of. Setting
-  // either on a `typed` question is therefore always a no-op mistake worth flagging, same as the
-  // typed-only settings above being flagged on `choice`. (`partial_points` is meaningful for both
-  // variants — see its own description above — so it's deliberately not restricted here.)
-  if (question.variant === 'typed') {
-    for (const key of CHOICE_ONLY_SETTINGS) {
-      if (key in question.settings) {
-        errors.push({
-          line: firstLine,
-          message: `"${key}" only applies to choice questions (this question's variant is "typed").`
+          message: `"${key}" only applies to ${appliesTo.join('/')} questions (this question's variant is "${question.variant}").`
         });
       }
     }
@@ -997,7 +1103,11 @@ function formatOptionContent(content: QuizScriptOptionContent): string {
 function formatOption(option: QuizScriptOption): string {
   const marker = option.correct ? '=' : '~';
   const points = option.points === undefined ? '' : ` %${option.points}%`;
-  return `${marker}${formatOptionContent(option.content)}${points}`;
+  const content: QuizScriptOptionContent =
+    option.content.kind === 'text' && option.prerevealed
+      ? { kind: 'text', text: insertPrerevealMarkers(option.content.text, option.prerevealed) }
+      : option.content;
+  return `${marker}${formatOptionContent(content)}${points}`;
 }
 
 function formatReveal(reveal: QuizScriptReveal): string {

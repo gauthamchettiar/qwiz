@@ -5,9 +5,18 @@
     blankDraft,
     boxAnswer,
     buildPlayRun,
+    characterInputAnswerText,
+    characterInputLetterBank,
+    characterInputLetterFullyRevealed,
+    characterInputLetterInAnswer,
+    characterInputNormalizeGuess,
+    characterInputPrerevealedPositions,
+    characterInputRevealPositionsAfterGuess,
     gradeDraft,
     isDraftComplete,
+    isGuessableChar,
     matchTypedGuesses,
+    resolveExtraPrereveal,
     settingNumber,
     typedBoxCount,
     typedBoxGroups,
@@ -16,6 +25,7 @@
     type QuestionDraft
   } from '@/lib/utils/grading';
   import { extractYoutubeId } from '@/lib/utils/youtube';
+  import CharacterBank from './CharacterBank.svelte';
 
   // The one live "answer this question" widget, used two ways:
   // - `standalone` (QuestionCard's in-editor "try it" tester): owns its own Submit/Try-again cycle
@@ -52,6 +62,7 @@
 
   const pq = $derived(playQuestionProp ?? buildPlayRun([question], {})[0]);
   const isTyped = $derived(question.variant === 'typed');
+  const isCharacterInput = $derived(question.variant === 'character_input');
 
   const seed = initialDraft ?? blankDraft();
   let selected = $state<Set<number>>(new Set(seed.selected));
@@ -60,6 +71,21 @@
   let boxChars = $state<string[]>(seed.boxChars.length > 0 ? [...seed.boxChars] : runBoxChars());
   let typedGuesses = $state<string[]>([...seed.typedGuesses]);
   let typedGuessDraft = $state(seed.typedGuessDraft);
+  let guessedLetters = $state<Map<string, 'correct' | 'wrong'>>(new Map(seed.guessedLetters));
+  // `extraPrerevealed` (prereveal_count's random extra positions) is resolved once here, at
+  // mount, exactly like `boxChars` above — reused from a persisted draft if one exists, otherwise
+  // freshly randomized via `resolveExtraPrereveal` (which `blankDraft()` deliberately can't do
+  // itself, since it has no `question` to resolve against — see QuestionDraft's own doc comment).
+  let extraPrerevealed = $state<Set<number>>(
+    seed.extraPrerevealed.size > 0
+      ? new Set(seed.extraPrerevealed)
+      : resolveExtraPrereveal(question)
+  );
+  let revealedPositions = $state<Set<number>>(
+    seed.revealedPositions.size > 0
+      ? new Set(seed.revealedPositions)
+      : new Set(characterInputPrerevealedPositions(question, extraPrerevealed))
+  );
   let boxRefs: HTMLInputElement[] = $state([]);
   let typedSingleInputRef: HTMLInputElement | undefined = $state();
   let typedGuessInputRef: HTMLInputElement | undefined = $state();
@@ -80,7 +106,10 @@
       typedSingleAnswer,
       boxChars: [...boxChars],
       typedGuesses: [...typedGuesses],
-      typedGuessDraft
+      typedGuessDraft,
+      guessedLetters: new Map(guessedLetters),
+      extraPrerevealed: new Set(extraPrerevealed),
+      revealedPositions: new Set(revealedPositions)
     };
   }
 
@@ -112,6 +141,33 @@
   const isBoxes = $derived(isTyped && question.settings.input_display === 'boxes');
   const boxGroups = $derived(isBoxes ? typedBoxGroups(question) : []);
   const boxCount = $derived(isBoxes ? typedBoxCount(question) : 0);
+
+  const characterInputText = $derived(isCharacterInput ? characterInputAnswerText(question) : '');
+  const bankLetters = $derived(isCharacterInput ? characterInputLetterBank(question) : []);
+  // Every position revealed right now — the actual `revealedPositions` progress, unless this
+  // question is locked with answers being revealed, in which case the full word shows regardless
+  // of how far the player actually got (same "reveal everything once locked+revealAnswers" idea
+  // as typed's `typedRevealed` snippet showing the full accepted-answer list).
+  const displayedRevealedPositions = $derived(
+    isLocked && revealAnswers
+      ? new Set(Array.from({ length: characterInputText.length }, (_, i) => i))
+      : revealedPositions
+  );
+  // A bank letter disables once it can't do anything more: guessed wrong (no more tries), or
+  // guessed correct with every one of its occurrences already revealed (reveal_mode=all always
+  // reaches this the instant it's guessed; sequence/random only once enough repeat clicks have
+  // happened for a repeating letter).
+  const disabledBankLetters = $derived(
+    new Set(
+      bankLetters.filter((letter) => {
+        const status = guessedLetters.get(letter);
+        if (status === 'wrong') return true;
+        if (status === 'correct')
+          return characterInputLetterFullyRevealed(question, revealedPositions, letter);
+        return false;
+      })
+    )
+  );
 
   // Auto-focus the answer field the moment this mounts unlocked — the first box in
   // `input_display=boxes` mode, otherwise the plain text field. A fresh mount per question (see
@@ -146,6 +202,37 @@
   function revealHint(extraIndex: number) {
     if (isLocked || revealedHints.has(extraIndex)) return;
     revealedHints = new Set([...revealedHints, extraIndex]);
+  }
+
+  // A bank-letter click. Three cases: a letter already guessed wrong (no more tries, and the
+  // button should already be disabled — this is just a defensive no-op); a letter already guessed
+  // correct but not fully revealed yet (`reveal_mode=sequence`/`random` on a repeating letter) —
+  // reveals the next occurrence without re-scoring, since it was already counted on the first
+  // correct guess; and a fresh guess, which both records correct/wrong in `guessedLetters` and, if
+  // correct, reveals via `characterInputRevealPositionsAfterGuess`.
+  function guessLetter(rawLetter: string) {
+    if (isLocked) return;
+    const letter = characterInputNormalizeGuess(question, rawLetter);
+    const status = guessedLetters.get(letter);
+    if (status === 'wrong') return;
+    if (status === 'correct') {
+      if (characterInputLetterFullyRevealed(question, revealedPositions, letter)) return;
+      revealedPositions = characterInputRevealPositionsAfterGuess(
+        question,
+        revealedPositions,
+        letter
+      );
+      return;
+    }
+    const correct = characterInputLetterInAnswer(question, letter);
+    guessedLetters = new Map([...guessedLetters, [letter, correct ? 'correct' : 'wrong'] as const]);
+    if (correct) {
+      revealedPositions = characterInputRevealPositionsAfterGuess(
+        question,
+        revealedPositions,
+        letter
+      );
+    }
   }
 
   function setBoxChar(i: number, raw: string) {
@@ -220,6 +307,11 @@
     typedGuesses = [];
     typedGuessDraft = '';
     boxChars = runBoxChars();
+    guessedLetters = new Map();
+    // A fresh game re-rolls prereveal_count's random picks, same as a real Hangman round starting
+    // over — a "Try again" is a new session, not a resumption of the old one.
+    extraPrerevealed = resolveExtraPrereveal(question);
+    revealedPositions = new Set(characterInputPrerevealedPositions(question, extraPrerevealed));
   }
 </script>
 
@@ -275,6 +367,30 @@
           />
         {/each}
       </div>
+    {/each}
+  </div>
+{/snippet}
+
+<!-- character_input's answer display: one box per guessable letter (revealed/blank per
+     displayedRevealedPositions), non-letter characters (spaces, punctuation) shown plainly since
+     they're never part of the guessing game — see isGuessableChar in grading.ts. -->
+{#snippet characterInputRow()}
+  <div class="flex flex-wrap items-center gap-1" role="group" aria-label="Answer, revealed so far">
+    {#each characterInputText.split('') as char, i (i)}
+      {#if !isGuessableChar(char)}
+        <span class="flex h-10 w-4 items-center justify-center text-lg font-medium text-slate-900"
+          >{char}</span
+        >
+      {:else}
+        {@const shown = displayedRevealedPositions.has(i)}
+        <span
+          class="flex h-10 w-8 items-center justify-center rounded-md border text-lg font-medium {shown
+            ? 'border-slate-300 bg-slate-50 text-slate-900'
+            : 'border-slate-300 bg-white text-slate-300'}"
+        >
+          {shown ? char : '_'}
+        </span>
+      {/if}
     {/each}
   </div>
 {/snippet}
@@ -471,6 +587,15 @@
         bind:value={typedSingleAnswer}
       />
     {/if}
+  {:else if isCharacterInput}
+    {@render characterInputRow()}
+    <CharacterBank
+      letters={bankLetters}
+      {guessedLetters}
+      disabledLetters={disabledBankLetters}
+      locked={isLocked}
+      onGuess={guessLetter}
+    />
   {:else}
     <div class={optionsLayoutClass()}>
       {#each pq.optionOrder as optionIndex (optionIndex)}

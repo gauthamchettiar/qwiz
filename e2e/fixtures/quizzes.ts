@@ -39,6 +39,38 @@ export function buildQuiz(overrides: Partial<Quiz> = {}): Quiz {
   };
 }
 
+/** A single-question quiz exercising character_input: bracket pre-reveal, the default letter
+ * bank/reveal_mode, and a wrong-guess penalty — shared between character-input.spec.ts and the
+ * accessibility suite. */
+export function buildCharacterInputQuiz(overrides: Partial<Quiz> = {}): Quiz {
+  const now = new Date().toISOString();
+  return {
+    id: nextId(),
+    title: 'Hangman e2e',
+    description: 'character_input coverage',
+    category: 'e2e',
+    tags: ['e2e'],
+    settings: { shuffle_questions: false },
+    createdAt: now,
+    updatedAt: now,
+    questions: [
+      {
+        id: 'q1',
+        code: [
+          'character_input: Guess the capital of France',
+          '{',
+          '=[P]aris',
+          '}',
+          ':letter_bank=alphabet',
+          ':reveal_mode=all',
+          ':penalty=-1'
+        ].join('\n')
+      }
+    ],
+    ...overrides
+  };
+}
+
 /** A whole .qwiz document as a paste-able string, for the import dialog spec. */
 export const SAMPLE_QWIZ_SOURCE = [
   '---',

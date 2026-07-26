@@ -265,6 +265,76 @@ describe('parseQuizScriptQuestion', () => {
   });
 });
 
+describe('character_input parsing', () => {
+  it('parses bracket pre-reveal markers and strips them from the option text', () => {
+    const source = ['character_input: word', '{', '=[P]a[r]is', '}'].join('\n');
+    const { question, errors } = parseQuizScriptQuestion(source);
+    expect(errors).toEqual([]);
+    expect(question.options[0]).toEqual({
+      content: { kind: 'text', text: 'Paris' },
+      correct: true,
+      prerevealed: [0, 2]
+    });
+  });
+
+  it('forces every option correct: true regardless of its marker, same as typed', () => {
+    const source = ['character_input: word', '{', '~paris', '}'].join('\n');
+    const { question, errors } = parseQuizScriptQuestion(source);
+    expect(errors).toEqual([]);
+    expect(question.options[0].correct).toBe(true);
+  });
+
+  it('rejects an image/video option, same as typed', () => {
+    const source = ['character_input: pick', '{', '=![alt](url)', '}'].join('\n');
+    const { errors } = parseQuizScriptQuestion(source);
+    expect(errors.some((e) => /plain text/.test(e.message))).toBe(true);
+  });
+
+  it('accepts its own settings (letter_bank, reveal_mode, prereveal_count, letter_bank_chars)', () => {
+    const source = [
+      'character_input: word',
+      '{',
+      '=cat',
+      '}',
+      ':letter_bank=fixed',
+      ':letter_bank_chars=catxyz',
+      ':reveal_mode=sequence',
+      ':prereveal_count=1'
+    ].join('\n');
+    const { question, errors } = parseQuizScriptQuestion(source);
+    expect(errors).toEqual([]);
+    expect(question.settings).toEqual({
+      letter_bank: 'fixed',
+      letter_bank_chars: 'catxyz',
+      reveal_mode: 'sequence',
+      prereveal_count: 1
+    });
+  });
+
+  it('rejects a character_input-only setting on another variant', () => {
+    const source = ['multiple_choice: q', '{', '=a', '~b', '}', ':letter_bank=alphabet'].join('\n');
+    const { errors } = parseQuizScriptQuestion(source);
+    expect(errors.some((e) => /only applies to character_input/.test(e.message))).toBe(true);
+  });
+
+  it('case_sensitive applies to both typed and character_input, but not choice', () => {
+    const typedSource = ['typed: q', '{', '=a', '}', ':case_sensitive=true'].join('\n');
+    expect(parseQuizScriptQuestion(typedSource).errors).toEqual([]);
+
+    const ciSource = ['character_input: q', '{', '=a', '}', ':case_sensitive=true'].join('\n');
+    expect(parseQuizScriptQuestion(ciSource).errors).toEqual([]);
+
+    const choiceSource = ['multiple_choice: q', '{', '=a', '~b', '}', ':case_sensitive=true'].join(
+      '\n'
+    );
+    expect(
+      parseQuizScriptQuestion(choiceSource).errors.some((e) =>
+        /only applies to typed\/character_input/.test(e.message)
+      )
+    ).toBe(true);
+  });
+});
+
 describe('serializeQuizScriptQuestion round-trips through parseQuizScriptQuestion', () => {
   const cases = [
     [
@@ -286,6 +356,18 @@ describe('serializeQuizScriptQuestion round-trips through parseQuizScriptQuestio
     [
       'typed with settings',
       ['typed: Capital of France?', '{', '=Paris', '}', ':fuzzy_tolerance=15'].join('\n')
+    ],
+    [
+      'character_input with bracket pre-reveal and settings',
+      [
+        'character_input: Capital of France?',
+        '{',
+        '=[P]a[r]is',
+        '}',
+        ':letter_bank=alphabet',
+        ':reveal_mode=sequence',
+        ':penalty=-1'
+      ].join('\n')
     ],
     ['weighted options', ['Pick', '{', '=Four %4%', '~Five %-1%', '}'].join('\n')]
   ] as const;

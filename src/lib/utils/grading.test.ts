@@ -3,7 +3,14 @@ import type { QuizScriptOption, QuizScriptQuestion, QuizScriptSettings } from '.
 import {
   blankDraft,
   boxAnswer,
+  characterInputLetterBank,
+  characterInputLetterFullyRevealed,
+  characterInputLetterInAnswer,
+  characterInputNormalizeGuess,
+  characterInputPrerevealedPositions,
+  characterInputRevealPositionsAfterGuess,
   effectivePoints,
+  gradeCharacterInputQuestion,
   gradeDraft,
   gradeQuestion,
   gradeRun,
@@ -14,6 +21,7 @@ import {
   matchTypedGuesses,
   normalizeTypedAnswer,
   questionMaxPoints,
+  resolveExtraPrereveal,
   settingBoolean,
   settingNumber,
   settingString,
@@ -25,6 +33,10 @@ import {
 
 function textOption(text: string, correct: boolean, points?: number): QuizScriptOption {
   return { content: { kind: 'text', text }, correct, points };
+}
+
+function characterInputOption(text: string, prerevealed?: number[]): QuizScriptOption {
+  return { content: { kind: 'text', text }, correct: true, prerevealed };
 }
 
 function makeQuestion(overrides: Partial<QuizScriptQuestion> = {}): QuizScriptQuestion {
@@ -268,6 +280,173 @@ describe('boxAnswer', () => {
   });
 });
 
+describe('gradeCharacterInputQuestion', () => {
+  it('a bracket-pre-revealed letter counts toward neither earned nor max', () => {
+    // "Paris" -> distinct letters p,a,r,i,s (5), minus pre-revealed "p" -> 4 guessable.
+    const q = makeQuestion({
+      variant: 'character_input',
+      options: [characterInputOption('Paris', [0])]
+    });
+    const result = gradeCharacterInputQuestion(q, blankDraft());
+    expect(result).toEqual({ earned: 0, max: 4 });
+  });
+
+  it('awards point once per distinct correctly-guessed letter, not per occurrence', () => {
+    // "letter" -> distinct guessable letters l,e,t,r (4); "e" appears twice.
+    const q = makeQuestion({
+      variant: 'character_input',
+      options: [characterInputOption('letter')]
+    });
+    const draft = { ...blankDraft(), guessedLetters: new Map([['e', 'correct' as const]]) };
+    expect(gradeCharacterInputQuestion(q, draft)).toEqual({ earned: 1, max: 4 });
+  });
+
+  it('applies penalty per wrong guess', () => {
+    const q = makeQuestion({
+      variant: 'character_input',
+      options: [characterInputOption('cat')],
+      settings: { penalty: -2 }
+    });
+    const draft = {
+      ...blankDraft(),
+      guessedLetters: new Map([
+        ['c', 'correct' as const],
+        ['x', 'wrong' as const]
+      ])
+    };
+    expect(gradeCharacterInputQuestion(q, draft)).toEqual({ earned: 1 - 2, max: 3 });
+  });
+
+  it('non-letter characters are never guessable and never counted', () => {
+    const q = makeQuestion({
+      variant: 'character_input',
+      options: [characterInputOption('new york')]
+    });
+    // distinct guessable letters: n,e,w,y,o,r,k -> 7 (the space is excluded).
+    expect(gradeCharacterInputQuestion(q, blankDraft()).max).toBe(7);
+  });
+
+  it("extraPrerevealed (prereveal_count's resolved picks) also excludes from earned/max", () => {
+    const q = makeQuestion({ variant: 'character_input', options: [characterInputOption('cat')] });
+    const draft = { ...blankDraft(), extraPrerevealed: new Set([0]) }; // pre-reveals "c"
+    expect(gradeCharacterInputQuestion(q, draft).max).toBe(2); // a, t only
+  });
+});
+
+describe('characterInputLetterInAnswer / characterInputNormalizeGuess', () => {
+  it('is case-insensitive by default', () => {
+    const q = makeQuestion({
+      variant: 'character_input',
+      options: [characterInputOption('Paris')]
+    });
+    expect(characterInputLetterInAnswer(q, 'P')).toBe(true);
+    expect(characterInputLetterInAnswer(q, 'p')).toBe(true);
+    expect(characterInputLetterInAnswer(q, 'z')).toBe(false);
+  });
+
+  it('respects case_sensitive', () => {
+    const q = makeQuestion({
+      variant: 'character_input',
+      options: [characterInputOption('Paris')],
+      settings: { case_sensitive: true }
+    });
+    expect(characterInputLetterInAnswer(q, 'P')).toBe(true);
+    expect(characterInputLetterInAnswer(q, 'p')).toBe(false);
+    expect(characterInputNormalizeGuess(q, 'P')).toBe('P');
+  });
+});
+
+describe('characterInputLetterBank', () => {
+  it('alphabet mode (default) offers the full a-z', () => {
+    const q = makeQuestion({ variant: 'character_input', options: [characterInputOption('cat')] });
+    expect(characterInputLetterBank(q)).toHaveLength(26);
+  });
+
+  it('fixed mode offers exactly the configured letters', () => {
+    const q = makeQuestion({
+      variant: 'character_input',
+      options: [characterInputOption('cat')],
+      settings: { letter_bank: 'fixed', letter_bank_chars: 'cta' }
+    });
+    expect(characterInputLetterBank(q)).toEqual(['a', 'c', 't']);
+  });
+
+  it('auto mode includes every answer letter plus some decoys not in the answer', () => {
+    const q = makeQuestion({
+      variant: 'character_input',
+      options: [characterInputOption('cat')],
+      settings: { letter_bank: 'auto' }
+    });
+    const bank = characterInputLetterBank(q);
+    expect(bank).toEqual(expect.arrayContaining(['a', 'c', 't']));
+    expect(bank.length).toBeGreaterThan(3); // real letters plus at least one decoy
+    expect(bank.length).toBeLessThan(26);
+  });
+});
+
+describe('characterInputRevealPositionsAfterGuess / characterInputLetterFullyRevealed', () => {
+  it('reveal_mode=all reveals every occurrence at once', () => {
+    const q = makeQuestion({
+      variant: 'character_input',
+      options: [characterInputOption('letter')]
+    });
+    const revealed = characterInputRevealPositionsAfterGuess(q, new Set(), 'e');
+    expect(revealed).toEqual(new Set([1, 4])); // "letter" -> e at indices 1 and 4
+    expect(characterInputLetterFullyRevealed(q, revealed, 'e')).toBe(true);
+  });
+
+  it('reveal_mode=sequence reveals one occurrence per guess, in order', () => {
+    const q = makeQuestion({
+      variant: 'character_input',
+      options: [characterInputOption('letter')],
+      settings: { reveal_mode: 'sequence' }
+    });
+    const first = characterInputRevealPositionsAfterGuess(q, new Set(), 'e');
+    expect(first).toEqual(new Set([1]));
+    expect(characterInputLetterFullyRevealed(q, first, 'e')).toBe(false);
+    const second = characterInputRevealPositionsAfterGuess(q, first, 'e');
+    expect(second).toEqual(new Set([1, 4]));
+    expect(characterInputLetterFullyRevealed(q, second, 'e')).toBe(true);
+  });
+
+  it('is a no-op once every occurrence is already revealed', () => {
+    const q = makeQuestion({ variant: 'character_input', options: [characterInputOption('cat')] });
+    const revealed = new Set([0]);
+    expect(characterInputRevealPositionsAfterGuess(q, revealed, 'c')).toEqual(revealed);
+  });
+});
+
+describe('characterInputPrerevealedPositions', () => {
+  it('unions explicit bracket positions with the resolved extra pre-reveal set', () => {
+    const q = makeQuestion({
+      variant: 'character_input',
+      options: [characterInputOption('Paris', [0])]
+    });
+    expect(characterInputPrerevealedPositions(q, new Set([2]))).toEqual(new Set([0, 2]));
+  });
+});
+
+describe('resolveExtraPrereveal', () => {
+  it('resolves exactly prereveal_count positions, excluding bracket-marked ones', () => {
+    const q = makeQuestion({
+      variant: 'character_input',
+      options: [characterInputOption('Paris', [0])],
+      settings: { prereveal_count: 2 }
+    });
+    const extra = resolveExtraPrereveal(q);
+    expect(extra.size).toBe(2);
+    expect(extra.has(0)).toBe(false); // already bracket-marked, never re-picked
+  });
+
+  it('defaults to nothing when prereveal_count is not set', () => {
+    const q = makeQuestion({
+      variant: 'character_input',
+      options: [characterInputOption('Paris')]
+    });
+    expect(resolveExtraPrereveal(q).size).toBe(0);
+  });
+});
+
 describe('isDraftComplete', () => {
   it('a choice draft is complete once min_answers selections are made', () => {
     const q = makeQuestion({ settings: { min_answers: 1 } });
@@ -290,6 +469,11 @@ describe('isDraftComplete', () => {
     expect(isDraftComplete(q, { ...blankDraft(), boxChars: ['a', ''] })).toBe(false);
     expect(isDraftComplete(q, { ...blankDraft(), boxChars: ['a', 'b'] })).toBe(true);
   });
+
+  it('a character_input draft is always complete — submittable at any point, like giving up mid-Hangman', () => {
+    const q = makeQuestion({ variant: 'character_input', options: [characterInputOption('cat')] });
+    expect(isDraftComplete(q, blankDraft())).toBe(true);
+  });
 });
 
 describe('gradeDraft / questionMaxPoints', () => {
@@ -303,6 +487,15 @@ describe('gradeDraft / questionMaxPoints', () => {
     const typedResult = gradeDraft(typedQ, { ...blankDraft(), typedSingleAnswer: 'paris' });
     expect(typedResult.result).toEqual({ earned: 2, max: 2 });
     expect(typedResult.answer.kind).toBe('typed');
+
+    const characterInputQ = makeQuestion({
+      variant: 'character_input',
+      options: [characterInputOption('cat')]
+    });
+    const ciDraft = { ...blankDraft(), guessedLetters: new Map([['c', 'correct' as const]]) };
+    const ciResult = gradeDraft(characterInputQ, ciDraft);
+    expect(ciResult.result).toEqual({ earned: 1, max: 3 });
+    expect(ciResult.answer.kind).toBe('character_input');
   });
 
   it("questionMaxPoints matches a blank draft's max", () => {

@@ -13,7 +13,7 @@ tags: [geography, capitals, easy]
 :shuffle_questions=true
 ---
 
-choice: What is the capital of France?
+single_choice: What is the capital of France?
 {
 =Paris
 ~London
@@ -67,16 +67,27 @@ Each question is one blank-line-separated block. Only the question's **text** an
 Two ways to declare a question's type, both equivalent:
 
 ```
-choice: What is H2O?
+single_choice: What is H2O?
 ```
 
 ```
-variant : choice
+variant : single_choice
 What is H2O?
 ```
 
-Recognized variants: `choice` (pick one or more of several options) and `typed` (type a free-text
-answer). Omitting a variant entirely defaults to plain multiple-choice, same as `choice`.
+Recognized variants:
+
+- **`single_choice`** — pick exactly one option. Exactly one `=` is required; more than one is a
+  parse error. Always renders as a radio group.
+- **`multiple_choice`** — pick one or more options. Any number of `=` (one or more). Always
+  renders as checkboxes.
+- **`typed`** — type a free-text answer, matched against one or more accepted answers.
+- **`character_input`** — guess a word letter-by-letter from an on-screen bank, Hangman-style —
+  see [Character input](#character-input) below.
+
+Omitting a variant entirely defaults to the same behavior as `multiple_choice`. `choice` is a
+recognized legacy name for `multiple_choice`, kept working for quizzes authored before the
+single/multiple split — new authoring should use the explicit names.
 
 ### Options block
 
@@ -89,8 +100,7 @@ answer). Omitting a variant entirely defaults to plain multiple-choice, same as 
 ```
 
 - Every line starts with `=` (correct/accepted) or `~` (incorrect) — one option per line.
-- Any number of `=` lines is allowed regardless of variant: `choice` covers single-select (one
-  `=`) and multi-select (several `=`) alike.
+- `single_choice` allows at most one `=` line; `multiple_choice` allows any number (one or more).
 - An optional trailing `%N%` sets that option's own point value, overriding the question's
   `point`/`penalty` settings for just that option — e.g. `=Water %4%`, `~Salt %-1%`.
 - An option's content can be an image or video, using the same syntax as question-level media
@@ -99,6 +109,8 @@ answer). Omitting a variant entirely defaults to plain multiple-choice, same as 
   types — the `=`/`~` marker doesn't matter (both are accepted purely for authoring convenience,
   and the parser forces every option `correct: true`). An accepted answer must be plain text — an
   image/video option is a parse error, since matching is always a text comparison.
+- **`character_input` questions**: same as `typed` — one or more plain-text accepted answers,
+  marker ignored, image/video rejected — plus the `[X]` pre-reveal bracket syntax described below.
 
 ### Question-level media
 
@@ -122,27 +134,56 @@ trailing `%N%` is its reveal cost (omit for a free hint). Can be written alongsi
 above the option block, or interspersed among the `=`/`~` lines inside it — either way it's a
 hint for the whole question, never tied to whichever option it's physically next to.
 
+### Character input
+
+`character_input` guesses a single accepted answer letter-by-letter via an on-screen bank —
+Hangman, in other words.
+
+```
+character_input: Guess the capital of France
+{
+=[P]aris
+}
+:letter_bank=alphabet
+:reveal_mode=all
+:penalty=-1
+```
+
+- **`[X]` pre-reveal brackets**: wrap a character in `[ ]` inside the accepted-answer line to
+  reveal it from the start, free of charge — `=[P]aris` pre-reveals "P". Multiple markers are
+  fine: `=[P]a[r]is`. Only meaningful on the first accepted answer (if more than one is given, the
+  rest are just alternate matches, same as `typed`).
+- Only `\p{L}` Unicode letters are ever guessable — spaces, punctuation, and digits in the answer
+  are always shown and never count toward scoring, same as a real Hangman board doesn't ask you to
+  guess the spaces between words.
+- The bank offers a set of letters controlled by `letter_bank` (see the settings table below); the
+  player clicks/taps one to guess it.
+
 ### Per-question settings
 
 Written as `:key=value` lines, before or after the option block.
 
-| Key                 | Type                         | Applies to  | Default  | Meaning                                                                                                          |
-| ------------------- | ---------------------------- | ----------- | -------- | ---------------------------------------------------------------------------------------------------------------- |
-| `point`             | number                       | both        | `1`      | Points for each correct option/answer without its own `%N%`                                                      |
-| `penalty`           | number                       | both        | `0`      | Points deducted for each incorrect option/wrong guess without its own `%N%`                                      |
-| `partial_points`    | boolean                      | both        | `false`  | Award credit for some (not all) correct picks/guesses, instead of requiring an exact match                       |
-| `min_answers`       | number                       | both        | — (none) | Minimum selections/guesses required before submitting                                                            |
-| `max_answers`       | number                       | both        | — (none) | Maximum selections/guesses allowed. `>1` on a `typed` question enables multi-guess mode                          |
-| `option_display`    | `list` \| `grid`             | choice only | `list`   | Option layout                                                                                                    |
-| `shuffle`           | boolean                      | choice only | `false`  | Randomize this question's option order each run                                                                  |
-| `difficulty`        | `easy` \| `medium` \| `hard` | both        | —        | Informational only, doesn't affect grading                                                                       |
-| `case_sensitive`    | boolean                      | typed only  | `false`  | Require exact letter case                                                                                        |
-| `numeric_tolerance` | number                       | typed only  | — (off)  | Allowed absolute numeric difference (e.g. `0.5` lets "3.5" match "3"). Mutually exclusive with `fuzzy_tolerance` |
-| `fuzzy_tolerance`   | number                       | typed only  | — (off)  | Allowed typos as % of answer length (edit distance). Mutually exclusive with `numeric_tolerance`                 |
-| `input_display`     | `text` \| `boxes`            | typed only  | `text`   | Plain text box vs. one box per character                                                                         |
+| Key                 | Type                            | Applies to             | Default    | Meaning                                                                                                                                                                                     |
+| ------------------- | ------------------------------- | ---------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `point`             | number                          | all                    | `1`        | Points for each correct option/answer/letter without its own `%N%`                                                                                                                          |
+| `penalty`           | number                          | all                    | `0`        | Points deducted for each incorrect option/wrong guess without its own `%N%`                                                                                                                 |
+| `partial_points`    | boolean                         | choice, typed          | `false`    | Award credit for some (not all) correct picks/guesses, instead of requiring an exact match                                                                                                  |
+| `min_answers`       | number                          | choice, typed          | — (none)   | Minimum selections/guesses required before submitting                                                                                                                                       |
+| `max_answers`       | number                          | choice, typed          | — (none)   | Maximum selections/guesses allowed. `>1` on a `typed` question enables multi-guess mode                                                                                                     |
+| `option_display`    | `list` \| `grid`                | choice only            | `list`     | Option layout                                                                                                                                                                               |
+| `shuffle`           | boolean                         | choice only            | `false`    | Randomize this question's option order each run                                                                                                                                             |
+| `difficulty`        | `easy` \| `medium` \| `hard`    | all                    | —          | Informational only, doesn't affect grading                                                                                                                                                  |
+| `case_sensitive`    | boolean                         | typed, character_input | `false`    | Require exact letter case                                                                                                                                                                   |
+| `numeric_tolerance` | number                          | typed only             | — (off)    | Allowed absolute numeric difference (e.g. `0.5` lets "3.5" match "3"). Mutually exclusive with `fuzzy_tolerance`                                                                            |
+| `fuzzy_tolerance`   | number                          | typed only             | — (off)    | Allowed typos as % of answer length (edit distance). Mutually exclusive with `numeric_tolerance`                                                                                            |
+| `input_display`     | `text` \| `boxes`               | typed only             | `text`     | Plain text box vs. one box per character                                                                                                                                                    |
+| `letter_bank`       | `alphabet` \| `auto` \| `fixed` | character_input only   | `alphabet` | Which letters appear in the bank. `alphabet`: full A–Z. `auto`: every distinct letter in the answer plus a handful of decoys not in it. `fixed`: exactly the letters in `letter_bank_chars` |
+| `letter_bank_chars` | text                            | character_input only   | —          | The exact letters offered — only read when `letter_bank=fixed`                                                                                                                              |
+| `reveal_mode`       | `all` \| `sequence` \| `random` | character_input only   | `all`      | How a correct guess reveals repeated letters: all occurrences at once, one in reading order per guess, or one random occurrence per guess                                                   |
+| `prereveal_count`   | number                          | character_input only   | `0`        | Extra random characters (beyond any `[X]` brackets) revealed free at the start                                                                                                              |
 
 A setting outside its applicable variant is a parse error, not a silent no-op — e.g. `shuffle` on
-a `typed` question, or `case_sensitive` on a `choice` question.
+a `typed` question, or `letter_bank` on a `choice` question.
 
 ## Scoring
 
@@ -160,6 +201,11 @@ a `typed` question, or `case_sensitive` on a `choice` question.
 - **Typed matching**: always trimmed, accent-folded, and punctuation-stripped before comparing
   (unless `numeric_tolerance` applies, checked first against the untouched values so "3.14" isn't
   corrupted by punctuation-stripping). Case-insensitive unless `case_sensitive=true`.
+- **Character input**: scored per DISTINCT guessable letter, not per occurrence — guessing "e" in
+  a word where it appears three times is one scoring event, regardless of `reveal_mode`. A
+  correctly-guessed letter earns `point`; a wrong guess costs `penalty`. Pre-revealed letters
+  (`[X]` brackets or `prereveal_count`) count toward neither earned nor achievable max — they were
+  free, so they don't inflate either side.
 - **Winning a run**: `points_to_win` (an absolute score) if set, else `percentage_points_to_win`
   (default `75`) against that run's own achievable max.
 
@@ -173,10 +219,12 @@ literal text, bypassing every other special syntax (media, hints, point weights,
 
 Both are equivalent; use whichever reads better for a given piece of content.
 
-## Full example
+## Full examples
 
-Exercises scoring, images, video, and typed matching together — also available in-app via
-Import Qwiz → "Load a sample" → **Advanced Scoring** / **Media & Hints Showcase**.
+Also available in-app via Import Qwiz → "Load a sample".
+
+**Choice/typed scoring** (multi-select partial credit, per-option weights, typed matching) — also
+via "Load a sample" → **Advanced Scoring**:
 
 ```
 ---
@@ -187,7 +235,7 @@ tags: [demo, scoring]
 :points_to_win=15
 ---
 
-choice: Which of these are primary colors? (select all that apply)
+multiple_choice: Which of these are primary colors? (select all that apply)
 :partial_points=true
 {
 =Red %3%
@@ -203,4 +251,24 @@ typed: What is the capital of France? (typo-tolerant)
 =Paris
 =paris
 }
+```
+
+**Character input** (pre-reveal, letter bank, penalty) — also via "Load a sample" →
+**Hangman Challenge**:
+
+```
+---
+title: Hangman Challenge
+description: Guess each word one letter at a time. A wrong guess costs a point.
+category: demo
+tags: [demo, character_input]
+---
+
+character_input: Guess the capital of France (one letter pre-revealed)
+{
+=[P]aris
+}
+:letter_bank=alphabet
+:reveal_mode=all
+:penalty=-1
 ```

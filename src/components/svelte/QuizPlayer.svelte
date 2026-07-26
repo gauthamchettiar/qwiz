@@ -243,8 +243,8 @@
 {/snippet}
 
 <!-- Always the question's own authored order, in a fixed wrapped-chip layout — `option_display`
-     and `shuffle` don't apply to typed questions (see quizScript.ts's CHOICE_ONLY_SETTINGS), so
-     unlike choice's own option rendering, there's no per-question layout or order to honor here. -->
+     and `shuffle` don't apply to typed questions (see quizScript.ts's SETTING_RULES appliesTo),
+     so unlike choice's own option rendering, there's no per-question layout or order to honor here. -->
 {#snippet typedAcceptedAnswers(q: QuizScriptQuestion)}
   <div class="mt-2">
     <p class="text-xs font-medium text-slate-500">Accepted answers</p>

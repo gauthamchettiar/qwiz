@@ -116,10 +116,13 @@
 
   <div class={optionsContainerClass}>
     {#each question.options as option, index (index)}
-      {#if question.variant === 'typed'}
+      {#if question.variant === 'typed' || question.variant === 'character_input'}
         <!-- Every accepted answer is correct by construction (see quizScript.ts) — a
              green/red split here would be uninformative, so this just shows the text and,
-             only when the author actually gave it its own %N% weight, a plain points badge. -->
+             only when the author actually gave it its own %N% weight, a plain points badge.
+             (`option.content.text` is already `[X]`-bracket-stripped by the parser for
+             character_input — see `prerevealed` — so this preview doesn't show which characters
+             are pre-revealed; switch to code mode to see the authored brackets.) -->
         <div
           class="rounded-md border border-slate-200 p-3 {interactive
             ? 'cursor-pointer hover:ring-2 hover:ring-slate-300'

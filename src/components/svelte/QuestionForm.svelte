@@ -19,7 +19,7 @@
   // declaring anything (see KNOWN_VARIANTS in quizScript.ts). "choice" (the pre-split variant)
   // isn't offered either — still parses (see LEGACY_VARIANT_ALIASES), just no longer suggested to
   // new authors. More real variants can be added to this list as they're actually built.
-  const SELECTABLE_VARIANTS = ['single_choice', 'multiple_choice', 'typed'];
+  const SELECTABLE_VARIANTS = ['single_choice', 'multiple_choice', 'typed', 'character_input'];
 
   // "Elements" is one unified list in form mode (image/video/reveal, switchable per row, same
   // idea as quizare's extras editor) even though the underlying data keeps them in two separate
@@ -56,6 +56,18 @@
   // implicitly correct and plain text (see quizScript.ts's parseQuestionBlock), so the options
   // list below renders a simpler row for it: no correct checkbox, no image/video kind picker.
   const isTyped = $derived(variant === 'typed');
+  // character_input's single accepted answer is exactly as plain-text-only as typed's — it just
+  // additionally supports `[X]` pre-reveal bracket markers in that text (see quizScript.ts's
+  // parsePrerevealedText). Deliberately NOT given its own live bracket-stripping input here: doing
+  // that safely would mean re-deriving `prerevealed` on every keystroke without ever going stale
+  // relative to text the author is still mid-edit on, which risks silently corrupting an existing
+  // pre-reveal position into pointing at the wrong character. Authoring/editing `[X]` markers is a
+  // code-mode-only affordance for now — a known, deliberate form-mode gap, same category as the
+  // few other things (e.g. escaping option text starting with "=") this app's own form mode
+  // already accepts not covering, per QuestionForm's original design intent.
+  const isCharacterInput = $derived(variant === 'character_input');
+  // Both variants get the same simplified "one plain-text row per accepted answer" treatment.
+  const usesAnswerRows = $derived(isTyped || isCharacterInput);
   // A single_choice question's "correct" marker renders as a radio group instead of independent
   // checkboxes, so an author can't accidentally mark two options correct in form mode in the
   // first place — code mode still catches it via formErrors below either way, but this avoids the
@@ -164,7 +176,7 @@
       {
         _key: crypto.randomUUID(),
         content: { kind: 'text', text: '' },
-        correct: isTyped,
+        correct: usesAnswerRows,
         points: ''
       }
     ];
@@ -370,14 +382,18 @@
   </div>
 
   <div class="space-y-1.5">
-    <p class="text-xs font-medium text-slate-500">{isTyped ? 'Accepted answers' : 'Options'}</p>
+    <p class="text-xs font-medium text-slate-500">
+      {usesAnswerRows ? 'Accepted answers' : 'Options'}
+    </p>
     {#each options as option, index (option._key)}
       <div class="flex items-center gap-1.5">
-        {#if isTyped}
+        {#if usesAnswerRows}
           <input
             bind:this={optionRefs[index]}
             class="flex-1 rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
-            placeholder="Accepted answer"
+            placeholder={isCharacterInput
+              ? 'Answer (code mode for [x] pre-reveal)'
+              : 'Accepted answer'}
             value={option.content.kind === 'text' ? option.content.text : ''}
             oninput={(e) => setTypedAnswerText(option._key, e.currentTarget.value)}
           />
@@ -462,7 +478,7 @@
           type="button"
           class="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100"
           onclick={() => removeOption(option._key)}
-          aria-label={isTyped ? 'Remove accepted answer' : 'Remove option'}
+          aria-label={usesAnswerRows ? 'Remove accepted answer' : 'Remove option'}
         >
           <X size={13} />
         </button>
@@ -474,7 +490,7 @@
       onclick={addOption}
     >
       <Plus size={13} />
-      {isTyped ? 'Add accepted answer' : 'Add option'}
+      {usesAnswerRows ? 'Add accepted answer' : 'Add option'}
     </button>
   </div>
 

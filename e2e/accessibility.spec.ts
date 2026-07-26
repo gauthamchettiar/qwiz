@@ -1,5 +1,5 @@
 import { test } from '@playwright/test';
-import { buildQuiz } from './fixtures/quizzes';
+import { buildCharacterInputQuiz, buildQuiz } from './fixtures/quizzes';
 import { expectNoSeriousA11yViolations } from './utils/a11y';
 import { resetStorage, seedQuizzes } from './utils/storage';
 
@@ -26,6 +26,15 @@ test('the create-quiz builder has no serious accessibility violations', async ({
 
 test('the play screen has no serious accessibility violations', async ({ page }) => {
   const quiz = buildQuiz();
+  await seedQuizzes(page, [quiz]);
+  await page.goto(`/local/play?id=${quiz.id}`);
+  await expectNoSeriousA11yViolations(page);
+});
+
+test('a character_input question (letter bank + answer row) has no serious accessibility violations', async ({
+  page
+}) => {
+  const quiz = buildCharacterInputQuiz();
   await seedQuizzes(page, [quiz]);
   await page.goto(`/local/play?id=${quiz.id}`);
   await expectNoSeriousA11yViolations(page);
