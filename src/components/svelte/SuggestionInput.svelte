@@ -19,7 +19,12 @@
 
   let show = $state(false);
   let highlight = $state(-1);
-  let dropdownEl: HTMLDivElement | undefined;
+  let dropdownEl: HTMLDivElement | undefined = $state();
+  // One stable id per component instance (there's one of these per settings row) for the
+  // combobox/listbox aria-controls relationship below — `$props.id()` is unique per mount and
+  // stable for its lifetime, so a fresh one per instance is exactly what's needed here.
+  const instanceId = $props.id();
+  const listboxId = `${instanceId}-listbox`;
 
   const options = $derived(suggestions.filter((s) => s.includes(value.trim().toLowerCase())));
 
@@ -67,6 +72,7 @@
     autocomplete="off"
     role="combobox"
     aria-expanded={show && options.length > 0}
+    aria-controls={listboxId}
     bind:value
     oninput={() => oninput?.()}
     onfocus={() => (show = true)}
@@ -76,6 +82,7 @@
   {#if show && options.length > 0}
     <div
       bind:this={dropdownEl}
+      id={listboxId}
       role="listbox"
       class="absolute inset-x-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-md border border-slate-200 bg-white py-1 shadow-md"
     >

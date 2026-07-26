@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import { CircleCheck, CircleX, Video, Eye } from '@lucide/svelte';
   import type { QuizScriptOption, QuizScriptQuestion } from '@/lib/utils/quizScript';
   import type { FocusTarget } from '@/lib/utils/questionFocus';
@@ -32,6 +33,29 @@
   }
 </script>
 
+<!-- Shared wrapper for every focusable preview row below — two fully separate static branches
+     (rather than one div with a conditional role/tabindex) so Svelte's a11y check can actually
+     see that a nonnegative tabindex only ever appears together with role="button", instead of
+     conservatively flagging a div whose role and tabindex are each independently conditional on
+     the same `interactive` flag but written as two separate ternaries. -->
+{#snippet focusableRow(extraClass: string, onActivate: () => void, children: Snippet)}
+  {#if interactive}
+    <div
+      class="{extraClass} cursor-pointer hover:ring-2 hover:ring-slate-300"
+      role="button"
+      tabindex="0"
+      onclick={onActivate}
+      onkeydown={(e) => e.key === 'Enter' && onActivate()}
+    >
+      {@render children()}
+    </div>
+  {:else}
+    <div class={extraClass}>
+      {@render children()}
+    </div>
+  {/if}
+{/snippet}
+
 <div class="space-y-3">
   {#if question.variant !== 'question'}
     <span
@@ -42,15 +66,10 @@
   {/if}
 
   {#if question.text || question.media.length === 0}
-    <div
-      class="rounded-md p-2 {interactive ? 'cursor-pointer hover:ring-2 hover:ring-slate-300' : ''}"
-      role={interactive ? 'button' : undefined}
-      tabindex={interactive ? 0 : undefined}
-      onclick={() => onFocus?.({ field: 'text' })}
-      onkeydown={(e) => e.key === 'Enter' && onFocus?.({ field: 'text' })}
-    >
+    {#snippet textRow()}
       <p class="whitespace-pre-wrap text-slate-900">{question.text || 'Untitled question'}</p>
-    </div>
+    {/snippet}
+    {@render focusableRow('rounded-md p-2', () => onFocus?.({ field: 'text' }), textRow)}
   {/if}
 
   {#snippet mediaBlock(
@@ -76,27 +95,14 @@
   {/snippet}
 
   {#each question.media as media, index (index)}
-    <div
-      class="rounded-md p-2 {interactive ? 'cursor-pointer hover:ring-2 hover:ring-slate-300' : ''}"
-      role={interactive ? 'button' : undefined}
-      tabindex={interactive ? 0 : undefined}
-      onclick={() => onFocus?.({ field: 'media', index })}
-      onkeydown={(e) => e.key === 'Enter' && onFocus?.({ field: 'media', index })}
-    >
+    {#snippet mediaRow()}
       {@render mediaBlock(media, 'question')}
-    </div>
+    {/snippet}
+    {@render focusableRow('rounded-md p-2', () => onFocus?.({ field: 'media', index }), mediaRow)}
   {/each}
 
   {#each question.extras as extra, index (index)}
-    <div
-      class="rounded-md border border-dashed border-slate-300 bg-slate-50 p-2 {interactive
-        ? 'cursor-pointer hover:ring-2 hover:ring-slate-300'
-        : ''}"
-      role={interactive ? 'button' : undefined}
-      tabindex={interactive ? 0 : undefined}
-      onclick={() => onFocus?.({ field: 'extra', index })}
-      onkeydown={(e) => e.key === 'Enter' && onFocus?.({ field: 'extra', index })}
-    >
+    {#snippet extraRow()}
       <p class="flex items-center gap-1 text-xs font-medium text-slate-500">
         <Eye size={12} />
         {extra.label || 'Hint'}
@@ -111,7 +117,12 @@
           {extra.points >= 0 ? '+' : ''}{extra.points} pts
         </span>
       {/if}
-    </div>
+    {/snippet}
+    {@render focusableRow(
+      'rounded-md border border-dashed border-slate-300 bg-slate-50 p-2',
+      () => onFocus?.({ field: 'extra', index }),
+      extraRow
+    )}
   {/each}
 
   <div class={optionsContainerClass}>
@@ -123,15 +134,7 @@
              (`option.content.text` is already `[X]`-bracket-stripped by the parser for
              character_input — see `prerevealed` — so this preview doesn't show which characters
              are pre-revealed; switch to code mode to see the authored brackets.) -->
-        <div
-          class="rounded-md border border-slate-200 p-3 {interactive
-            ? 'cursor-pointer hover:ring-2 hover:ring-slate-300'
-            : ''}"
-          role={interactive ? 'button' : undefined}
-          tabindex={interactive ? 0 : undefined}
-          onclick={() => onFocus?.({ field: 'option', index })}
-          onkeydown={(e) => e.key === 'Enter' && onFocus?.({ field: 'option', index })}
-        >
+        {#snippet answerOptionRow()}
           {#if option.content.kind === 'text'}
             <p class="text-sm text-slate-900">{option.content.text}</p>
           {:else}
@@ -142,19 +145,14 @@
               {option.points >= 0 ? '+' : ''}{option.points} pts
             </span>
           {/if}
-        </div>
+        {/snippet}
+        {@render focusableRow(
+          'rounded-md border border-slate-200 p-3',
+          () => onFocus?.({ field: 'option', index }),
+          answerOptionRow
+        )}
       {:else}
-        <div
-          class="rounded-md border p-3 {option.correct
-            ? 'border-green-400 border-dashed'
-            : 'border-slate-200'} {interactive
-            ? 'cursor-pointer hover:ring-2 hover:ring-slate-300'
-            : ''}"
-          role={interactive ? 'button' : undefined}
-          tabindex={interactive ? 0 : undefined}
-          onclick={() => onFocus?.({ field: 'option', index })}
-          onkeydown={(e) => e.key === 'Enter' && onFocus?.({ field: 'option', index })}
-        >
+        {#snippet choiceOptionRow()}
           {#if option.content.kind === 'text'}
             <p class="text-sm text-slate-900">{option.content.text}</p>
           {:else}
@@ -171,26 +169,28 @@
               {pointsLabel(option)}
             </span>
           {/if}
-        </div>
+        {/snippet}
+        {@render focusableRow(
+          `rounded-md border p-3 ${option.correct ? 'border-green-400 border-dashed' : 'border-slate-200'}`,
+          () => onFocus?.({ field: 'option', index }),
+          choiceOptionRow
+        )}
       {/if}
     {/each}
   </div>
 
   {#if settingsEntries.length > 0}
-    <div
-      class="flex flex-wrap items-center gap-1.5 rounded-md p-2 {interactive
-        ? 'cursor-pointer hover:ring-2 hover:ring-slate-300'
-        : ''}"
-      role={interactive ? 'button' : undefined}
-      tabindex={interactive ? 0 : undefined}
-      onclick={() => onFocus?.({ field: 'settings' })}
-      onkeydown={(e) => e.key === 'Enter' && onFocus?.({ field: 'settings' })}
-    >
+    {#snippet settingsRow()}
       {#each settingsEntries as [key, value] (key)}
         <span class="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600"
           >{key}: {String(value)}</span
         >
       {/each}
-    </div>
+    {/snippet}
+    {@render focusableRow(
+      'flex flex-wrap items-center gap-1.5 rounded-md p-2',
+      () => onFocus?.({ field: 'settings' }),
+      settingsRow
+    )}
   {/if}
 </div>

@@ -96,8 +96,12 @@
   let showTagDropdown = $state(false);
   let categoryHighlight = $state(-1);
   let tagHighlight = $state(-1);
-  let categoryDropdownEl: HTMLDivElement | undefined;
-  let tagDropdownEl: HTMLDivElement | undefined;
+  let categoryDropdownEl: HTMLDivElement | undefined = $state();
+  let tagDropdownEl: HTMLDivElement | undefined = $state();
+  // One stable id per mount for each combobox/listbox aria-controls relationship below.
+  const instanceId = $props.id();
+  const categoryListboxId = `${instanceId}-category-listbox`;
+  const tagListboxId = `${instanceId}-tag-listbox`;
 
   const categoryDropdownOptions = $derived(
     categoryPool.filter((c) => c.includes(category.trim().toLowerCase()))
@@ -599,6 +603,7 @@
               autocomplete="off"
               role="combobox"
               aria-expanded={showCategoryDropdown && categoryDropdownOptions.length > 0}
+              aria-controls={categoryListboxId}
               bind:value={category}
               onfocus={() => (showCategoryDropdown = true)}
               onblur={() => (showCategoryDropdown = false)}
@@ -607,6 +612,7 @@
             {#if showCategoryDropdown && categoryDropdownOptions.length > 0}
               <div
                 bind:this={categoryDropdownEl}
+                id={categoryListboxId}
                 role="listbox"
                 class="absolute inset-x-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-md border border-slate-200 bg-white py-1 shadow-md"
               >
@@ -657,6 +663,7 @@
               autocomplete="off"
               role="combobox"
               aria-expanded={showTagDropdown && tagDropdownOptions.length > 0}
+              aria-controls={tagListboxId}
               bind:value={tagDraft}
               onfocus={() => (showTagDropdown = true)}
               onkeydown={onTagKeydown}
@@ -668,6 +675,7 @@
             {#if showTagDropdown && tagDropdownOptions.length > 0}
               <div
                 bind:this={tagDropdownEl}
+                id={tagListboxId}
                 role="listbox"
                 class="absolute inset-x-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-md border border-slate-200 bg-white py-1 shadow-md"
               >

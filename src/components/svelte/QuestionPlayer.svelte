@@ -64,7 +64,15 @@
   const isTyped = $derived(question.variant === 'typed');
   const isCharacterInput = $derived(question.variant === 'character_input');
 
-  const seed = initialDraft ?? blankDraft();
+  // Deliberately captured once, not `$derived` — this component expects a fresh mount per
+  // question (see the doc comment above `$props()`), so `initialDraft` is only ever read at
+  // creation. Routed through a function, same reasoning as `runExtraPrereveal`/
+  // `runRevealedPositions` below: Svelte's `state_referenced_locally` check flags a reactive
+  // prop read directly into a plain `const`, since that's usually a missed `$derived`.
+  function initialSeed(): QuestionDraft {
+    return initialDraft ?? blankDraft();
+  }
+  const seed = initialSeed();
   let selected = $state<Set<number>>(new Set(seed.selected));
   let revealedHints = $state<Set<number>>(new Set(seed.revealed));
   let typedSingleAnswer = $state(seed.typedSingleAnswer);
