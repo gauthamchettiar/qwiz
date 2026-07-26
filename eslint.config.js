@@ -8,7 +8,17 @@ import globals from 'globals';
 import prettier from 'eslint-config-prettier';
 
 export default defineConfig(
-  { ignores: ['dist/**', '.astro/**', 'node_modules/**', 'pnpm-lock.yaml'] },
+  {
+    ignores: [
+      'dist/**',
+      '.astro/**',
+      'node_modules/**',
+      'pnpm-lock.yaml',
+      'coverage/**',
+      'test-results/**',
+      'playwright-report/**'
+    ]
+  },
 
   js.configs.recommended,
   ...tseslint.configs.recommended,

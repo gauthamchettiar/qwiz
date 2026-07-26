@@ -305,6 +305,17 @@ during Astro's build on modern Node.
 
 Run: `pnpm test` (once) / `pnpm test:watch`.
 
+**Coverage gate**: `pnpm test:coverage` runs the same suite with `@vitest/coverage-v8`, scoped to
+`src/lib/**` only (`vitest.config.ts`'s `coverage.include` — Svelte components are intentionally
+excluded, since they're covered by e2e instead, not unit tests). `coverage.thresholds` enforces
+80% on statements/branches/functions/lines; Vitest exits non-zero if any metric falls short, which
+is what makes this an actual gate rather than a number nobody looks at. CI's `unit` job runs
+`pnpm test:coverage`, not plain `pnpm test`, so a coverage regression fails the build same as a
+failing test. Current numbers sit around 88% — `sampleQuizzes.ts` (static data, nothing to cover)
+and `clickOutside.ts`/`suggestions.ts` (untested but real logic) are the only files at 0%, and
+don't threaten the aggregate; `download.ts`'s `downloadTextFile` is deliberately excluded from
+unit coverage since it's a browser-side-effect function (Blob/DOM), covered by e2e instead.
+
 ### E2E tests (Playwright) — `e2e/`
 
 The primary contract for user-visible behavior. Config (`playwright.config.ts`):
@@ -379,7 +390,7 @@ The one thing genuinely under test — authoring — is always driven through th
 `.github/workflows/ci.yml`, triggered on push to `main` and on every PR:
 
 1. **verify** — `astro check` (types), `eslint .`, `prettier --check .`
-2. **unit** — `pnpm test` (Vitest)
+2. **unit** — `pnpm test:coverage` (Vitest, enforcing the 80% coverage gate — see §7)
 3. **build** — `astro build`, uploads `dist/` as an artifact
 4. **e2e** — depends on `build`; downloads its `dist/` artifact (never rebuilds), installs
    Playwright browsers (cached by lockfile hash), runs the full 4-project suite; uploads
@@ -426,6 +437,7 @@ pnpm format            # prettier --write .
 pnpm format:check      # prettier --check .
 pnpm test              # vitest run
 pnpm test:watch        # vitest (watch mode)
+pnpm test:coverage      # vitest run --coverage — enforces the 80% gate, see §7
 pnpm test:e2e           # playwright test
 pnpm test:e2e:ui        # playwright test --ui  (debugging)
 ```
