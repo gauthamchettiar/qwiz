@@ -8,7 +8,8 @@
     ChevronLeft,
     RotateCcw,
     Trophy,
-    ListChecks
+    ListChecks,
+    Timer
   } from '@lucide/svelte';
   import {
     parseQuizScriptQuestion,
@@ -18,11 +19,13 @@
   import {
     blankDraft,
     buildPlayRun,
+    choiceOptionsLayoutClass,
     gradeDraft,
     gradeRun,
     isDraftComplete,
     matchTypedGuesses,
     questionMaxPoints,
+    settingNumber,
     settingString,
     typedSingleAnswerMatches,
     type AnswerRecord,
@@ -33,8 +36,18 @@
   import { extractYoutubeId } from '@/lib/utils/youtube';
   import type { Quiz } from '@/lib/schemas/quiz';
   import QuestionPlayer from './QuestionPlayer.svelte';
+  import Dialog from './Dialog.svelte';
+  import Button from './Button.svelte';
 
   let { quiz }: { quiz: Quiz } = $props();
+
+  /** "M:SS" for any of this component's three countdowns — seconds alone would get unreadable
+   * past a minute or two, which a `timer_duration` easily is. */
+  function formatSeconds(totalSeconds: number): string {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  }
 
   function startNewRun(): PlayQuestion[] {
     const parsed = quiz.questions.map((q) => parseQuizScriptQuestion(q.code).question);
@@ -134,24 +147,30 @@
   const currentDraft = $derived(draftAnswers[currentIndex] ?? blankDraft());
   const canSubmit = $derived(current ? isDraftComplete(current.question, currentDraft) : false);
 
-  // Same auto-grid-vs-list rule QuestionView uses in the authoring form, so a quiz plays back
-  // laid out the same way it was authored. A plain function (not a $derived off `current`) since
-  // the Review screen needs this per-question for every question in the run, not just the live one.
-  function optionsLayoutClass(question: QuizScriptQuestion): string {
-    return question.settings.option_display === 'grid'
-      ? question.options.length <= 4
-        ? 'grid grid-cols-2 gap-2'
-        : 'grid grid-cols-2 sm:grid-cols-3 gap-2'
-      : 'space-y-2';
-  }
-
   function handleDraftChange(draft: QuestionDraft) {
     draftAnswers[currentIndex] = draft;
   }
 
-  function submitAnswer() {
-    if (!current || locked || !canSubmit) return;
-    const { result, answer } = gradeDraft(current.question, currentDraft);
+  // `<QuestionPlayer>` is keyed on `currentIndex` alone (see the template) and owns its own
+  // internal draft state once mounted — it never re-reads its `draft` prop after mount (see its
+  // own doc comment on why). `timer_timeout_action=lock_zero` grades a *different*, blank draft
+  // than whatever QuestionPlayer's own internal state actually has selected, so without forcing a
+  // remount, its reveal screen would keep showing the player's real (ignored-for-scoring)
+  // selection instead of the "nothing, zero credit" this setting is supposed to display. Bumped
+  // every commit — a no-op visually for the normal path (the remounted draft is identical, since
+  // `draftAnswers[currentIndex]` was already kept live in sync via `handleDraftChange`), and the
+  // fix for lock_zero.
+  let questionResetNonce = $state(0);
+
+  /** Grades `draft` against the current question and locks it in — shared by the manual Submit
+   * button (which only ever calls this once `canSubmit` is true) and a per_question timer running
+   * out (which calls this regardless of completeness, since a timeout means "stop waiting", not
+   * "wait for a complete answer"). */
+  function commitCurrentAnswer(draft: QuestionDraft) {
+    if (!current || locked) return;
+    draftAnswers[currentIndex] = draft;
+    questionResetNonce += 1;
+    const { result, answer } = gradeDraft(current.question, draft);
     results = [...results, result];
     answers = [...answers, answer];
     if (skipIntermediateScreen) {
@@ -160,6 +179,11 @@
       return;
     }
     locked = true;
+  }
+
+  function submitAnswer() {
+    if (!canSubmit) return;
+    commitCurrentAnswer(currentDraft);
   }
 
   function nextQuestion() {
@@ -200,6 +224,133 @@
     finished = true;
   }
 
+  // `timer_mode`/`timer_duration`/`timer_timeout_action`/`intermediate_screen_duration` — see
+  // QUIZ_SETTING_RULES. `timer_mode=per_question` is only ever set alongside
+  // `locksAnswerImmediately` (enforced at parse time — see quizScript.ts), so the per-question
+  // timer effect below never needs to re-check that itself.
+  const timerMode = $derived(settingString(quiz.settings.timer_mode, 'off'));
+  const timerDuration = $derived(settingNumber(quiz.settings.timer_duration));
+  const timeoutAction = $derived(settingString(quiz.settings.timer_timeout_action, 'auto_submit'));
+  const intermediateScreenDuration = $derived(
+    settingNumber(quiz.settings.intermediate_screen_duration)
+  );
+
+  /** Grades whatever's currently on screen per `timeoutAction` (the real draft for "auto_submit",
+   * a blank one for "lock_zero" — zero credit regardless of any partial selection/input) and locks
+   * it in — called when a per_question timer, or a per_quiz timer with a question still live,
+   * reaches zero. */
+  function timeUpForCurrentQuestion() {
+    commitCurrentAnswer(timeoutAction === 'lock_zero' ? blankDraft() : currentDraft);
+  }
+
+  /** A per_quiz timer running out ends the run immediately, wherever the player currently is. In
+   * `locksAnswerImmediately` mode, the live
+   * question (if any, and not already locked) is graded per `timeoutAction` first; any question
+   * never even reached yet still needs a blank-graded entry so its max keeps counting toward the
+   * run's total instead of silently shrinking it (not reaching a question isn't the same as it not
+   * existing). In deferred ("reveal at end") mode there's no per-question lock concept at all —
+   * every question just grades from whatever's in `draftAnswers`, identical to the manual "Submit
+   * quiz" action. */
+  function endRunDueToTimeout() {
+    if (locksAnswerImmediately) {
+      const finalResults = [...results];
+      const finalAnswers = [...answers];
+      if (current && !locked) {
+        const draft = timeoutAction === 'lock_zero' ? blankDraft() : currentDraft;
+        const { result, answer } = gradeDraft(current.question, draft);
+        finalResults.push(result);
+        finalAnswers.push(answer);
+      }
+      for (let i = finalResults.length; i < run.length; i++) {
+        const { result, answer } = gradeDraft(run[i].question, blankDraft());
+        finalResults.push(result);
+        finalAnswers.push(answer);
+      }
+      results = finalResults;
+      answers = finalAnswers;
+    } else {
+      const graded = run.map((playQuestion, i) =>
+        gradeDraft(playQuestion.question, draftAnswers[i] ?? blankDraft())
+      );
+      results = graded.map((g) => g.result);
+      answers = graded.map((g) => g.answer);
+    }
+    finished = true;
+  }
+
+  // Live countdown while a question is being answered under timer_mode=per_question — resets to
+  // timerDuration every time a fresh question begins (`locked` flips back to false via
+  // `nextQuestion`) and stops ticking the moment it locks (submitted, or timed out) or the run
+  // finishes. `null` whenever this mode isn't active, so the template can tell "no timer" apart
+  // from "timer at 0".
+  let questionSecondsLeft = $state<number | null>(null);
+  $effect(() => {
+    if (timerMode !== 'per_question' || timerDuration === undefined || locked || finished) {
+      questionSecondsLeft = null;
+      return;
+    }
+    questionSecondsLeft = timerDuration;
+    const interval = setInterval(() => {
+      if (questionSecondsLeft === null) return;
+      if (questionSecondsLeft <= 1) {
+        questionSecondsLeft = 0;
+        clearInterval(interval);
+        timeUpForCurrentQuestion();
+      } else {
+        questionSecondsLeft -= 1;
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  });
+
+  // One continuous countdown for the whole run under timer_mode=per_quiz — deliberately NOT reset
+  // per question (that's the entire point of a shared, quiz-wide budget); only resets when a new
+  // run actually starts (`finished` flipping back to false via `playAgain`).
+  let quizSecondsLeft = $state<number | null>(null);
+  $effect(() => {
+    if (timerMode !== 'per_quiz' || timerDuration === undefined || finished) {
+      quizSecondsLeft = null;
+      return;
+    }
+    quizSecondsLeft = timerDuration;
+    const interval = setInterval(() => {
+      if (quizSecondsLeft === null) return;
+      if (quizSecondsLeft <= 1) {
+        quizSecondsLeft = 0;
+        clearInterval(interval);
+        endRunDueToTimeout();
+      } else {
+        quizSecondsLeft -= 1;
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  });
+
+  // The post-answer reveal screen's own auto-advance countdown (intermediate_screen_duration) —
+  // only ticks while genuinely showing that screen (`locked`, which is never true when
+  // `skipIntermediateScreen` short-circuits straight past it) and calls the same `nextQuestion`
+  // the button itself uses once it reaches zero, including on the last question (advancing to
+  // results, exactly like clicking "See results" would).
+  let intermediateSecondsLeft = $state<number | null>(null);
+  $effect(() => {
+    if (intermediateScreenDuration === undefined || !locked || finished) {
+      intermediateSecondsLeft = null;
+      return;
+    }
+    intermediateSecondsLeft = intermediateScreenDuration;
+    const interval = setInterval(() => {
+      if (intermediateSecondsLeft === null) return;
+      if (intermediateSecondsLeft <= 1) {
+        intermediateSecondsLeft = 0;
+        clearInterval(interval);
+        nextQuestion();
+      } else {
+        intermediateSecondsLeft -= 1;
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  });
+
   function playAgain() {
     run = startNewRun();
     currentIndex = 0;
@@ -215,22 +366,70 @@
 
   const summary = $derived(finished ? gradeRun(results, quiz.settings) : null);
 
-  // Warn before leaving an in-progress run — this app has no SSR router, so every way of
-  // "leaving" (the header's logo/nav links, browser back/forward, a typed URL, tab close,
-  // refresh) is a real navigation, which `beforeunload` catches uniformly rather than needing to
-  // separately intercept each one. Re-runs whenever `finished` changes: cleanup removes the
-  // listener before the effect body re-executes, so it's only ever attached while a run is
-  // genuinely still in progress. The confirmation dialog's own text is entirely browser-
-  // controlled — every modern browser ignores a custom message and shows its own generic wording,
-  // by design, so a compromised site can't fake a more alarming/deceptive prompt.
+  let leaveDialog: Dialog;
+  let pendingHref = $state<string | null>(null);
+  // Set by the beforeunload effect below; kept in module scope (not just the effect's own
+  // closure) so `confirmLeave` can remove it synchronously, deterministically, the instant the
+  // player confirms — rather than setting a flag and hoping Svelte's next effect-flush cycle
+  // beats the browser's own navigation timing, which would be a race.
+  let beforeUnloadHandler: ((e: BeforeUnloadEvent) => void) | null = null;
+
+  function cancelLeave() {
+    pendingHref = null;
+    leaveDialog.close();
+  }
+
+  function confirmLeave() {
+    // Without this, confirming here would still trigger the native beforeunload prompt a moment
+    // later when `pendingHref`'s navigation actually starts — a second, redundant "are you sure"
+    // right after the one the player just answered.
+    if (beforeUnloadHandler) window.removeEventListener('beforeunload', beforeUnloadHandler);
+    leaveDialog.close();
+    if (pendingHref) window.location.href = pendingHref;
+  }
+
+  // Intercepts a click on any in-page link while a run is in progress, so leaving via the
+  // header's logo/"+ New Quiz" (or any other same-tab link this page ever grows) shows this
+  // component's own modal instead of only the browser's generic beforeunload prompt below.
+  // Skipped for anything that isn't actually "leaving in this tab right now": modifier/middle
+  // clicks and a non-`_self` target open elsewhere without unloading this page, and a link whose
+  // resolved URL matches the current one isn't going anywhere. Re-runs whenever `finished`
+  // changes, same reasoning as the beforeunload effect below.
+  $effect(() => {
+    if (finished) return;
+    function handleClick(e: MouseEvent) {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
+      const anchor = (e.target as HTMLElement).closest('a');
+      if (!anchor || !anchor.href) return;
+      if (anchor.target && anchor.target !== '_self') return;
+      const url = new URL(anchor.href, window.location.href);
+      if (url.href === window.location.href) return;
+      e.preventDefault();
+      pendingHref = anchor.href;
+      leaveDialog.open();
+    }
+    document.addEventListener('click', handleClick, true);
+    return () => document.removeEventListener('click', handleClick, true);
+  });
+
+  // Fallback for every way of "leaving" a click listener can't intercept before it happens —
+  // browser back/forward, a typed URL, tab close, refresh. There's no web API that swaps in
+  // custom UI for those; `beforeunload` only ever gets the browser's own generic, non-
+  // customizable dialog (by design, so a compromised site can't fake a more alarming prompt).
+  // Re-runs whenever `finished` changes: cleanup removes the listener before the effect body
+  // re-executes, so it's only ever attached while a run is genuinely still in progress.
   $effect(() => {
     if (finished) return;
     function handleBeforeUnload(e: BeforeUnloadEvent) {
       e.preventDefault();
       e.returnValue = '';
     }
+    beforeUnloadHandler = handleBeforeUnload;
     window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      beforeUnloadHandler = null;
+    };
   });
 </script>
 
@@ -372,7 +571,7 @@
       {@render typedReviewNeutral(answer.response)}
     {/if}
   {:else}
-    <div class={optionsLayoutClass(q)}>
+    <div class={choiceOptionsLayoutClass(q)}>
       {#each playQuestion.optionOrder as optionIndex (optionIndex)}
         {@const option = q.options[optionIndex]}
         <div
@@ -492,9 +691,23 @@
   {:else if current}
     <div class="space-y-1">
       <div class="flex items-center justify-between gap-3">
-        <p class="text-xs font-medium text-slate-500">
-          Question {currentIndex + 1} of {run.length}
-        </p>
+        <div class="flex items-center gap-2">
+          <p class="text-xs font-medium text-slate-500">
+            Question {currentIndex + 1} of {run.length}
+          </p>
+          {#if questionSecondsLeft !== null || quizSecondsLeft !== null}
+            {@const secondsLeft = questionSecondsLeft ?? quizSecondsLeft ?? 0}
+            <span
+              class="flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold {secondsLeft <=
+              10
+                ? 'bg-red-100 text-red-700'
+                : 'bg-slate-100 text-slate-600'}"
+            >
+              <Timer size={11} />
+              {formatSeconds(secondsLeft)}
+            </span>
+          {/if}
+        </div>
         {#if showScoreHeader}
           <p class="flex items-center gap-1.5 text-xs font-medium text-slate-500">
             {#if scoreFlash}
@@ -520,7 +733,7 @@
     </div>
 
     <div class="space-y-4 rounded-lg border border-slate-200 bg-white p-6">
-      {#key currentIndex}
+      {#key `${currentIndex}-${questionResetNonce}`}
         <QuestionPlayer
           question={current.question}
           playQuestion={current}
@@ -557,14 +770,22 @@
               Submit answer
             </button>
           {:else}
-            <button
-              type="button"
-              class="flex items-center gap-1.5 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-              onclick={nextQuestion}
-            >
-              {isLast ? 'See results' : 'Next question'}
-              <ChevronRight size={15} />
-            </button>
+            <div class="flex items-center gap-2">
+              {#if intermediateSecondsLeft !== null}
+                <span class="flex items-center gap-1 text-xs font-medium text-slate-500">
+                  <Timer size={12} />
+                  {formatSeconds(intermediateSecondsLeft)}
+                </span>
+              {/if}
+              <button
+                type="button"
+                class="flex items-center gap-1.5 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+                onclick={nextQuestion}
+              >
+                {isLast ? 'See results' : 'Next question'}
+                <ChevronRight size={15} />
+              </button>
+            </div>
           {/if}
         {:else if isLast}
           {#if !confirmingSubmit}
@@ -597,3 +818,15 @@
     </div>
   {/if}
 </div>
+
+<Dialog bind:this={leaveDialog} title="Leave this quiz?">
+  {#snippet body()}
+    <p class="text-sm text-slate-500">
+      Your progress on this run won't be saved. Are you sure you want to leave?
+    </p>
+  {/snippet}
+  {#snippet footer()}
+    <Button size="sm" onclick={cancelLeave}>Stay</Button>
+    <Button size="sm" variant="danger" onclick={confirmLeave}>Leave</Button>
+  {/snippet}
+</Dialog>
