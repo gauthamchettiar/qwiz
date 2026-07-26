@@ -3,6 +3,7 @@
   import { CircleCheck, CircleX, Video, Eye } from '@lucide/svelte';
   import type { QuizScriptOption, QuizScriptQuestion } from '@/lib/utils/quizScript';
   import type { FocusTarget } from '@/lib/utils/questionFocus';
+  import { choiceOptionsLayoutClass } from '@/lib/utils/grading';
 
   // Unlike quizare, which needs a per-type Editor/Preview registry because its question types
   // have genuinely different data shapes, every quizScript question is one unified
@@ -15,17 +16,7 @@
 
   const interactive = $derived(!!onFocus);
   const settingsEntries = $derived(Object.entries(question.settings));
-  // "grid" auto-picks its column count from how many options there are, rather than the author
-  // choosing 2 vs 3 themselves: few options read fine as a 2-wide grid (2x2 at 4), more than that
-  // gets cramped at 2-wide so it steps up to 3 (3x3 at 9). "list" (or the setting being absent)
-  // is the original one-per-row layout.
-  const optionsContainerClass = $derived(
-    question.settings.option_display === 'grid'
-      ? question.options.length <= 4
-        ? 'grid grid-cols-2 gap-2'
-        : 'grid grid-cols-2 sm:grid-cols-3 gap-2'
-      : 'space-y-2'
-  );
+  const optionsContainerClass = $derived(choiceOptionsLayoutClass(question));
 
   function pointsLabel(option: QuizScriptOption): string {
     if (option.points === undefined) return option.correct ? 'Correct' : 'Incorrect';

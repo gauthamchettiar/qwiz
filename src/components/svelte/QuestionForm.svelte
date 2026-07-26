@@ -16,9 +16,8 @@
   import SettingHelp from './SettingHelp.svelte';
 
   // "question" isn't offered here — it's not a real variant, just what a question gets by not
-  // declaring anything (see KNOWN_VARIANTS in quizScript.ts). "choice" (the pre-split variant)
-  // isn't offered either — still parses (see LEGACY_VARIANT_ALIASES), just no longer suggested to
-  // new authors. More real variants can be added to this list as they're actually built.
+  // declaring anything (see KNOWN_VARIANTS in quizScript.ts). More real variants can be added to
+  // this list as they're actually built.
   const SELECTABLE_VARIANTS = ['single_choice', 'multiple_choice', 'typed', 'character_input'];
 
   // "Elements" is one unified list in form mode (image/video/reveal, switchable per row, same

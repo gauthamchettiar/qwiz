@@ -96,6 +96,15 @@ describe('validateSettingValue', () => {
   it('rejects an unrecognized key entirely', () => {
     expect(validateSettingValue('not_a_real_key', '1').error).toMatch(/not a recognized setting/);
   });
+
+  it('accepts option_display=grid2x2 and grid3x3', () => {
+    expect(validateSettingValue('option_display', 'grid2x2')).toEqual({ value: 'grid2x2' });
+    expect(validateSettingValue('option_display', 'grid3x3')).toEqual({ value: 'grid3x3' });
+  });
+
+  it('no longer accepts the old option_display=grid value — no backward-compat alias', () => {
+    expect(validateSettingValue('option_display', 'grid').error).toMatch(/must be one of/);
+  });
 });
 
 describe('suggestedSettingKeysForVariant / settingValueSuggestions', () => {
@@ -138,11 +147,10 @@ describe('parseQuizScriptQuestion', () => {
     }
   });
 
-  it('upgrades the legacy "choice" variant to "multiple_choice" on parse', () => {
-    const source = ['choice: What is H2O?', '{', '=Water', '~Salt', '}'].join('\n');
-    const { question, errors } = parseQuizScriptQuestion(source);
-    expect(errors).toEqual([]);
-    expect(question.variant).toBe('multiple_choice');
+  it('rejects the old pre-split "choice" variant — no backward-compat alias', () => {
+    const source = ['variant : choice', 'What is H2O?', '{', '=Water', '~Salt', '}'].join('\n');
+    const { errors } = parseQuizScriptQuestion(source);
+    expect(errors.some((e) => /Unknown variant "choice"/.test(e.message))).toBe(true);
   });
 
   it('rejects more than one correct option on a single_choice question', () => {
@@ -211,7 +219,34 @@ describe('parseQuizScriptQuestion', () => {
   it('errors when a choice-only setting is used on a typed question', () => {
     const source = ['typed: q', '{', '=a', '}', ':shuffle=true'].join('\n');
     const { errors } = parseQuizScriptQuestion(source);
-    expect(errors.some((e) => /only applies to choice/.test(e.message))).toBe(true);
+    expect(
+      errors.some((e) => /only applies to single_choice\/multiple_choice/.test(e.message))
+    ).toBe(true);
+  });
+
+  it('rejects min_answers/max_answers/partial_points on a single_choice question — it can never have "some but not all" or "more than one" selected', () => {
+    const minSource = ['single_choice: q', '{', '=a', '~b', '}', ':min_answers=1'].join('\n');
+    expect(
+      parseQuizScriptQuestion(minSource).errors.some((e) =>
+        /only applies to multiple_choice\/typed/.test(e.message)
+      )
+    ).toBe(true);
+
+    const maxSource = ['single_choice: q', '{', '=a', '~b', '}', ':max_answers=1'].join('\n');
+    expect(
+      parseQuizScriptQuestion(maxSource).errors.some((e) =>
+        /only applies to multiple_choice\/typed/.test(e.message)
+      )
+    ).toBe(true);
+
+    const partialSource = ['single_choice: q', '{', '=a', '~b', '}', ':partial_points=true'].join(
+      '\n'
+    );
+    expect(
+      parseQuizScriptQuestion(partialSource).errors.some((e) =>
+        /only applies to multiple_choice\/typed/.test(e.message)
+      )
+    ).toBe(true);
   });
 
   it('errors when max_answers is below the number of correct options without partial_points', () => {
@@ -290,7 +325,7 @@ describe('character_input parsing', () => {
     expect(errors.some((e) => /plain text/.test(e.message))).toBe(true);
   });
 
-  it('accepts its own settings (letter_bank, reveal_mode, prereveal_count, letter_bank_chars)', () => {
+  it('accepts its own settings (letter_bank, prereveal_mode, prereveal_count, letter_bank_chars)', () => {
     const source = [
       'character_input: word',
       '{',
@@ -298,7 +333,7 @@ describe('character_input parsing', () => {
       '}',
       ':letter_bank=fixed',
       ':letter_bank_chars=catxyz',
-      ':reveal_mode=sequence',
+      ':prereveal_mode=sequence',
       ':prereveal_count=1'
     ].join('\n');
     const { question, errors } = parseQuizScriptQuestion(source);
@@ -306,7 +341,7 @@ describe('character_input parsing', () => {
     expect(question.settings).toEqual({
       letter_bank: 'fixed',
       letter_bank_chars: 'catxyz',
-      reveal_mode: 'sequence',
+      prereveal_mode: 'sequence',
       prereveal_count: 1
     });
   });
@@ -317,20 +352,13 @@ describe('character_input parsing', () => {
     expect(errors.some((e) => /only applies to character_input/.test(e.message))).toBe(true);
   });
 
-  it('case_sensitive applies to both typed and character_input, but not choice', () => {
+  it('case_sensitive applies to typed only, not character_input — a bank guess has no case to compare', () => {
     const typedSource = ['typed: q', '{', '=a', '}', ':case_sensitive=true'].join('\n');
     expect(parseQuizScriptQuestion(typedSource).errors).toEqual([]);
 
     const ciSource = ['character_input: q', '{', '=a', '}', ':case_sensitive=true'].join('\n');
-    expect(parseQuizScriptQuestion(ciSource).errors).toEqual([]);
-
-    const choiceSource = ['multiple_choice: q', '{', '=a', '~b', '}', ':case_sensitive=true'].join(
-      '\n'
-    );
     expect(
-      parseQuizScriptQuestion(choiceSource).errors.some((e) =>
-        /only applies to typed\/character_input/.test(e.message)
-      )
+      parseQuizScriptQuestion(ciSource).errors.some((e) => /only applies to typed/.test(e.message))
     ).toBe(true);
   });
 });
@@ -371,13 +399,6 @@ describe('setting interactions', () => {
     expect(parseQuizScriptQuestion(source).errors).toEqual([]);
   });
 
-  it('single_choice + partial_points is allowed — a harmless no-op, not an error', () => {
-    // single_choice never has more than one correct option, so there's no "some but not all"
-    // scenario for partial credit to apply to — deliberately not rejected, just meaningless.
-    const source = ['single_choice: q', '{', '=a', '~b', '}', ':partial_points=true'].join('\n');
-    expect(parseQuizScriptQuestion(source).errors).toEqual([]);
-  });
-
   it("points_to_win and percentage_points_to_win can't both be set on the same quiz", () => {
     // points_to_win always wins (see gradeRun) — setting both silently drops the percentage one,
     // which is worth flagging the same way numeric_tolerance/fuzzy_tolerance's conflict is.
@@ -402,6 +423,78 @@ describe('setting interactions', () => {
       ).errors
     ).toEqual([]);
   });
+
+  it('timer_mode=per_question or per_quiz requires timer_duration', () => {
+    for (const mode of ['per_question', 'per_quiz']) {
+      const source = ['---', 'title: T', `:timer_mode=${mode}`, '---'].join('\n');
+      expect(
+        parseQuizScriptFrontmatter(source).errors.some((e) =>
+          /"timer_duration" is required/.test(e.message)
+        )
+      ).toBe(true);
+    }
+  });
+
+  it('timer_mode=per_quiz with timer_duration is fine regardless of reveal_answers/reveal_scores', () => {
+    const source = [
+      '---',
+      'title: T',
+      ':timer_mode=per_quiz',
+      ':timer_duration=60',
+      ':reveal_answers=at_end',
+      ':reveal_scores=at_end',
+      '---'
+    ].join('\n');
+    expect(parseQuizScriptFrontmatter(source).errors).toEqual([]);
+  });
+
+  it('timer_mode=per_question requires reveal_answers or reveal_scores set to after_every_question', () => {
+    const source = [
+      '---',
+      'title: T',
+      ':timer_mode=per_question',
+      ':timer_duration=30',
+      ':reveal_answers=at_end',
+      ':reveal_scores=at_end',
+      '---'
+    ].join('\n');
+    expect(
+      parseQuizScriptFrontmatter(source).errors.some((e) =>
+        /"timer_mode" of "per_question" requires/.test(e.message)
+      )
+    ).toBe(true);
+  });
+
+  it('timer_mode=per_question is fine when reveal_answers/reveal_scores default to after_every_question', () => {
+    const source = [
+      '---',
+      'title: T',
+      ':timer_mode=per_question',
+      ':timer_duration=30',
+      '---'
+    ].join('\n');
+    expect(parseQuizScriptFrontmatter(source).errors).toEqual([]);
+  });
+
+  it('intermediate_screen_duration requires show_intermediate_screen to not be false', () => {
+    const source = [
+      '---',
+      'title: T',
+      ':intermediate_screen_duration=5',
+      ':show_intermediate_screen=false',
+      '---'
+    ].join('\n');
+    expect(
+      parseQuizScriptFrontmatter(source).errors.some((e) =>
+        /"intermediate_screen_duration" can't be set/.test(e.message)
+      )
+    ).toBe(true);
+  });
+
+  it('intermediate_screen_duration alone (show_intermediate_screen defaulting true) is fine', () => {
+    const source = ['---', 'title: T', ':intermediate_screen_duration=5', '---'].join('\n');
+    expect(parseQuizScriptFrontmatter(source).errors).toEqual([]);
+  });
 });
 
 describe('serializeQuizScriptQuestion round-trips through parseQuizScriptQuestion', () => {
@@ -409,10 +502,6 @@ describe('serializeQuizScriptQuestion round-trips through parseQuizScriptQuestio
     [
       'plain question (defaults to multi-select)',
       ['What is H2O?', '{', '=Water', '~Salt', '}'].join('\n')
-    ],
-    [
-      'legacy "choice" header upgrades to multiple_choice',
-      ['choice: What is H2O?', '{', '=Water', '}'].join('\n')
     ],
     [
       'single_choice header',
@@ -434,7 +523,7 @@ describe('serializeQuizScriptQuestion round-trips through parseQuizScriptQuestio
         '=[P]a[r]is',
         '}',
         ':letter_bank=alphabet',
-        ':reveal_mode=sequence',
+        ':prereveal_mode=sequence',
         ':penalty=-1'
       ].join('\n')
     ],

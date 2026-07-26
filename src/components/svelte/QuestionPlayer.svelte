@@ -12,6 +12,7 @@
     characterInputNormalizeGuess,
     characterInputPrerevealedPositions,
     characterInputRevealPositionsAfterGuess,
+    choiceOptionsLayoutClass,
     gradeDraft,
     isDraftComplete,
     isGuessableChar,
@@ -137,14 +138,6 @@
   const result = $derived(isLocked ? gradeDraft(question, currentDraft()).result : null);
   const canSubmit = $derived(isDraftComplete(question, currentDraft()));
 
-  function optionsLayoutClass(): string {
-    return question.settings.option_display === 'grid'
-      ? question.options.length <= 4
-        ? 'grid grid-cols-2 gap-2'
-        : 'grid grid-cols-2 sm:grid-cols-3 gap-2'
-      : 'space-y-2';
-  }
-
   const minAnswers = $derived(settingNumber(question.settings.min_answers) ?? 0);
   const maxAnswers = $derived(settingNumber(question.settings.max_answers));
   // Keyed off the variant itself (not `maxAnswers === 1`, the old proxy) — a single_choice
@@ -173,7 +166,7 @@
   // check, since `revealedPositions` starts out equal to the pre-reveal set (bracket/
   // prereveal_count) and only grows from there: a letter that's entirely pre-revealed disables
   // from the very first render (nothing left for a click to do), and a correctly-guessed letter
-  // disables once reveal_mode has finished trickling out all its occurrences (immediately for
+  // disables once prereveal_mode has finished trickling out all its occurrences (immediately for
   // `all`; only after enough repeat clicks for `sequence`/`random` on a repeating letter).
   const disabledBankLetters = $derived(
     new Set(
@@ -222,13 +215,13 @@
 
   // A bank-letter click. Three cases: a letter already guessed wrong (no more tries, and the
   // button should already be disabled — this is just a defensive no-op); a letter already guessed
-  // correct but not fully revealed yet (`reveal_mode=sequence`/`random` on a repeating letter) —
+  // correct but not fully revealed yet (`prereveal_mode=sequence`/`random` on a repeating letter) —
   // reveals the next occurrence without re-scoring, since it was already counted on the first
   // correct guess; and a fresh guess, which both records correct/wrong in `guessedLetters` and, if
   // correct, reveals via `characterInputRevealPositionsAfterGuess`.
   function guessLetter(rawLetter: string) {
     if (isLocked) return;
-    const letter = characterInputNormalizeGuess(question, rawLetter);
+    const letter = characterInputNormalizeGuess(rawLetter);
     const status = guessedLetters.get(letter);
     if (status === 'wrong') return;
     if (status === 'correct') {
@@ -613,7 +606,7 @@
       onGuess={guessLetter}
     />
   {:else}
-    <div class={optionsLayoutClass()}>
+    <div class={choiceOptionsLayoutClass(question)}>
       {#each pq.optionOrder as optionIndex (optionIndex)}
         {@const option = question.options[optionIndex]}
         <label

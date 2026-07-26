@@ -113,6 +113,19 @@ export function gradeQuestion(
   return { earned: optionsEarned + reveal.earned, max: optionsMax + reveal.max };
 }
 
+/** The options-container class for a `single_choice`/`multiple_choice` question, driven by
+ * `option_display` — shared by QuestionView (author-side preview), QuestionPlayer (live
+ * answering), and QuizPlayer (the run's Review screen), which all rendered this same three-way
+ * branch independently before. "list" (or the setting being absent): one option per row.
+ * "grid2x2": a fixed 2-column grid. "grid3x3": 2 columns on narrow screens, 3 on wider ones. */
+export function choiceOptionsLayoutClass(question: QuizScriptQuestion): string {
+  if (question.settings.option_display === 'grid2x2') return 'grid grid-cols-2 gap-2';
+  if (question.settings.option_display === 'grid3x3') {
+    return 'grid grid-cols-2 sm:grid-cols-3 gap-2';
+  }
+  return 'space-y-2';
+}
+
 // --- Typed-question matching and grading --------------------------------------------------
 // A typed question's `options` are accepted answers (every one `correct: true` by construction —
 // see quizScript.ts's `parseQuestionBlock`), matched against what the player actually typed
@@ -366,7 +379,7 @@ export function typedBoxCount(question: QuizScriptQuestion): number {
 // A character_input question's single accepted answer (its first `=` option, same "first
 // accepted answer" convention typedBoxGroups uses) is guessed letter-by-letter via an on-screen
 // bank rather than typed — see docs/qwiz-format.md's "Character input" section for the authored
-// syntax (`[X]` pre-reveal brackets, letter_bank/reveal_mode/prereveal_count settings).
+// syntax (`[X]` pre-reveal brackets, letter_bank/prereveal_mode/prereveal_count settings).
 
 /** A Unicode letter — the only kind of character this variant's letter bank deals with. Anything
  * else (spaces, punctuation, digits) is always shown, never guessable, and never counted toward
@@ -385,14 +398,14 @@ export function characterInputAnswerText(question: QuizScriptQuestion): string {
   return answer?.content.kind === 'text' ? answer.content.text : '';
 }
 
-function normalizeLetter(letter: string, caseSensitive: boolean): string {
-  return caseSensitive ? letter : letter.toLowerCase();
+function normalizeLetter(letter: string): string {
+  return letter.toLowerCase();
 }
 
-function distinctGuessableLetters(text: string, caseSensitive: boolean): Set<string> {
+function distinctGuessableLetters(text: string): Set<string> {
   const letters = new Set<string>();
   for (const c of text) {
-    if (isGuessableChar(c)) letters.add(normalizeLetter(c, caseSensitive));
+    if (isGuessableChar(c)) letters.add(normalizeLetter(c));
   }
   return letters;
 }
@@ -432,34 +445,26 @@ export function characterInputLetterInAnswer(
   question: QuizScriptQuestion,
   letter: string
 ): boolean {
-  const caseSensitive = settingBoolean(question.settings.case_sensitive);
-  return distinctGuessableLetters(characterInputAnswerText(question), caseSensitive).has(
-    normalizeLetter(letter, caseSensitive)
-  );
+  return distinctGuessableLetters(characterInputAnswerText(question)).has(normalizeLetter(letter));
 }
 
 /** Normalizes a single guessed letter (or bank-button label) into the exact casing
  * `QuestionDraft.guessedLetters` keys are stored/looked-up under elsewhere in this module —
  * exported so `QuestionPlayer.svelte`'s bank-click handler stores under the same key
  * `gradeCharacterInputQuestion` later reads, rather than duplicating this one-line rule inline. */
-export function characterInputNormalizeGuess(question: QuizScriptQuestion, letter: string): string {
-  return normalizeLetter(letter, settingBoolean(question.settings.case_sensitive));
+export function characterInputNormalizeGuess(letter: string): string {
+  return normalizeLetter(letter);
 }
 
 const ALPHABET = 'abcdefghijklmnopqrstuvwxyz'.split('');
 
 /** The letters offered in the on-screen bank, per the `letter_bank` setting — `alphabet` (the
- * default): the full a-z, always lowercase regardless of `case_sensitive` (combining a
- * case-sensitive answer with alphabet-mode is a rare, acknowledged edge case: a bank letter only
- * ever matches its own case exactly in that combination, so an author wanting true case-sensitive
- * matching should pair it with `letter_bank=fixed` and spell out the exact-case letters instead).
- * `auto`: every distinct letter actually in the answer, plus a handful (up to 6) of random decoys
- * that aren't, so a guess still carries real risk — an all-real-letters bank would make every
- * guess a free win. `fixed`: exactly the letters in `letter_bank_chars`. */
+ * default): the full a-z. `auto`: every distinct letter actually in the answer, plus a handful (up
+ * to 6) of random decoys that aren't, so a guess still carries real risk — an all-real-letters
+ * bank would make every guess a free win. `fixed`: exactly the letters in `letter_bank_chars`. */
 export function characterInputLetterBank(question: QuizScriptQuestion): string[] {
   const mode = settingString(question.settings.letter_bank, 'alphabet');
-  const caseSensitive = settingBoolean(question.settings.case_sensitive);
-  const answerLetters = distinctGuessableLetters(characterInputAnswerText(question), caseSensitive);
+  const answerLetters = distinctGuessableLetters(characterInputAnswerText(question));
 
   if (mode === 'fixed') {
     const raw =
@@ -467,7 +472,7 @@ export function characterInputLetterBank(question: QuizScriptQuestion): string[]
         ? question.settings.letter_bank_chars
         : '';
     const bank = new Set<string>();
-    for (const c of raw) if (isGuessableChar(c)) bank.add(normalizeLetter(c, caseSensitive));
+    for (const c of raw) if (isGuessableChar(c)) bank.add(normalizeLetter(c));
     return [...bank].sort();
   }
 
@@ -482,10 +487,10 @@ export function characterInputLetterBank(question: QuizScriptQuestion): string[]
 
 /** Every position in the answer text occupied by `letter` (already-normalized casing) — the pool
  * `characterInputRevealPositionsAfterGuess` picks from. */
-function letterOccurrences(text: string, letter: string, caseSensitive: boolean): number[] {
+function letterOccurrences(text: string, letter: string): number[] {
   const positions: number[] = [];
   for (let i = 0; i < text.length; i++) {
-    if (isGuessableChar(text[i]) && normalizeLetter(text[i], caseSensitive) === letter) {
+    if (isGuessableChar(text[i]) && normalizeLetter(text[i]) === letter) {
       positions.push(i);
     }
   }
@@ -493,9 +498,9 @@ function letterOccurrences(text: string, letter: string, caseSensitive: boolean)
 }
 
 /** Updates `revealedPositions` after a CORRECT guess of `letter`, per the question's
- * `reveal_mode`: `all` reveals every occurrence of `letter` at once (classic Hangman); `sequence`
- * reveals just the next (lowest-index) not-yet-revealed occurrence; `random` reveals one random
- * not-yet-revealed occurrence. A no-op if every occurrence is already revealed (e.g. a stray
+ * `prereveal_mode`: `all` reveals every occurrence of `letter` at once (classic Hangman);
+ * `sequence` reveals just the next (lowest-index) not-yet-revealed occurrence; `random` reveals one
+ * random not-yet-revealed occurrence. A no-op if every occurrence is already revealed (e.g. a stray
  * re-click after the bank button should already be disabled). Only ever called for a letter
  * already confirmed correct — never call this for a wrong guess, which reveals nothing. */
 export function characterInputRevealPositionsAfterGuess(
@@ -503,13 +508,12 @@ export function characterInputRevealPositionsAfterGuess(
   revealedPositions: ReadonlySet<number>,
   letter: string
 ): Set<number> {
-  const caseSensitive = settingBoolean(question.settings.case_sensitive);
   const text = characterInputAnswerText(question);
-  const occurrences = letterOccurrences(text, letter, caseSensitive);
+  const occurrences = letterOccurrences(text, letter);
   const remaining = occurrences.filter((i) => !revealedPositions.has(i));
   if (remaining.length === 0) return new Set(revealedPositions);
 
-  const mode = settingString(question.settings.reveal_mode, 'all');
+  const mode = settingString(question.settings.prereveal_mode, 'all');
   const toReveal =
     mode === 'all' ? remaining : mode === 'random' ? [shuffledArray(remaining)[0]] : [remaining[0]];
   return new Set([...revealedPositions, ...toReveal]);
@@ -517,7 +521,7 @@ export function characterInputRevealPositionsAfterGuess(
 
 /** Whether every occurrence of `letter` in the answer is currently revealed — what a bank button
  * checks (alongside a 'wrong' guess) to decide whether it should disable itself. Always true
- * immediately after a correct guess under `reveal_mode=all`; only true once enough repeat clicks
+ * immediately after a correct guess under `prereveal_mode=all`; only true once enough repeat clicks
  * have happened under `sequence`/`random` for a letter that repeats in the answer. `false` for a
  * letter that isn't in the answer at all — `.every()` on its empty occurrence list would
  * otherwise be vacuously `true`, which would wrongly pre-disable every never-guessed, not-in-the-
@@ -528,16 +532,15 @@ export function characterInputLetterFullyRevealed(
   revealedPositions: ReadonlySet<number>,
   letter: string
 ): boolean {
-  const caseSensitive = settingBoolean(question.settings.case_sensitive);
   const text = characterInputAnswerText(question);
-  const occurrences = letterOccurrences(text, letter, caseSensitive);
+  const occurrences = letterOccurrences(text, letter);
   return occurrences.length > 0 && occurrences.every((i) => revealedPositions.has(i));
 }
 
 /** Grades a character_input question. Scoring is per DISTINCT guessable letter, not per
  * occurrence — guessing "e" that appears three times in the answer is one scoring event, same
- * whether `reveal_mode` reveals all three occurrences at once or trickles them out one guess at a
- * time (reveal_mode is a pure display concern, irrelevant to grading here). A pre-revealed letter
+ * whether `prereveal_mode` reveals all three occurrences at once or trickles them out one guess at a
+ * time (prereveal_mode is a pure display concern, irrelevant to grading here). A pre-revealed letter
  * (explicit bracket or `prereveal_count`, via `draft.extraPrerevealed`) counts toward neither
  * `earned` nor `max` — it was free, so it shouldn't inflate either side; `max` only counts the
  * letters actually left to guess. */
@@ -545,17 +548,16 @@ export function gradeCharacterInputQuestion(
   question: QuizScriptQuestion,
   draft: QuestionDraft
 ): QuestionResult {
-  const caseSensitive = settingBoolean(question.settings.case_sensitive);
   const text = characterInputAnswerText(question);
   const point = settingNumber(question.settings.point) ?? 1;
   const penalty = settingNumber(question.settings.penalty) ?? 0;
 
   const prerevealedLetters = new Set<string>();
   for (const i of characterInputPrerevealedPositions(question, draft.extraPrerevealed)) {
-    if (isGuessableChar(text[i])) prerevealedLetters.add(normalizeLetter(text[i], caseSensitive));
+    if (isGuessableChar(text[i])) prerevealedLetters.add(normalizeLetter(text[i]));
   }
 
-  const guessable = [...distinctGuessableLetters(text, caseSensitive)].filter(
+  const guessable = [...distinctGuessableLetters(text)].filter(
     (letter) => !prerevealedLetters.has(letter)
   );
   const correctGuessedCount = guessable.filter(
@@ -595,11 +597,11 @@ export interface QuestionDraft {
   extraPrerevealed: Set<number>;
   /** character_input only: every answer-text position currently visible — starts out equal to
    * the pre-revealed set (bracket + extraPrerevealed) and grows as correct guesses land, per
-   * `characterInputRevealPositionsAfterGuess`'s `reveal_mode` handling. Separate from
+   * `characterInputRevealPositionsAfterGuess`'s `prereveal_mode` handling. Separate from
    * `guessedLetters` because they answer different questions: guessedLetters is "was this letter
    * ever correctly guessed" (for scoring, and for locking a wrong letter's bank button forever);
    * revealedPositions is "what's currently visible" (for display, and — under
-   * `reveal_mode=sequence`/`random` — for deciding whether a correct letter's bank button should
+   * `prereveal_mode=sequence`/`random` — for deciding whether a correct letter's bank button should
    * still be clickable because not all of its occurrences are revealed yet). */
   revealedPositions: Set<number>;
 }

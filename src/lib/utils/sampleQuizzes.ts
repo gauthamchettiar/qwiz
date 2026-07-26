@@ -75,7 +75,7 @@ tags: [demo, media, hints]
 
 single_choice: Which of these is the Eiffel Tower?
 !<reveal>[Need a hint?](It's in Paris, France, and made of wrought iron.) %-1%
-:option_display=grid
+:option_display=grid2x2
 {
 =![Eiffel Tower](https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/La_tour_d%27eiffel_en_journ%C3%A9e_%287_ao%C3%BBt_2023%29.jpg/3840px-La_tour_d%27eiffel_en_journ%C3%A9e_%287_ao%C3%BBt_2023%29.jpg)
 ~![Big Ben](https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/Big_Ben_at_sunset_-_2014-10-27_17-30.jpg/960px-Big_Ben_at_sunset_-_2014-10-27_17-30.jpg)
@@ -100,7 +100,6 @@ description: Multi-select partial credit, per-option point weights, and quiz-wid
 category: demo
 tags: [demo, scoring, advanced]
 :points_to_win=15
-:percentage_points_to_win=70
 ---
 
 multiple_choice: Which of these are primary colors? (select all that apply)
@@ -185,7 +184,7 @@ typed: Name these two cities. (multi-guess character-box input)
   {
     title: 'Hangman Challenge',
     description:
-      'The character_input variant: guess a word letter-by-letter from an on-screen bank, Hangman-style — pre-revealed characters, a per-wrong-guess penalty, and both reveal_mode options.',
+      'The character_input variant: guess a word letter-by-letter from an on-screen bank, Hangman-style — pre-revealed characters, a per-wrong-guess penalty, and both prereveal_mode options.',
     code: `---
 title: Hangman Challenge
 description: Guess each word one letter at a time. A wrong guess costs a point.
@@ -198,7 +197,7 @@ character_input: Guess the capital of France (one letter pre-revealed)
 =[P]aris
 }
 :letter_bank=alphabet
-:reveal_mode=all
+:prereveal_mode=all
 :penalty=-1
 
 character_input: Name a primary color (repeated letters reveal one at a time)
@@ -206,7 +205,7 @@ character_input: Name a primary color (repeated letters reveal one at a time)
 =yellow
 }
 :letter_bank=auto
-:reveal_mode=sequence
+:prereveal_mode=sequence
 :prereveal_count=1
 :penalty=-1`
   }

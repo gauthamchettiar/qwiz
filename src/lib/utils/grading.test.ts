@@ -9,6 +9,7 @@ import {
   characterInputNormalizeGuess,
   characterInputPrerevealedPositions,
   characterInputRevealPositionsAfterGuess,
+  choiceOptionsLayoutClass,
   effectivePoints,
   gradeCharacterInputQuestion,
   gradeDraft,
@@ -127,6 +128,28 @@ describe('gradeQuestion (choice)', () => {
     });
     const result = gradeQuestion(q, new Set([0]), new Set([0]));
     expect(result).toEqual({ earned: 1 - 1, max: 1 + 2 });
+  });
+});
+
+describe('choiceOptionsLayoutClass', () => {
+  it('defaults to a one-per-row list when option_display is unset', () => {
+    const q = makeQuestion();
+    expect(choiceOptionsLayoutClass(q)).toBe('space-y-2');
+  });
+
+  it('grid2x2 is a fixed 2-column grid', () => {
+    const q = makeQuestion({ settings: { option_display: 'grid2x2' } });
+    expect(choiceOptionsLayoutClass(q)).toBe('grid grid-cols-2 gap-2');
+  });
+
+  it('grid3x3 is 2 columns on narrow screens, 3 on wider ones', () => {
+    const q = makeQuestion({ settings: { option_display: 'grid3x3' } });
+    expect(choiceOptionsLayoutClass(q)).toBe('grid grid-cols-2 sm:grid-cols-3 gap-2');
+  });
+
+  it('option_display=list is the same as unset', () => {
+    const q = makeQuestion({ settings: { option_display: 'list' } });
+    expect(choiceOptionsLayoutClass(q)).toBe('space-y-2');
   });
 });
 
@@ -347,7 +370,7 @@ describe('gradeCharacterInputQuestion', () => {
 });
 
 describe('characterInputLetterInAnswer / characterInputNormalizeGuess', () => {
-  it('is case-insensitive by default', () => {
+  it('is always case-insensitive — a bank guess has no "wrong case" to compare', () => {
     const q = makeQuestion({
       variant: 'character_input',
       options: [characterInputOption('Paris')]
@@ -355,17 +378,7 @@ describe('characterInputLetterInAnswer / characterInputNormalizeGuess', () => {
     expect(characterInputLetterInAnswer(q, 'P')).toBe(true);
     expect(characterInputLetterInAnswer(q, 'p')).toBe(true);
     expect(characterInputLetterInAnswer(q, 'z')).toBe(false);
-  });
-
-  it('respects case_sensitive', () => {
-    const q = makeQuestion({
-      variant: 'character_input',
-      options: [characterInputOption('Paris')],
-      settings: { case_sensitive: true }
-    });
-    expect(characterInputLetterInAnswer(q, 'P')).toBe(true);
-    expect(characterInputLetterInAnswer(q, 'p')).toBe(false);
-    expect(characterInputNormalizeGuess(q, 'P')).toBe('P');
+    expect(characterInputNormalizeGuess('P')).toBe('p');
   });
 });
 
@@ -398,7 +411,7 @@ describe('characterInputLetterBank', () => {
 });
 
 describe('characterInputRevealPositionsAfterGuess / characterInputLetterFullyRevealed', () => {
-  it('reveal_mode=all reveals every occurrence at once', () => {
+  it('prereveal_mode=all reveals every occurrence at once', () => {
     const q = makeQuestion({
       variant: 'character_input',
       options: [characterInputOption('letter')]
@@ -408,11 +421,11 @@ describe('characterInputRevealPositionsAfterGuess / characterInputLetterFullyRev
     expect(characterInputLetterFullyRevealed(q, revealed, 'e')).toBe(true);
   });
 
-  it('reveal_mode=sequence reveals one occurrence per guess, in order', () => {
+  it('prereveal_mode=sequence reveals one occurrence per guess, in order', () => {
     const q = makeQuestion({
       variant: 'character_input',
       options: [characterInputOption('letter')],
-      settings: { reveal_mode: 'sequence' }
+      settings: { prereveal_mode: 'sequence' }
     });
     const first = characterInputRevealPositionsAfterGuess(q, new Set(), 'e');
     expect(first).toEqual(new Set([1]));

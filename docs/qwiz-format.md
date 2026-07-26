@@ -48,8 +48,9 @@ Written as `:key=value` lines inside the frontmatter block. Full reference — e
 and default, and how settings behave in combination — lives in
 [`settings.md`](./settings.md#quiz-wide-settings), kept as the one place this is documented rather
 than a second copy here that could drift. In brief: win threshold (`points_to_win`/
-`percentage_points_to_win`), ordering/sampling (`shuffle_questions`, `max_questions`), and reveal
-timing (`reveal_answers`, `reveal_scores`, `show_score`, `show_intermediate_screen`).
+`percentage_points_to_win`), ordering/sampling (`shuffle_questions`, `max_questions`), reveal
+timing (`reveal_answers`, `reveal_scores`, `show_score`, `show_intermediate_screen`), and time
+limits (`timer_mode`, `timer_duration`, `timer_timeout_action`, `intermediate_screen_duration`).
 
 ## Questions
 
@@ -79,9 +80,7 @@ Recognized variants:
 - **`character_input`** — guess a word letter-by-letter from an on-screen bank, Hangman-style —
   see [Character input](#character-input) below.
 
-Omitting a variant entirely defaults to the same behavior as `multiple_choice`. `choice` is a
-recognized legacy name for `multiple_choice`, kept working for quizzes authored before the
-single/multiple split — new authoring should use the explicit names.
+Omitting a variant entirely defaults to the same behavior as `multiple_choice`.
 
 ### Options block
 
@@ -139,7 +138,7 @@ character_input: Guess the capital of France
 =[P]aris
 }
 :letter_bank=alphabet
-:reveal_mode=all
+:prereveal_mode=all
 :penalty=-1
 ```
 
@@ -162,10 +161,13 @@ rejected, which are harmless no-ops, and which are valid but non-obvious) — li
 `partial_points`), selection limits (`min_answers`, `max_answers`), choice-only display
 (`option_display`, `shuffle`), typed matching (`case_sensitive`, `numeric_tolerance`,
 `fuzzy_tolerance`, `input_display`), and character_input's own (`letter_bank`,
-`letter_bank_chars`, `reveal_mode`, `prereveal_count`).
+`letter_bank_chars`, `prereveal_mode`, `prereveal_count`). `option_display` accepts `list`,
+`grid2x2` (a fixed 2-column grid), and `grid3x3` (2 columns on narrow screens, 3 on wider ones).
 
 A setting outside its applicable variant is a parse error, not a silent no-op — e.g. `shuffle` on
-a `typed` question, or `letter_bank` on a `choice` question.
+a `typed` question, or `letter_bank` on a `multiple_choice` question. `min_answers`, `max_answers`,
+and `partial_points` are also rejected on `single_choice` — it can only ever have zero or one
+option selected, so none of the three mean anything for it.
 
 ## Scoring
 
@@ -184,7 +186,7 @@ a `typed` question, or `letter_bank` on a `choice` question.
   (unless `numeric_tolerance` applies, checked first against the untouched values so "3.14" isn't
   corrupted by punctuation-stripping). Case-insensitive unless `case_sensitive=true`.
 - **Character input**: scored per DISTINCT guessable letter, not per occurrence — guessing "e" in
-  a word where it appears three times is one scoring event, regardless of `reveal_mode`. A
+  a word where it appears three times is one scoring event, regardless of `prereveal_mode`. A
   correctly-guessed letter earns `point`; a wrong guess costs `penalty`. Pre-revealed letters
   (`[X]` brackets or `prereveal_count`) count toward neither earned nor achievable max — they were
   free, so they don't inflate either side.
@@ -251,6 +253,6 @@ character_input: Guess the capital of France (one letter pre-revealed)
 =[P]aris
 }
 :letter_bank=alphabet
-:reveal_mode=all
+:prereveal_mode=all
 :penalty=-1
 ```

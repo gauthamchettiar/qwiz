@@ -25,10 +25,8 @@
  * `multiple_choice: What is H2O?` — instead of the two-line `variant : multiple_choice` + separate
  * text form; both set the same field. `single_choice` is `multiple_choice`'s sibling — identical
  * syntax, but the parser rejects more than one option marked `=` (a `single_choice` question with
- * zero or exactly one correct option is fine; two or more is a parse error). `choice` is a
- * recognized legacy alias for `multiple_choice` — quizzes saved before the single/multiple split
- * still parse unchanged, see `LEGACY_VARIANT_ALIASES` — but new authoring should use the explicit
- * names. `typed` is the other recognized variant: same `{ }` block, but every line in it is an
+ * zero or exactly one correct option is fine; two or more is a parse error). `typed` is the other
+ * recognized variant: same `{ }` block, but every line in it is an
  * accepted answer instead of a right/wrong choice — the player types a response instead of picking
  * one. `=`/`~` still mark each line, but a typed question's parser forces every option
  * `correct: true` regardless, so both markers are accepted purely as authoring convenience; `%N%`
@@ -165,33 +163,19 @@ const FRONTMATTER_LINE = /^([A-Za-z_][\w-]*)\s*:\s*(.*)$/;
  * hand-typed `question: ...` header isn't recognized (it just reads as plain question text). */
 export const KNOWN_VARIANTS = ['single_choice', 'multiple_choice', 'typed', 'character_input'];
 
-/** `choice` used to be the only choice-like variant (covering both single- and multi-select,
- * distinguished only implicitly by option count / `max_answers`), before it was split into
- * `single_choice`/`multiple_choice`. Kept recognized here — mapped to `multiple_choice`, the more
- * permissive of the two, matching its old behavior exactly — so a quiz saved before the split
- * keeps parsing unchanged; only new authoring surfaces (the variant dropdown, docs, samples) stop
- * offering it. Never remove this without a real migration path for already-saved quizzes. */
-const LEGACY_VARIANT_ALIASES: Record<string, string> = { choice: 'multiple_choice' };
-const VARIANT_HEADER_LINE = new RegExp(
-  `^(${[...KNOWN_VARIANTS, ...Object.keys(LEGACY_VARIANT_ALIASES)].join('|')})\\s*:\\s*(.*)$`,
-  'i'
-);
+const VARIANT_HEADER_LINE = new RegExp(`^(${KNOWN_VARIANTS.join('|')})\\s*:\\s*(.*)$`, 'i');
 
-/** Resolves a legacy variant name (e.g. "choice") to its current replacement, or returns `value`
- * unchanged if it isn't a legacy alias — the one place both variant-declaration forms (compact
- * header and `variant : x`) normalize what they parse before storing it on the question. */
-function resolveVariant(value: string): string {
-  return LEGACY_VARIANT_ALIASES[value] ?? value;
-}
-
-/** The three settings-applicability groups a question variant maps to (see
- * `settingsGroupForVariant`) — `single_choice`/`multiple_choice` (plus the bare/default variant
- * and the legacy `choice` alias) share one group, since nothing here distinguishes between them. */
-export type SettingsGroup = 'choice' | 'typed' | 'character_input';
+/** The four settings-applicability groups a question variant maps to (see
+ * `settingsGroupForVariant`) — the bare/default variant collapses to `'multiple_choice'`, its most
+ * permissive sibling (any number of correct options); `single_choice` gets its own group precisely
+ * because some settings (`min_answers`/`max_answers`/`partial_points`) apply to `multiple_choice`
+ * but never make sense on `single_choice`, which can only ever have zero or one option selected —
+ * there's no "some but not all" or "more than one" for any of those three to mean anything for. */
+export type SettingsGroup = 'single_choice' | 'multiple_choice' | 'typed' | 'character_input';
 
 export interface SettingRule {
   kind: 'number' | 'boolean' | 'enum' | 'string';
-  /** Only present for `kind: 'enum'`. */
+  /** Every value `validateSettingValue` accepts — only present for `kind: 'enum'`. */
   values?: string[];
   /** Which variant group(s) this setting is meaningful for — checked in `parseQuestionBlock` (a
    * key set on a question outside its `appliesTo` is a parse error) and by
@@ -200,9 +184,10 @@ export interface SettingRule {
    * settings, which have no per-question variant to be scoped to — every `SETTING_RULES` (the
    * per-question table) entry always sets it; nothing ever reads it off a `QUIZ_SETTING_RULES`
    * entry. Replaces what used to be two separate typed-only/choice-only exclusion lists —
-   * those couldn't express a setting like `case_sensitive` applying to two groups (typed AND
-   * character_input) but not the third (choice), a real need once character_input exists
-   * alongside typed. */
+   * those couldn't express a setting spanning exactly two of these four groups, a real need once
+   * there's more than a binary split (e.g. `option_display` applies to both choice variants but
+   * neither of the other two; `min_answers` applies to `multiple_choice`+`typed` but not
+   * `single_choice`). */
   appliesTo?: readonly SettingsGroup[];
   /** Shown in the "?" hover hint next to this key, in both code and form mode. */
   description: string;
@@ -215,59 +200,59 @@ export interface SettingRule {
 export const SETTING_RULES: Record<string, SettingRule> = {
   point: {
     kind: 'number',
-    appliesTo: ['choice', 'typed', 'character_input'],
+    appliesTo: ['single_choice', 'multiple_choice', 'typed', 'character_input'],
     description:
       "Points awarded for each correct option that doesn't specify its own %N% weight.\n\nAccepted values: any number\nDefault: 1"
   },
   penalty: {
     kind: 'number',
-    appliesTo: ['choice', 'typed', 'character_input'],
+    appliesTo: ['single_choice', 'multiple_choice', 'typed', 'character_input'],
     description:
       "Points deducted for each incorrect option that doesn't specify its own %N% weight.\n\nAccepted values: any number\nDefault: 0"
   },
   partial_points: {
     kind: 'boolean',
-    appliesTo: ['choice', 'typed'],
+    appliesTo: ['multiple_choice', 'typed'],
     description:
-      "Whether getting some (not all) correct options/accepted answers earns partial credit instead of requiring an exact match — e.g. for a typed question with 3 accepted answers, matching only 1 of them awards that one's points instead of 0.\n\nOnly meaningful for choice, or a multi-guess typed question (max_answers > 1) — single-input typed matching has no concept of partial.\n\nAccepted values: true, false\nDefault: false"
+      'Whether getting some (not all) correct options/accepted answers earns partial credit instead of requiring an exact match — e.g. for a typed question with 3 accepted answers, matching only 1 of them awards that one\'s points instead of 0.\n\nNot meaningful for single_choice: with at most one correct option, there\'s never a "some but not all" scenario for it to apply to. Only meaningful for a multi-guess typed question (max_answers > 1) — single-input typed matching has no concept of partial either.\n\nAccepted values: true, false\nDefault: false'
   },
   option_display: {
     kind: 'enum',
-    values: ['list', 'grid'],
-    appliesTo: ['choice'],
+    values: ['list', 'grid2x2', 'grid3x3'],
+    appliesTo: ['single_choice', 'multiple_choice'],
     description:
-      'For a choice question, how its options are laid out. Not meaningful for a typed question.\n\nAccepted values: list, grid\nDefault: list'
+      'How a choice question\'s options are laid out. "list": one per row. "grid2x2": a fixed 2-column grid. "grid3x3": 2 columns on narrow screens, 3 on wider ones.\n\nAccepted values: list, grid2x2, grid3x3\nDefault: list'
   },
   min_answers: {
     kind: 'number',
-    appliesTo: ['choice', 'typed'],
+    appliesTo: ['multiple_choice', 'typed'],
     description:
-      'Minimum number of options/answers the player must select or give before they can submit this question.\n\nAccepted values: any number\nDefault: none — any number given is enough, including zero'
+      'Minimum number of options/answers the player must select or give before they can submit this question. Not meaningful for single_choice, which can only ever have zero or one selected.\n\nAccepted values: any number\nDefault: none — any number given is enough, including zero'
   },
   max_answers: {
     kind: 'number',
-    appliesTo: ['choice', 'typed'],
+    appliesTo: ['multiple_choice', 'typed'],
     description:
-      'Maximum number of options/answers the player is allowed to select or give for this question.\n\nAccepted values: any number\nDefault: none — any number is allowed'
+      'Maximum number of options/answers the player is allowed to select or give for this question. Not meaningful for single_choice, which can only ever have zero or one selected.\n\nAccepted values: any number\nDefault: none — any number is allowed'
   },
   shuffle: {
     kind: 'boolean',
-    appliesTo: ['choice'],
+    appliesTo: ['single_choice', 'multiple_choice'],
     description:
       "For a choice question, whether its options are shown in a random order each time it's played. Not meaningful for a typed question.\n\nAccepted values: true, false\nDefault: false"
   },
   difficulty: {
     kind: 'enum',
     values: ['easy', 'medium', 'hard'],
-    appliesTo: ['choice', 'typed', 'character_input'],
+    appliesTo: ['single_choice', 'multiple_choice', 'typed', 'character_input'],
     description:
       "How difficult this question is, for organizing or filtering later — purely informational, doesn't affect grading or play.\n\nAccepted values: easy, medium, hard\nDefault: none"
   },
   case_sensitive: {
     kind: 'boolean',
-    appliesTo: ['typed', 'character_input'],
+    appliesTo: ['typed'],
     description:
-      "For a typed or character_input question, whether a player's answer must match an accepted answer's exact letter case instead of being compared case-insensitively. Other normalization (whitespace, punctuation, accents) always applies regardless of this setting.\n\nAccepted values: true, false\nDefault: false"
+      "For a typed question, whether a player's answer must match an accepted answer's exact letter case instead of being compared case-insensitively. Other normalization (whitespace, punctuation, accents) always applies regardless of this setting. Not meaningful for character_input: the player guesses by clicking a bank letter, not typing text, so there's no \"wrong case\" input to compare against — matching there is always case-insensitive.\n\nAccepted values: true, false\nDefault: false"
   },
   numeric_tolerance: {
     kind: 'number',
@@ -301,7 +286,7 @@ export const SETTING_RULES: Record<string, SettingRule> = {
     description:
       'The exact letters offered in the bank — only read when letter_bank=fixed. E.g. "abcdefghijklmnop".\n\nAccepted values: any text\nDefault: none'
   },
-  reveal_mode: {
+  prereveal_mode: {
     kind: 'enum',
     values: ['all', 'sequence', 'random'],
     appliesTo: ['character_input'],
@@ -320,12 +305,14 @@ export const SETTING_RULES: Record<string, SettingRule> = {
 export const SUGGESTED_SETTING_KEYS = Object.keys(SETTING_RULES);
 
 /** Maps a question's raw `variant` string to the settings-applicability group it behaves as —
- * `single_choice`, `multiple_choice`, the bare/default variant, and the legacy `choice` alias all
- * collapse to `'choice'`, since no setting here distinguishes between them. */
+ * the bare/default variant collapses to `'multiple_choice'` (any number of correct options).
+ * `single_choice` gets its own group since a few settings apply to `multiple_choice` but not it —
+ * see `SettingsGroup`'s own doc comment. */
 function settingsGroupForVariant(variant: string): SettingsGroup {
+  if (variant === 'single_choice') return 'single_choice';
   if (variant === 'typed') return 'typed';
   if (variant === 'character_input') return 'character_input';
-  return 'choice';
+  return 'multiple_choice';
 }
 
 /** Which of `SUGGESTED_SETTING_KEYS` actually apply to a question of this variant — the list a
@@ -386,6 +373,28 @@ export const QUIZ_SETTING_RULES: Record<string, SettingRule> = {
     kind: 'boolean',
     description:
       'Whether answering a question pauses on its own reveal screen (with a "Next question" button) before moving on, when something is revealed live (reveal_answers or reveal_scores set to after_every_question). Set to false to skip that pause and jump straight to the next question instead — the earned points for that question flash briefly next to the top score (show_score) rather than getting a full screen.\n\nCannot be false when reveal_answers=after_every_question — showing which options were correct needs a real screen, not just a flash; reveal_scores=after_every_question alone is unaffected either way.\n\nAccepted values: true, false\nDefault: true'
+  },
+  timer_mode: {
+    kind: 'enum',
+    values: ['off', 'per_question', 'per_quiz'],
+    description:
+      'Whether answering is under a time limit, and how it\'s scoped. "off": no timer. "per_question": timer_duration seconds per question, resetting for each one. "per_quiz": one timer_duration-second budget shared across the whole run. Requires timer_duration to be set. "per_question" additionally requires reveal_answers or reveal_scores set to after_every_question — a per-question time limit only makes sense alongside "answering this locks it in immediately", which is exactly what that combination already means.\n\nAccepted values: off, per_question, per_quiz\nDefault: off'
+  },
+  timer_duration: {
+    kind: 'number',
+    description:
+      'Seconds on the clock — per question (timer_mode=per_question) or for the whole run (timer_mode=per_quiz). Only read when timer_mode isn\'t "off".\n\nAccepted values: any number\nDefault: none'
+  },
+  timer_timeout_action: {
+    kind: 'enum',
+    values: ['auto_submit', 'lock_zero'],
+    description:
+      'What happens to a question still being answered when its clock reaches zero (a per_question timer running out, or a per_quiz budget running out while a question is live). "auto_submit": whatever\'s currently selected/typed is submitted and graded as-is, same as clicking Submit. "lock_zero": the question locks with no credit, regardless of any partial selection/input.\n\nAccepted values: auto_submit, lock_zero\nDefault: auto_submit'
+  },
+  intermediate_screen_duration: {
+    kind: 'number',
+    description:
+      'Seconds the post-answer reveal screen waits before automatically advancing to the next question (or to results, on the last one) — a live countdown is shown next to the "Next question"/"See results" button. Unset: no auto-advance, the player clicks through manually. Requires show_intermediate_screen to not be false — there\'s no screen to auto-advance from otherwise.\n\nAccepted values: any number\nDefault: none — no auto-advance'
   }
 };
 
@@ -687,6 +696,49 @@ function parseFrontmatter(
     });
   }
 
+  // A timer needs a duration to count down from — timer_mode alone doesn't say how long.
+  const timerMode = frontmatter.settings.timer_mode;
+  if (
+    (timerMode === 'per_question' || timerMode === 'per_quiz') &&
+    typeof frontmatter.settings.timer_duration !== 'number'
+  ) {
+    errors.push({
+      line: 1,
+      message: `"timer_duration" is required when "timer_mode" is "${timerMode}".`
+    });
+  }
+
+  // A per_question timer only makes sense alongside "submitting a question locks it in
+  // immediately" (see QuizPlayer.svelte's `locksAnswerImmediately`) — in free-navigation
+  // ("at_end"/"never" for both) mode there's no per-question submit event for a per-question
+  // clock to even attach to. A per_quiz timer has no such requirement: it just ends the whole
+  // run when the shared budget runs out, regardless of navigation mode.
+  if (timerMode === 'per_question') {
+    const effectiveRevealScores = frontmatter.settings.reveal_scores ?? 'after_every_question';
+    if (
+      revealAnswers !== 'after_every_question' &&
+      effectiveRevealScores !== 'after_every_question'
+    ) {
+      errors.push({
+        line: 1,
+        message:
+          '"timer_mode" of "per_question" requires "reveal_answers" or "reveal_scores" set to "after_every_question" — a per-question time limit only makes sense when answering a question locks it in immediately.'
+      });
+    }
+  }
+
+  // No screen to auto-advance from otherwise.
+  if (
+    'intermediate_screen_duration' in frontmatter.settings &&
+    frontmatter.settings.show_intermediate_screen === false
+  ) {
+    errors.push({
+      line: 1,
+      message:
+        '"intermediate_screen_duration" can\'t be set when "show_intermediate_screen" is false — there\'s no reveal screen to auto-advance from.'
+    });
+  }
+
   return { frontmatter, bodyStart: closingIndex + 1 };
 }
 
@@ -793,15 +845,15 @@ function parseQuestionBlock(block: SourceLine[], errors: QuizScriptError[]): Qui
       textLines.push(escaped);
     } else if ((match = VARIANT_LINE.exec(text))) {
       const value = match[1].trim().toLowerCase();
-      if (!(KNOWN_VARIANTS as string[]).includes(value) && !(value in LEGACY_VARIANT_ALIASES)) {
+      if (!(KNOWN_VARIANTS as string[]).includes(value)) {
         errors.push({
           line: num,
           message: `Unknown variant "${match[1].trim()}" (must be one of ${KNOWN_VARIANTS.join('/')}).`
         });
       }
-      question.variant = resolveVariant(value);
+      question.variant = value;
     } else if ((match = VARIANT_HEADER_LINE.exec(text))) {
-      question.variant = resolveVariant(match[1].toLowerCase());
+      question.variant = match[1].toLowerCase();
       if (match[2].trim() !== '') textLines.push(match[2]);
     } else if ((match = IMAGE_LINE.exec(text))) {
       question.media.push({ kind: 'image', alt: match[1], url: match[2] });
