@@ -18,6 +18,11 @@ either through the form-based builder or directly in code; both stay in sync.
 | ----------------------------------------- | ------------------------------------------ | ---------------------------------------- |
 | ![Quiz list](./docs/screenshots/home.png) | ![Builder](./docs/screenshots/builder.png) | ![Player](./docs/screenshots/player.png) |
 
+## Documentation
+
+- [Introduction](./docs/introduction.md) — core concepts, authoring modes, import/export
+- [`.qwiz` format reference](./docs/qwiz-format.md) — full authoring syntax and scoring rules
+
 ## Development
 
 ```bash

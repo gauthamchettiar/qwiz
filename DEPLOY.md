@@ -48,15 +48,3 @@ job can read them — `verify`/`unit`/`build`/`e2e` can't.
 `secrets.GITHUB_TOKEN` (used for the optional `gitHubToken:` input, which only creates GitHub
 Deployment records — doesn't affect the actual Cloudflare deploy) needs no setup: it's
 auto-generated per run, scoped by the `deploy` job's existing `permissions: { deployments: write }`.
-
-## 4. Custom domain
-
-Zone (`gauthamchettiar.com`) must already be on Cloudflare (check via `dig NS gauthamchettiar.com`
-— should return `*.ns.cloudflare.com`). Then: Workers & Pages → `qwiz` project → **Custom
-domains** → Add → `qwiz.gauthamchettiar.com`. Auto-creates the proxied CNAME; doesn't touch any
-other subdomain or the apex.
-
-## 5. Verify
-
-Push to `main` (or re-run the workflow) → `deploy` job should complete → check
-`qwiz.gauthamchettiar.com`.
