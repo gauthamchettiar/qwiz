@@ -60,6 +60,12 @@
  * lines inside it (still a question-level hint either way, not attached to whichever option it's
  * physically next to — see `parseQuestionBlock`'s handling of it inside `{ }`).
  *
+ * A `!<analysis>[label](explanation)` line adds a question's post-answer explanation (see
+ * `QuizScriptAnalysis`) — shown on the intermediate/reveal screen once the question is locked in,
+ * regardless of right or wrong, unlike `!<reveal>` which is player-triggered and pre-answer. No
+ * `%N%` weight (nothing to cost), and at most one per question (a second line is a parse error).
+ * Written alongside the media lines, above the option block — never interspersed inside `{ }`.
+ *
  * Inside the option block, every line is exactly one option, starting with `=` (correct) or `~`
  * (incorrect), optionally ending with an explicit point value — `=Water %4%` — instead of relying
  * on question-level `:point=`/`:penalty=` settings. `multiple_choice` allows any number of `=`
@@ -127,6 +133,18 @@ export interface QuizScriptReveal {
   points: number;
 }
 
+/** A question-level, post-answer explanation: shown on the intermediate/reveal screen once a
+ * question is locked in, regardless of whether the player got it right or wrong — unlike
+ * `QuizScriptReveal` hints, it has no reveal cost and nothing to click, since it isn't shown until
+ * after answering either way. Written `!<analysis>[label](content)`, same bracket/paren shape as
+ * media/hints, but with no trailing `%N%` weight (there's no scoring concept for it). At most one
+ * per question — a second `!<analysis>[...]` line is a parse error, same closed-set philosophy as
+ * `character_input` allowing only one accepted answer. */
+export interface QuizScriptAnalysis {
+  label: string;
+  content: string;
+}
+
 /** Arbitrary `:key=value` settings attached to a question, e.g. difficulty, shuffle. */
 export type QuizScriptSettings = Record<string, string | number | boolean>;
 
@@ -137,6 +155,9 @@ export interface QuizScriptQuestion {
   media: QuizScriptMedia[];
   options: QuizScriptOption[];
   extras: QuizScriptReveal[];
+  /** The question's post-answer explanation (see `QuizScriptAnalysis`) — `undefined` when the
+   * author didn't write one. */
+  analysis?: QuizScriptAnalysis;
   settings: QuizScriptSettings;
 }
 
@@ -152,6 +173,7 @@ export interface QuizScriptError {
 const IMAGE_LINE = /^!(?:<image>)?\[(.*)\]\((.*)\)$/;
 const VIDEO_LINE = /^!<youtube>\[(.*)\]\((.*)\)$/;
 const REVEAL_LINE = /^!<reveal>\[(.*)\]\((.*)\)$/;
+const ANALYSIS_LINE = /^!<analysis>\[(.*)\]\((.*)\)$/;
 const VARIANT_LINE = /^variant\s*:\s*(.+)$/i;
 const SETTING_LINE = /^:([A-Za-z_][\w-]*)\s*=\s*(.*)$/;
 const FRONTMATTER_LINE = /^([A-Za-z_][\w-]*)\s*:\s*(.*)$/;
@@ -189,6 +211,12 @@ export interface SettingRule {
    * neither of the other two; `min_answers` applies to `multiple_choice`+`typed` but not
    * `single_choice`). */
   appliesTo?: readonly SettingsGroup[];
+  /** The value a fresh `:key=` line should start out with, for form mode's "pick a key, get a
+   * working value" flow (see `settingDefaultValue`) — omitted for settings with no real default
+   * (e.g. `min_answers`, `numeric_tolerance`), where "unset" is itself the meaningful default and
+   * there's nothing sensible to pre-fill. Always matches the "Default: ..." line in `description`
+   * below — kept as a separate structured field rather than parsed out of that prose. */
+  default?: string | number | boolean;
   /** Shown in the "?" hover hint next to this key, in both code and form mode. */
   description: string;
 }
@@ -200,18 +228,21 @@ export interface SettingRule {
 export const SETTING_RULES: Record<string, SettingRule> = {
   point: {
     kind: 'number',
+    default: 1,
     appliesTo: ['single_choice', 'multiple_choice', 'typed', 'character_input'],
     description:
       "Points awarded for each correct option that doesn't specify its own %N% weight.\n\nAccepted values: any number\nDefault: 1"
   },
   penalty: {
     kind: 'number',
+    default: 0,
     appliesTo: ['single_choice', 'multiple_choice', 'typed', 'character_input'],
     description:
       "Points deducted for each incorrect option that doesn't specify its own %N% weight.\n\nAccepted values: any number\nDefault: 0"
   },
   partial_points: {
     kind: 'boolean',
+    default: false,
     appliesTo: ['multiple_choice', 'typed'],
     description:
       'Whether getting some (not all) correct options/accepted answers earns partial credit instead of requiring an exact match — e.g. for a typed question with 3 accepted answers, matching only 1 of them awards that one\'s points instead of 0.\n\nNot meaningful for single_choice: with at most one correct option, there\'s never a "some but not all" scenario for it to apply to. Only meaningful for a multi-guess typed question (max_answers > 1) — single-input typed matching has no concept of partial either.\n\nAccepted values: true, false\nDefault: false'
@@ -219,6 +250,7 @@ export const SETTING_RULES: Record<string, SettingRule> = {
   option_display: {
     kind: 'enum',
     values: ['list', 'grid2x2', 'grid3x3'],
+    default: 'list',
     appliesTo: ['single_choice', 'multiple_choice'],
     description:
       'How a choice question\'s options are laid out. "list": one per row. "grid2x2": a fixed 2-column grid. "grid3x3": 2 columns on narrow screens, 3 on wider ones.\n\nAccepted values: list, grid2x2, grid3x3\nDefault: list'
@@ -237,6 +269,7 @@ export const SETTING_RULES: Record<string, SettingRule> = {
   },
   shuffle: {
     kind: 'boolean',
+    default: false,
     appliesTo: ['single_choice', 'multiple_choice'],
     description:
       "For a choice question, whether its options are shown in a random order each time it's played. Not meaningful for a typed question.\n\nAccepted values: true, false\nDefault: false"
@@ -250,6 +283,7 @@ export const SETTING_RULES: Record<string, SettingRule> = {
   },
   case_sensitive: {
     kind: 'boolean',
+    default: false,
     appliesTo: ['typed'],
     description:
       "For a typed question, whether a player's answer must match an accepted answer's exact letter case instead of being compared case-insensitively. Other normalization (whitespace, punctuation, accents) always applies regardless of this setting. Not meaningful for character_input: the player guesses by clicking a bank letter, not typing text, so there's no \"wrong case\" input to compare against — matching there is always case-insensitive.\n\nAccepted values: true, false\nDefault: false"
@@ -269,6 +303,7 @@ export const SETTING_RULES: Record<string, SettingRule> = {
   input_display: {
     kind: 'enum',
     values: ['text', 'boxes'],
+    default: 'text',
     appliesTo: ['typed'],
     description:
       "How a typed question's answer field is displayed: a plain text box, or one box per character (grouped by word) sized to the first accepted answer's shape. Works in both single-answer and multi-guess (max_answers > 1) mode.\n\nAccepted values: text, boxes\nDefault: text"
@@ -276,6 +311,7 @@ export const SETTING_RULES: Record<string, SettingRule> = {
   letter_bank: {
     kind: 'enum',
     values: ['alphabet', 'auto', 'fixed'],
+    default: 'alphabet',
     appliesTo: ['character_input'],
     description:
       'Which letters appear in the on-screen letter bank. "alphabet": the full A-Z. "auto": every distinct letter actually in the answer, plus a handful of random decoy letters that aren\'t (so a guess still carries real risk). "fixed": exactly the letters in letter_bank_chars.\n\nAccepted values: alphabet, auto, fixed\nDefault: alphabet'
@@ -289,12 +325,14 @@ export const SETTING_RULES: Record<string, SettingRule> = {
   prereveal_mode: {
     kind: 'enum',
     values: ['all', 'sequence', 'random'],
+    default: 'all',
     appliesTo: ['character_input'],
     description:
       'How a correct letter guess reveals its occurrences in the answer. "all": every occurrence at once (classic Hangman), and that letter\'s bank button disables immediately. "sequence"/"random": one not-yet-revealed occurrence per guess (next-in-order, or a random remaining one) — the bank button stays clickable until every occurrence of that letter is revealed.\n\nAccepted values: all, sequence, random\nDefault: all'
   },
   prereveal_count: {
     kind: 'number',
+    default: 0,
     appliesTo: ['character_input'],
     description:
       'Additional random characters (on top of any explicit [x] pre-reveal brackets in the answer) revealed from the start, free of charge.\n\nAccepted values: any number\nDefault: 0'
@@ -339,11 +377,13 @@ export const QUIZ_SETTING_RULES: Record<string, SettingRule> = {
   },
   percentage_points_to_win: {
     kind: 'number',
+    default: 75,
     description:
       'Percentage of the quiz\'s maximum possible score a player must reach to "win".\n\nAccepted values: any number\nDefault: 75'
   },
   shuffle_questions: {
     kind: 'boolean',
+    default: true,
     description:
       "Whether this quiz's questions are shown in a random order each run.\n\nAccepted values: true, false\nDefault: true"
   },
@@ -355,28 +395,33 @@ export const QUIZ_SETTING_RULES: Record<string, SettingRule> = {
   reveal_answers: {
     kind: 'enum',
     values: ['after_every_question', 'at_end', 'never'],
+    default: 'after_every_question',
     description:
       'When correct answers are revealed to the player during a run. "after_every_question" reveals them the moment each question is submitted, and locks that question — no going back. "at_end" holds every answer back until the whole quiz is submitted, and lets the player move freely between questions (with a confirmation before the final submit) until then. "never" reveals nothing, even in the end-of-quiz review.\n\nAccepted values: after_every_question, at_end, never\nDefault: after_every_question'
   },
   reveal_scores: {
     kind: 'enum',
     values: ['after_every_question', 'at_end', 'never'],
+    default: 'after_every_question',
     description:
       'When points earned are revealed to the player, independently of reveal_answers (e.g. show a running score without spoiling which options were correct). "after_every_question" shows each question\'s points the moment it\'s submitted — like reveal_answers, this alone is enough to lock that question with no going back. "at_end" only shows the total (and any per-question breakdown) once the quiz is submitted. "never" never shows any point value.\n\nAccepted values: after_every_question, at_end, never\nDefault: after_every_question'
   },
   show_score: {
     kind: 'boolean',
+    default: true,
     description:
       'Whether a persistent "earned / total" score is shown at the top of the screen throughout the run, updating as questions are answered. The total is always the quiz\'s full achievable points (knowable upfront, regardless of progress); the earned side follows reveal_scores — shown live when reveal_scores=after_every_question, otherwise masked as "? / total" until the quiz is submitted, so this never reveals anything reveal_scores is holding back.\n\nAccepted values: true, false\nDefault: true'
   },
   show_intermediate_screen: {
     kind: 'boolean',
+    default: true,
     description:
       'Whether answering a question pauses on its own reveal screen (with a "Next question" button) before moving on, when something is revealed live (reveal_answers or reveal_scores set to after_every_question). Set to false to skip that pause and jump straight to the next question instead — the earned points for that question flash briefly next to the top score (show_score) rather than getting a full screen.\n\nCannot be false when reveal_answers=after_every_question — showing which options were correct needs a real screen, not just a flash; reveal_scores=after_every_question alone is unaffected either way.\n\nAccepted values: true, false\nDefault: true'
   },
   timer_mode: {
     kind: 'enum',
     values: ['off', 'per_question', 'per_quiz'],
+    default: 'off',
     description:
       'Whether answering is under a time limit, and how it\'s scoped. "off": no timer. "per_question": timer_duration seconds per question, resetting for each one. "per_quiz": one timer_duration-second budget shared across the whole run. Requires timer_duration to be set. "per_question" additionally requires reveal_answers or reveal_scores set to after_every_question — a per-question time limit only makes sense alongside "answering this locks it in immediately", which is exactly what that combination already means.\n\nAccepted values: off, per_question, per_quiz\nDefault: off'
   },
@@ -388,6 +433,7 @@ export const QUIZ_SETTING_RULES: Record<string, SettingRule> = {
   timer_timeout_action: {
     kind: 'enum',
     values: ['auto_submit', 'lock_zero'],
+    default: 'auto_submit',
     description:
       'What happens to a question still being answered when its clock reaches zero (a per_question timer running out, or a per_quiz budget running out while a question is live). "auto_submit": whatever\'s currently selected/typed is submitted and graded as-is, same as clicking Submit. "lock_zero": the question locks with no credit, regardless of any partial selection/input.\n\nAccepted values: auto_submit, lock_zero\nDefault: auto_submit'
   },
@@ -410,6 +456,18 @@ export function settingValueSuggestions(
   const rule = rules[key];
   if (!rule) return [];
   return rule.kind === 'boolean' ? ['true', 'false'] : (rule.values ?? []);
+}
+
+/** The value a fresh `:key=` line should start out with once `key` is picked in form mode —
+ * `String(rule.default)`, or `''` for a key with no real default (see `SettingRule.default`'s own
+ * doc comment) so the value field is left blank rather than filled with something misleading.
+ * `rules` defaults to the per-question table; pass `QUIZ_SETTING_RULES` for the quiz-wide one. */
+export function settingDefaultValue(
+  key: string,
+  rules: Record<string, SettingRule> = SETTING_RULES
+): string {
+  const rule = rules[key];
+  return rule?.default !== undefined ? String(rule.default) : '';
 }
 
 export interface SettingValidation {
@@ -861,6 +919,15 @@ function parseQuestionBlock(block: SourceLine[], errors: QuizScriptError[]): Qui
       question.media.push({ kind: 'video', alt: match[1], url: match[2] });
     } else if ((reveal = parseRevealLine(text))) {
       question.extras.push(reveal);
+    } else if ((match = ANALYSIS_LINE.exec(text))) {
+      if (question.analysis) {
+        errors.push({
+          line: num,
+          message: 'A question can only have one "!<analysis>" line — remove the extra one(s).'
+        });
+      } else {
+        question.analysis = { label: match[1], content: match[2] };
+      }
     } else if ((match = SETTING_LINE.exec(text))) {
       const key = match[1];
       const { value, error } = validateSettingValue(key, match[2]);
@@ -952,6 +1019,12 @@ function parseQuestionBlock(block: SourceLine[], errors: QuizScriptError[]): Qui
       line: firstLine,
       message:
         '"single_choice" requires exactly one correct option ("=") — use "multiple_choice" for more than one.'
+    });
+  } else if (question.variant === 'character_input' && question.options.length > 1) {
+    errors.push({
+      line: firstLine,
+      message:
+        '"character_input" allows exactly one accepted answer ("=") — the guess mechanic is one fixed board of boxes/pre-reveals, so a second answer would have nothing to represent it. Remove the extra line(s).'
     });
   }
 
@@ -1163,6 +1236,7 @@ function needsEscape(text: string, context: 'line' | 'option'): boolean {
     IMAGE_LINE.test(text) ||
     VIDEO_LINE.test(text) ||
     REVEAL_LINE.test(text) ||
+    ANALYSIS_LINE.test(text) ||
     OPTION_POINTS.test(text)
   )
     return true;
@@ -1202,6 +1276,10 @@ function formatReveal(reveal: QuizScriptReveal): string {
   return `!<reveal>[${reveal.label}](${reveal.content})${points}`;
 }
 
+function formatAnalysis(analysis: QuizScriptAnalysis): string {
+  return `!<analysis>[${analysis.label}](${analysis.content})`;
+}
+
 /**
  * Inverse of `parseQuizScriptQuestion`, so a form-mode field edit can be written back into a
  * question's canonical `code`. Blank lines are stripped out of `text`: the parser can never
@@ -1235,6 +1313,7 @@ export function serializeQuizScriptQuestion(question: QuizScriptQuestion): strin
   }
 
   for (const extra of question.extras) lines.push(formatReveal(extra));
+  if (question.analysis) lines.push(formatAnalysis(question.analysis));
 
   lines.push('{');
   for (const option of question.options) lines.push(formatOption(option));

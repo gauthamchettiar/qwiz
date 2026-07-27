@@ -4,7 +4,21 @@ import QuizList from '@/components/svelte/QuizList.svelte';
 ---
 
 <Base title="My Quizzes">
-  <div class="space-y-4">
+  <div class="space-y-6">
+    <div class="space-y-1.5 rounded-lg border border-slate-200 bg-slate-50 p-4">
+      <p class="text-sm text-slate-600">
+        Qwiz is a quiz builder and player that runs entirely in your browser — every quiz you create
+        is saved to this device's local storage, nothing is ever uploaded anywhere.
+      </p>
+      <a
+        href="https://github.com/gauthamchettiar/qwiz/blob/main/docs/qwiz-format.md"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-block text-sm font-medium text-indigo-600 hover:text-indigo-700 hover:underline"
+      >
+        Read the authoring format docs on GitHub →
+      </a>
+    </div>
     <div class="border-b border-slate-200 pb-3">
       <h1 class="text-2xl font-bold text-slate-900">Saved</h1>
       <p class="mt-0.5 text-sm text-slate-500">

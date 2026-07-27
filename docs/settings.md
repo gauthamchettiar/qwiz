@@ -83,6 +83,8 @@ these was actually exercised against the real parser/grading code, not assumed.
 - **`reveal_answers=after_every_question` + `show_intermediate_screen=false`** (quiz-wide) —
   revealing which options were correct needs a real screen, not just a flash.
 - **`single_choice` with more than one `=`** — use `multiple_choice` instead.
+- **`character_input` with more than one `=`** — the guess mechanic is one fixed board of
+  boxes/pre-reveals, so a second accepted answer has nothing to represent it.
 - **`min_answers`, `max_answers`, or `partial_points` on a `single_choice` question** —
   `single_choice` can only ever have zero or one option selected, so there's no "some but not all"
   or "more than one" for any of the three to mean anything for. Use `multiple_choice` instead if

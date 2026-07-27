@@ -9,7 +9,8 @@
     RotateCcw,
     Trophy,
     ListChecks,
-    Timer
+    Timer,
+    Lightbulb
   } from '@lucide/svelte';
   import {
     parseQuizScriptQuestion,
@@ -744,6 +745,18 @@
           onDraftChange={handleDraftChange}
         />
       {/key}
+
+      {#if locksAnswerImmediately && locked && current.question.analysis}
+        <div class="rounded-md border border-dashed border-indigo-200 bg-indigo-50 p-3">
+          <p class="flex items-center gap-1 text-xs font-medium text-indigo-700">
+            <Lightbulb size={13} />
+            {current.question.analysis.label || 'Why?'}
+          </p>
+          <p class="mt-0.5 whitespace-pre-wrap text-sm text-slate-900">
+            {current.question.analysis.content}
+          </p>
+        </div>
+      {/if}
 
       <div class="flex items-center justify-between">
         {#if !locksAnswerImmediately}

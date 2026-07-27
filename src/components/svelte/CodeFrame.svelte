@@ -11,7 +11,7 @@
     class="flex items-start gap-3 border-b border-red-200 bg-red-100/60 px-3 py-1.5 font-mono text-xs text-red-800"
   >
     <span class="shrink-0 tabular-nums text-red-400">{error.line}</span>
-    <span class="whitespace-pre-wrap">{line}</span>
+    <span class="min-w-0 whitespace-pre-wrap break-all">{line}</span>
   </div>
-  <p class="px-3 py-2 text-red-700">{error.message}</p>
+  <p class="break-words px-3 py-2 text-red-700">{error.message}</p>
 </div>

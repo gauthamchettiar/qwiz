@@ -44,20 +44,20 @@ genuinely public (a shareable read-only quiz link, say), revisit both.
 
 ## 2. Stack
 
-| Concern         | Choice                                                                               | Notes                                                                |
-| --------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
-| Framework       | Astro 7                                                                              | static output, islands architecture                                  |
-| Interactive UI  | Svelte 5 (runes)                                                                     | `$state`, `$derived`, `$effect`, `$props` — no legacy stores API     |
-| Styling         | Tailwind CSS v4 (`@tailwindcss/vite`)                                                | no `tailwind.config.js`; theme lives in CSS via `@theme`             |
-| Components      | Hand-rolled Tailwind, no component library                                           | see §5 — daisyUI/Bits UI were evaluated and deliberately not adopted |
-| Icons           | `@lucide/svelte`                                                                     |                                                                      |
-| Validation      | zod                                                                                  | schemas in `src/lib/schemas/`; types derive via `z.infer`            |
-| Language        | TypeScript, `strict: true`                                                           | `astro/tsconfigs/strict` as base, plus a `@/*` path alias            |
-| Package manager | pnpm                                                                                 | lockfile committed (`pnpm-lock.yaml`), `--frozen-lockfile` in CI     |
-| E2E tests       | Playwright                                                                           | primary safety net — 88 tests across 4 browser projects              |
-| Unit tests      | Vitest                                                                               | pure logic in `src/lib/**` — 125 tests                               |
-| Lint / format   | ESLint (flat config) + Prettier + `prettier-plugin-astro` + `prettier-plugin-svelte` |                                                                      |
-| Deploy          | Cloudflare Pages                                                                     | via GitHub Actions, see §8                                           |
+| Concern         | Choice                                                                               | Notes                                                                     |
+| --------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| Framework       | Astro 7                                                                              | static output, islands architecture                                       |
+| Interactive UI  | Svelte 5 (runes)                                                                     | `$state`, `$derived`, `$effect`, `$props` — no legacy stores API          |
+| Styling         | Tailwind CSS v4 (`@tailwindcss/vite`)                                                | no `tailwind.config.js`; theme lives in CSS via `@theme`                  |
+| Components      | Hand-rolled Tailwind, no component library                                           | see §5 — daisyUI/Bits UI were evaluated and deliberately not adopted      |
+| Icons           | `@lucide/svelte`                                                                     |                                                                           |
+| Validation      | zod                                                                                  | schemas in `src/lib/schemas/`; types derive via `z.infer`                 |
+| Language        | TypeScript, `strict: true`                                                           | `astro/tsconfigs/strict` as base, plus a `@/*` path alias                 |
+| Package manager | pnpm                                                                                 | lockfile committed (`pnpm-lock.yaml`), `--frozen-lockfile` in CI          |
+| E2E tests       | Playwright                                                                           | primary safety net — 144 tests (36 per project) across 4 browser projects |
+| Unit tests      | Vitest                                                                               | pure logic in `src/lib/**` — 185 tests                                    |
+| Lint / format   | ESLint (flat config) + Prettier + `prettier-plugin-astro` + `prettier-plugin-svelte` |                                                                           |
+| Deploy          | Cloudflare Pages                                                                     | via GitHub Actions, see §8                                                |
 
 Version numbers drift. Before pinning anything, check the installed version in `package.json` and
 the actual API in `node_modules`, not memory.
@@ -311,7 +311,7 @@ excluded, since they're covered by e2e instead, not unit tests). `coverage.thres
 80% on statements/branches/functions/lines; Vitest exits non-zero if any metric falls short, which
 is what makes this an actual gate rather than a number nobody looks at. CI's `unit` job runs
 `pnpm test:coverage`, not plain `pnpm test`, so a coverage regression fails the build same as a
-failing test. Current numbers sit around 88% — `sampleQuizzes.ts` (static data, nothing to cover)
+failing test. Current numbers sit around 91% — `sampleQuizzes.ts` (static data, nothing to cover)
 and `clickOutside.ts`/`suggestions.ts` (untested but real logic) are the only files at 0%, and
 don't threaten the aggregate; `download.ts`'s `downloadTextFile` is deliberately excluded from
 unit coverage since it's a browser-side-effect function (Blob/DOM), covered by e2e instead.
@@ -416,12 +416,13 @@ Rules already in place:
   `github-actions` and `npm` ecosystems on a weekly schedule, opening a PR whenever a newer
   version lands, for a human to review and merge or close.
 
-**Not yet done — needs a human**: a Cloudflare Pages project literally named `qwiz`
-(`--project-name=qwiz` in the `wrangler pages deploy` command) doesn't exist yet, and the `deploy`
-job's `secrets.CLOUDFLARE_API_TOKEN`/`secrets.CLOUDFLARE_ACCOUNT_ID` aren't set. The repo now has a
-GitHub remote (`origin` → `gauthamchettiar/qwiz`) but hasn't been pushed. Before `deploy` can run:
-push to GitHub, create the Cloudflare Pages project, and add the two secrets (Settings → Secrets
-and variables → Actions) plus a `production` environment if you want extra protection rules on it.
+**Possibly not yet done — needs a human to confirm**: whether a Cloudflare Pages project literally
+named `qwiz` (`--project-name=qwiz` in the `wrangler pages deploy` command) exists, and whether the
+`deploy` job's `secrets.CLOUDFLARE_API_TOKEN`/`secrets.CLOUDFLARE_ACCOUNT_ID` are set, isn't
+knowable from the repo itself. The repo has a GitHub remote (`origin` → `gauthamchettiar/qwiz`) and
+`main` is pushed and in sync with `origin/main`. If `deploy` hasn't run successfully yet: create
+the Cloudflare Pages project, and add the two secrets (Settings → Secrets and variables → Actions)
+plus a `production` environment if you want extra protection rules on it.
 
 ---
 

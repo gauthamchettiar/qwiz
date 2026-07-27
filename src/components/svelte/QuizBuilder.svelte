@@ -13,6 +13,7 @@
     serializeQuizScript,
     serializeQuizScriptFrontmatter,
     serializeQuizScriptQuestion,
+    settingDefaultValue,
     settingValueSuggestions,
     validateSettingValue,
     type QuizScriptFrontmatter,
@@ -203,6 +204,12 @@
   }
   function removeSetting(key: string) {
     settingsList = settingsList.filter((s) => s._key !== key);
+  }
+  /** Same reasoning as QuestionForm's own `selectSettingKey` — fills in the picked key's default
+   * value, but only when the row's value is genuinely still blank. */
+  function selectSettingKey(setting: { key: string; value: string }) {
+    if (setting.value.trim() === '')
+      setting.value = settingDefaultValue(setting.key, QUIZ_SETTING_RULES);
   }
 
   // --- Question editing: view / code / form -------------------------------------------------
@@ -722,10 +729,11 @@
           {@const validation = setting.key.trim()
             ? validateSettingValue(setting.key, setting.value, QUIZ_SETTING_RULES)
             : null}
-          <div class="flex items-center gap-1.5">
+          <div class="flex flex-wrap items-center gap-1.5">
             <select
-              class="w-44 shrink-0 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-900 focus:border-slate-400 focus:outline-none"
+              class="w-44 max-w-full shrink-0 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-900 focus:border-slate-400 focus:outline-none"
               bind:value={setting.key}
+              onchange={() => selectSettingKey(setting)}
               aria-label="Setting key"
             >
               <option value="">key</option>
@@ -737,7 +745,7 @@
               bind:value={setting.value}
               suggestions={valueSuggestions}
               placeholder="value"
-              class="flex-1"
+              class="min-w-[6rem] flex-1"
             />
             {#if setting.key.trim()}
               <SettingHelp key={setting.key} rules={QUIZ_SETTING_RULES} />
@@ -752,7 +760,7 @@
             </button>
           </div>
           {#if validation?.error}
-            <p class="pl-[11.5rem] text-xs text-red-600">{validation.error}</p>
+            <p class="break-words text-xs text-red-600 sm:pl-[11.5rem]">{validation.error}</p>
           {/if}
         {/each}
         <button

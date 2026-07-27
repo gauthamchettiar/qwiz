@@ -102,8 +102,10 @@ Omitting a variant entirely defaults to the same behavior as `multiple_choice`.
   types — the `=`/`~` marker doesn't matter (both are accepted purely for authoring convenience,
   and the parser forces every option `correct: true`). An accepted answer must be plain text — an
   image/video option is a parse error, since matching is always a text comparison.
-- **`character_input` questions**: same as `typed` — one or more plain-text accepted answers,
-  marker ignored, image/video rejected — plus the `[X]` pre-reveal bracket syntax described below.
+- **`character_input` questions**: exactly one plain-text accepted answer (a second `=` line is a
+  parse error — the guess mechanic is one fixed board of boxes/pre-reveals, so there's nothing a
+  second answer could represent), marker ignored, image/video rejected — plus the `[X]` pre-reveal
+  bracket syntax described below.
 
 ### Question-level media
 
@@ -127,6 +129,24 @@ trailing `%N%` is its reveal cost (omit for a free hint). Can be written alongsi
 above the option block, or interspersed among the `=`/`~` lines inside it — either way it's a
 hint for the whole question, never tied to whichever option it's physically next to.
 
+### Post-question analysis
+
+```
+!<analysis>[Why?](Water boils at 100°C at sea level because that's when its vapor pressure
+equals atmospheric pressure.)
+```
+
+A question's post-answer explanation: shown on the intermediate/reveal screen once the question
+is locked in, regardless of whether the player got it right or wrong — unlike a hint (above),
+it's never player-triggered and never shown before answering, so it takes no `%N%` cost. Written
+alongside the media lines above the option block; unlike hints, it can't be interspersed inside
+`{ }`. At most one per question — a second `!<analysis>[...]` line is a parse error. `label` is
+optional (defaults to "Why?" when shown); `content` is the explanation itself.
+
+Only appears on the per-question intermediate screen (`show_intermediate_screen`, gated the same
+way as live `reveal_answers`/`reveal_scores` — see [below](#quiz-wide-settings)) — it's never
+shown on the end-of-quiz Review screen for quizzes that defer reveal to the end.
+
 ### Character input
 
 `character_input` guesses a single accepted answer letter-by-letter via an on-screen bank —
@@ -145,7 +165,8 @@ character_input: Guess the capital of France
 - **`[X]` pre-reveal brackets**: wrap a character in `[ ]` inside the accepted-answer line to
   reveal it from the start, free of charge — `=[P]aris` pre-reveals "P". Multiple markers are
   fine: `=[P]a[r]is`. Only meaningful on the first accepted answer (if more than one is given, the
-  rest are just alternate matches, same as `typed`).
+  rest are just alternate matches, same as `typed`). Form mode offers the same thing as a row of
+  clickable letter buttons under the answer field, instead of typing brackets directly.
 - Only `\p{L}` Unicode letters are ever guessable — spaces, punctuation, and digits in the answer
   are always shown and never count toward scoring, same as a real Hangman board doesn't ask you to
   guess the spaces between words.

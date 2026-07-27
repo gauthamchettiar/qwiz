@@ -1,15 +1,20 @@
 ---
 import '@/styles/global.css';
 import ImportQuizDialog from '@/components/svelte/ImportQuizDialog.svelte';
+import { ArrowLeft } from '@lucide/svelte';
 
 interface Props {
   title?: string;
   description?: string;
+  /** Swaps the standard header (logo, Import, + New Quiz) for just a back-to-home link — the
+   * play screen's own request to stay out of the way of the quiz itself. */
+  minimal?: boolean;
 }
 
 const {
   title = 'Qwiz',
-  description = 'Build and play quizzes entirely in your browser — nothing leaves your device.'
+  description = 'Build and play quizzes entirely in your browser — nothing leaves your device.',
+  minimal = false
 } = Astro.props;
 ---
 
@@ -29,18 +34,33 @@ const {
   </head>
   <body class="min-h-screen">
     <div class="mx-auto max-w-3xl px-4 py-8">
-      <header class="mb-8 flex items-center justify-between">
-        <a href="/" class="text-xl font-bold text-slate-900">Qwiz</a>
-        <div class="flex items-center gap-2">
-          <ImportQuizDialog client:load />
-          <a
-            href="/local/create"
-            class="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700"
-          >
-            + New Quiz
-          </a>
-        </div>
-      </header>
+      {
+        minimal ? (
+          <header class="mb-6">
+            <a
+              href="/"
+              class="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900"
+            >
+              <ArrowLeft size={16} /> Back
+            </a>
+          </header>
+        ) : (
+          <header class="mb-8 flex items-center justify-between">
+            <a href="/" class="text-xl font-bold text-slate-900">
+              Qwiz
+            </a>
+            <div class="flex items-center gap-2">
+              <ImportQuizDialog client:load />
+              <a
+                href="/local/create"
+                class="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700"
+              >
+                + New Quiz
+              </a>
+            </div>
+          </header>
+        )
+      }
       <main>
         <slot />
       </main>

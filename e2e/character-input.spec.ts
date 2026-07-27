@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { buildCharacterInputQuiz } from './fixtures/quizzes';
+import { BuilderPage } from './pages/BuilderPage';
 import { PlayPage } from './pages/PlayPage';
 import { resetStorage, seedQuizzes } from './utils/storage';
 
@@ -44,4 +45,29 @@ test('guessing letters reveals them, wrong guesses are penalized, and the bank l
 
   await play.seeResultsButton.click();
   await expect(play.resultHeading()).toBeVisible();
+});
+
+test('pre-reveal letters can be authored from form mode, and only one accepted answer is ever offered', async ({
+  page
+}) => {
+  const builder = new BuilderPage(page);
+  await builder.gotoCreate();
+  await builder.titleInput.fill('Hangman Quiz');
+  await builder.addQuestion();
+  await page.getByLabel('Variant', { exact: true }).selectOption('character_input');
+  await builder.questionTextInput().fill('Guess the capital of France');
+  await page.getByPlaceholder('Answer', { exact: true }).fill('Paris');
+
+  // character_input allows exactly one accepted answer — form mode never offers a way to add a
+  // second one (the parser would reject it anyway).
+  await expect(page.getByRole('button', { name: 'Add accepted answer' })).not.toBeVisible();
+
+  const letterP = page.getByRole('button', { name: /letter "P" \(position 1\)/ });
+  await expect(letterP).toHaveAttribute('aria-pressed', 'false');
+  await letterP.click();
+  await expect(letterP).toHaveAttribute('aria-pressed', 'true');
+
+  // Round-trips into the `[P]` pre-reveal bracket in code mode.
+  await page.getByRole('button', { name: 'Edit question code' }).click();
+  await expect(page.locator('main textarea.font-mono')).toHaveValue(/=\[P\]aris/);
 });

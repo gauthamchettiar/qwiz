@@ -5,11 +5,13 @@
     parseOptionContent,
     parseQuizScriptQuestion,
     serializeQuizScriptQuestion,
+    settingDefaultValue,
     settingValueSuggestions,
     suggestedSettingKeysForVariant,
     validateSettingValue,
     type QuizScriptQuestion
   } from '@/lib/utils/quizScript';
+  import { isGuessableChar } from '@/lib/utils/grading';
   import type { FocusTarget } from '@/lib/utils/questionFocus';
   import SuggestionInput from './SuggestionInput.svelte';
   import ErrorList from './ErrorList.svelte';
@@ -56,14 +58,13 @@
   // list below renders a simpler row for it: no correct checkbox, no image/video kind picker.
   const isTyped = $derived(variant === 'typed');
   // character_input's single accepted answer is exactly as plain-text-only as typed's — it just
-  // additionally supports `[X]` pre-reveal bracket markers in that text (see quizScript.ts's
-  // parsePrerevealedText). Deliberately NOT given its own live bracket-stripping input here: doing
-  // that safely would mean re-deriving `prerevealed` on every keystroke without ever going stale
-  // relative to text the author is still mid-edit on, which risks silently corrupting an existing
-  // pre-reveal position into pointing at the wrong character. Authoring/editing `[X]` markers is a
-  // code-mode-only affordance for now — a known, deliberate form-mode gap, same category as the
-  // few other things (e.g. escaping option text starting with "=") this app's own form mode
-  // already accepts not covering, per QuestionForm's original design intent.
+  // additionally supports pre-revealing characters for free (`[X]` bracket markers in code mode —
+  // see quizScript.ts's parsePrerevealedText/insertPrerevealMarkers). Form mode doesn't parse
+  // brackets out of the live text field itself (that would mean re-deriving `prerevealed` on every
+  // keystroke without ever going stale relative to text still mid-edit, risking a pre-reveal
+  // position silently pointing at the wrong character) — instead it renders a separate row of
+  // per-letter toggle buttons below the answer field, operating directly on the already-structured
+  // `prerevealed` array (see `togglePrereveal`), so no bracket-parsing is needed either way.
   const isCharacterInput = $derived(variant === 'character_input');
   // Both variants get the same simplified "one plain-text row per accepted answer" treatment.
   const usesAnswerRows = $derived(isTyped || isCharacterInput);
@@ -111,6 +112,10 @@
       }))
     )
   );
+  // Post-answer analysis (see quizScript.ts's `QuizScriptAnalysis`) is at most one per question,
+  // unlike media/hints — a standalone label+content pair rather than another `elements` row kind.
+  let analysisLabel = $state(untrack(() => question.analysis?.label ?? ''));
+  let analysisContent = $state(untrack(() => question.analysis?.content ?? ''));
 
   let textRef: HTMLTextAreaElement | undefined = $state();
   let optionRefs: HTMLInputElement[] = $state([]);
@@ -146,6 +151,10 @@
     extras: elements
       .filter((e): e is Extract<ElementItem, { kind: 'reveal' }> => e.kind === 'reveal')
       .map(({ _key, kind: _kind, points, ...e }) => ({ ...e, points: Number(points) || 0 })),
+    analysis:
+      analysisLabel.trim() !== '' || analysisContent.trim() !== ''
+        ? { label: analysisLabel, content: analysisContent }
+        : undefined,
     settings: Object.fromEntries(
       settingsList
         .filter((s) => s.key.trim() !== '')
@@ -169,6 +178,17 @@
     onChange(currentQuestion);
   }
 
+  // Switching into character_input can leave more than one option behind from whatever variant
+  // was previously selected (e.g. the blank question template's own two starter options) —
+  // character_input only ever allows exactly one accepted answer (see quizScript.ts's
+  // parseQuestionBlock), so trim down to the first the moment that becomes the active variant,
+  // same as addOption's own "Add accepted answer" button already staying hidden past one.
+  function onVariantChange() {
+    if (variant === 'character_input' && options.length > 1) {
+      options = options.slice(0, 1);
+    }
+    emit();
+  }
   function addOption() {
     options = [
       ...options,
@@ -233,10 +253,34 @@
   }
   // A typed accepted answer is always plain text — unlike setOptionText, deliberately skips the
   // paste-an-image/video-link auto-detection, since that would never make sense here.
+  // `prerevealed` (character_input only) is clamped to the new text's length so shortening the
+  // answer can't leave a stale out-of-range pre-reveal index behind — see `togglePrereveal`.
   function setTypedAnswerText(optionKey: string, raw: string) {
-    options = options.map((o) =>
-      o._key === optionKey ? { ...o, content: { kind: 'text' as const, text: raw } } : o
-    );
+    options = options.map((o) => {
+      if (o._key !== optionKey) return o;
+      const prerevealed = o.prerevealed?.filter((i) => i < raw.length);
+      return {
+        ...o,
+        content: { kind: 'text' as const, text: raw },
+        prerevealed: prerevealed && prerevealed.length > 0 ? prerevealed : undefined
+      };
+    });
+    emit();
+  }
+  // character_input only: toggles whether the answer text's character at `index` is pre-revealed
+  // for free from the start — the form-mode counterpart to code mode's `[X]` bracket syntax,
+  // operating directly on `QuizScriptOption.prerevealed` rather than parsing brackets out of live
+  // text (see the form's own doc comment on `isCharacterInput` for why that's deliberately
+  // avoided). Always targets options[0] — character_input has exactly one accepted answer.
+  function togglePrereveal(index: number) {
+    options = options.map((o, i) => {
+      if (i !== 0) return o;
+      const current = o.prerevealed ?? [];
+      const next = current.includes(index)
+        ? current.filter((n) => n !== index)
+        : [...current, index].sort((a, b) => a - b);
+      return { ...o, prerevealed: next.length > 0 ? next : undefined };
+    });
     emit();
   }
   function addElement(kind: 'image' | 'video' | 'reveal') {
@@ -262,6 +306,15 @@
     settingsList = settingsList.filter((s) => s._key !== key);
     emit();
   }
+  /** Fires when a setting row's key <select> changes — fills in that key's default value
+   * (`settingDefaultValue`) so picking a key never leaves an author staring at an empty value
+   * field for, say, a boolean setting that's really just "on or off". Only fills a genuinely
+   * blank value: switching an already-filled row to a different key leaves whatever's there
+   * (the author may be deliberately reusing a value, e.g. flipping between two enum settings). */
+  function selectSettingKey(setting: { key: string; value: string }) {
+    if (setting.value.trim() === '') setting.value = settingDefaultValue(setting.key);
+    emit();
+  }
 </script>
 
 <div class="space-y-5">
@@ -273,7 +326,7 @@
       id="variant"
       class="rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
       bind:value={variant}
-      onchange={emit}
+      onchange={onVariantChange}
     >
       {#each SELECTABLE_VARIANTS as v (v)}
         <option value={v}>{v}</option>
@@ -295,7 +348,7 @@
 
     <div class="space-y-1.5">
       {#each elements as item, index (item._key)}
-        <div class="flex items-center gap-1.5">
+        <div class="flex flex-wrap items-center gap-1.5">
           <select
             class="shrink-0 rounded-md border border-slate-300 px-1 py-1 text-xs text-slate-600 focus:border-slate-400 focus:outline-none"
             value={item.kind}
@@ -316,7 +369,7 @@
               oninput={emit}
             />
             <input
-              class="flex-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-900 focus:border-slate-400 focus:outline-none"
+              class="min-w-[8rem] flex-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-900 focus:border-slate-400 focus:outline-none"
               placeholder="hint text"
               bind:value={item.content}
               oninput={emit}
@@ -338,7 +391,7 @@
               oninput={emit}
             />
             <input
-              class="flex-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-900 focus:border-slate-400 focus:outline-none"
+              class="min-w-[8rem] flex-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-900 focus:border-slate-400 focus:outline-none"
               placeholder="url"
               bind:value={item.url}
               oninput={emit}
@@ -385,14 +438,12 @@
       {usesAnswerRows ? 'Accepted answers' : 'Options'}
     </p>
     {#each options as option, index (option._key)}
-      <div class="flex items-center gap-1.5">
+      <div class="flex flex-wrap items-center gap-1.5">
         {#if usesAnswerRows}
           <input
             bind:this={optionRefs[index]}
-            class="flex-1 rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
-            placeholder={isCharacterInput
-              ? 'Answer (code mode for [x] pre-reveal)'
-              : 'Accepted answer'}
+            class="min-w-0 flex-1 rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
+            placeholder={isCharacterInput ? 'Answer' : 'Accepted answer'}
             value={option.content.kind === 'text' ? option.content.text : ''}
             oninput={(e) => setTypedAnswerText(option._key, e.currentTarget.value)}
           />
@@ -427,7 +478,7 @@
           {#if option.content.kind === 'text'}
             <input
               bind:this={optionRefs[index]}
-              class="flex-1 rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
+              class="min-w-0 flex-1 rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
               placeholder="Option text (or paste ![alt](image url) / ~[alt](video url))"
               value={option.content.text}
               oninput={(e) => setOptionText(option._key, e.currentTarget.value)}
@@ -441,56 +492,120 @@
               oninput={emit}
             />
             <input
-              class="flex-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-900 focus:border-slate-400 focus:outline-none"
+              class="min-w-[8rem] flex-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-900 focus:border-slate-400 focus:outline-none"
               placeholder="url"
               bind:value={option.content.url}
               oninput={emit}
             />
           {/if}
         {/if}
-        <input
-          type="number"
-          class="w-16 shrink-0 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-900 focus:border-slate-400 focus:outline-none"
-          placeholder="pts"
-          bind:value={option.points}
-          oninput={emit}
-        />
-        <button
-          type="button"
-          class="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30"
-          onclick={() => moveOption(option._key, -1)}
-          disabled={index === 0}
-          aria-label="Move up"
-        >
-          <ChevronUp size={13} />
-        </button>
-        <button
-          type="button"
-          class="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30"
-          onclick={() => moveOption(option._key, 1)}
-          disabled={index === options.length - 1}
-          aria-label="Move down"
-        >
-          <ChevronDown size={13} />
-        </button>
-        <button
-          type="button"
-          class="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100"
-          onclick={() => removeOption(option._key)}
-          aria-label={usesAnswerRows ? 'Remove accepted answer' : 'Remove option'}
-        >
-          <X size={13} />
-        </button>
+        <div class="ml-auto flex shrink-0 items-center gap-1.5">
+          <input
+            type="number"
+            class="w-16 shrink-0 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-900 focus:border-slate-400 focus:outline-none"
+            placeholder="pts"
+            bind:value={option.points}
+            oninput={emit}
+          />
+          <button
+            type="button"
+            class="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30"
+            onclick={() => moveOption(option._key, -1)}
+            disabled={index === 0}
+            aria-label="Move up"
+          >
+            <ChevronUp size={13} />
+          </button>
+          <button
+            type="button"
+            class="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30"
+            onclick={() => moveOption(option._key, 1)}
+            disabled={index === options.length - 1}
+            aria-label="Move down"
+          >
+            <ChevronDown size={13} />
+          </button>
+          <button
+            type="button"
+            class="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100"
+            onclick={() => removeOption(option._key)}
+            aria-label={usesAnswerRows ? 'Remove accepted answer' : 'Remove option'}
+          >
+            <X size={13} />
+          </button>
+        </div>
       </div>
     {/each}
-    <button
-      type="button"
-      class="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
-      onclick={addOption}
-    >
-      <Plus size={13} />
-      {usesAnswerRows ? 'Add accepted answer' : 'Add option'}
-    </button>
+    {#if !isCharacterInput || options.length === 0}
+      <button
+        type="button"
+        class="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+        onclick={addOption}
+      >
+        <Plus size={13} />
+        {usesAnswerRows ? 'Add accepted answer' : 'Add option'}
+      </button>
+    {/if}
+    {#if isCharacterInput && options[0]?.content.kind === 'text' && options[0].content.text}
+      {@const answerText = options[0].content.text}
+      {@const prerevealedSet = new Set(options[0].prerevealed ?? [])}
+      <div class="space-y-1">
+        <p class="text-xs font-medium text-slate-500">
+          Pre-revealed letters
+          <span class="font-normal text-slate-400"
+            >— click to reveal a letter for free from the start</span
+          >
+        </p>
+        <div class="flex flex-wrap gap-1">
+          {#each Array.from({ length: answerText.length }) as _, i (i)}
+            {@const char = answerText[i]}
+            {#if isGuessableChar(char)}
+              <button
+                type="button"
+                class="flex h-7 w-7 items-center justify-center rounded-md border text-xs font-semibold uppercase transition-colors {prerevealedSet.has(
+                  i
+                )
+                  ? 'border-indigo-400 bg-indigo-50 text-indigo-700'
+                  : 'border-slate-300 bg-white text-slate-500 hover:bg-slate-50'}"
+                onclick={() => togglePrereveal(i)}
+                aria-pressed={prerevealedSet.has(i)}
+                aria-label={`${prerevealedSet.has(i) ? 'Unmark' : 'Mark'} letter "${char}" (position ${i + 1}) as pre-revealed`}
+              >
+                {char}
+              </button>
+            {:else}
+              <span class="flex h-7 w-7 items-center justify-center text-xs text-slate-300"
+                >{char}</span
+              >
+            {/if}
+          {/each}
+        </div>
+      </div>
+    {/if}
+  </div>
+
+  <div class="space-y-1.5">
+    <label for="analysis-content" class="block text-xs font-medium text-slate-500">
+      Post-answer analysis
+      <span class="font-normal text-slate-400"
+        >— shown after this question is answered, right or wrong</span
+      >
+    </label>
+    <div class="flex flex-wrap items-center gap-1.5">
+      <input
+        class="w-40 shrink-0 rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+        placeholder="label (optional)"
+        bind:value={analysisLabel}
+        oninput={emit}
+      />
+      <input
+        id="analysis-content"
+        class="min-w-[10rem] flex-1 rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+        placeholder="explanation"
+        bind:value={analysisContent}
+        oninput={emit}
+      />
+    </div>
   </div>
 
   <div class="space-y-1.5" bind:this={settingsRef} tabindex="-1">
@@ -509,11 +624,11 @@
       {@const validation = setting.key.trim()
         ? validateSettingValue(setting.key, setting.value)
         : null}
-      <div class="flex items-center gap-1.5">
+      <div class="flex flex-wrap items-center gap-1.5">
         <select
           class="w-28 shrink-0 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-900 focus:border-slate-400 focus:outline-none"
           bind:value={setting.key}
-          onchange={emit}
+          onchange={() => selectSettingKey(setting)}
           aria-label="Setting key"
         >
           <option value="">key</option>
@@ -525,7 +640,7 @@
           bind:value={setting.value}
           suggestions={valueSuggestions}
           placeholder="value"
-          class="flex-1"
+          class="min-w-[6rem] flex-1"
           oninput={emit}
         />
         {#if setting.key.trim()}
@@ -541,7 +656,7 @@
         </button>
       </div>
       {#if validation?.error}
-        <p class="pl-[7.5rem] text-xs text-red-600">{validation.error}</p>
+        <p class="break-words text-xs text-red-600 sm:pl-[7.5rem]">{validation.error}</p>
       {/if}
     {/each}
     <button

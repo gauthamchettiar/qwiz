@@ -26,7 +26,14 @@
   const instanceId = $props.id();
   const listboxId = `${instanceId}-listbox`;
 
-  const options = $derived(suggestions.filter((s) => s.includes(value.trim().toLowerCase())));
+  // Separate from `value` itself so opening the dropdown on an already-filled field (e.g. one
+  // just pre-filled with its setting's default) shows every accepted value, not just the one
+  // that happens to already be typed in — narrows to a real filter only once the user actually
+  // types something new.
+  let filterQuery = $state('');
+  const options = $derived(
+    suggestions.filter((s) => s.toLowerCase().includes(filterQuery.trim().toLowerCase()))
+  );
 
   $effect(() => {
     void options;
@@ -74,8 +81,19 @@
     aria-expanded={show && options.length > 0}
     aria-controls={listboxId}
     bind:value
-    oninput={() => oninput?.()}
-    onfocus={() => (show = true)}
+    oninput={(e) => {
+      filterQuery = e.currentTarget.value;
+      oninput?.();
+    }}
+    onfocus={(e) => {
+      show = true;
+      filterQuery = '';
+      // Deferred a tick: WebKit positions the cursor from the click that caused this focus
+      // *after* the focus event finishes, which silently collapses a selection made
+      // synchronously here — same fix either way (focus-by-click or focus-by-Tab).
+      const input = e.currentTarget;
+      setTimeout(() => input.select());
+    }}
     onblur={() => (show = false)}
     onkeydown={onKeydown}
   />

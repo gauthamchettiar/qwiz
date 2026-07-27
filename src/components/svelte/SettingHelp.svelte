@@ -1,5 +1,6 @@
 <script lang="ts">
   import { CircleQuestionMark } from '@lucide/svelte';
+  import { clickOutside } from '@/lib/utils/clickOutside';
   import { SETTING_RULES, type SettingRule } from '@/lib/utils/quizScript';
 
   // `rules` defaults to the per-question table; pass `QUIZ_SETTING_RULES` for a quiz-wide key.
@@ -13,31 +14,37 @@
   // characters back into line breaks — a blank entry (from a "\n\n" paragraph break in the source
   // string) becomes a spacer between blocks instead of an empty paragraph.
   const lines = $derived(description.split('\n'));
+
+  // A real open/closed toggle rather than CSS `:hover` — hover has no equivalent on a touch
+  // screen, so a hover-only tooltip is simply unreachable there. Tap to open, tap the trigger
+  // again/tap elsewhere/Escape to close; still works with a mouse via a plain click.
+  let open = $state(false);
 </script>
 
-<span class="group relative inline-flex">
-  <CircleQuestionMark size={12} class="cursor-help text-slate-300 hover:text-slate-500" />
-  <!-- `max-w-[calc(100vw-2rem)]` caps this so it can never itself force the page wider than the
-       viewport (it's `opacity-0` until hover, but the browser still counts an absolutely
-       positioned element's full geometry toward scrollWidth even while invisible — a `w-64`
-       tooltip centered on a trigger near either edge was overflowing horizontally on mobile,
-       inflating the page's scrollable width even though nothing looked wrong at rest). Doesn't
-       fully solve a trigger sitting very close to the viewport edge still clipping one side —
-       real edge-aware repositioning needs a positioning library this app has deliberately not
-       taken on (see CLAUDE.md's daisyUI/Bits UI section) — but every trigger in practice sits
-       inboard of the page's own padding, so this covers the realistic cases. -->
-  <span
-    class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1.5 w-64 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-md border border-slate-200 bg-white p-2.5 text-xs font-normal normal-case leading-relaxed text-slate-600 opacity-0 shadow-md transition-opacity group-hover:opacity-100"
+<span class="relative inline-flex" use:clickOutside={() => (open = false)}>
+  <button
+    type="button"
+    class="cursor-help text-slate-300 hover:text-slate-500"
+    aria-label="What does this setting do?"
+    aria-expanded={open}
+    onclick={() => (open = !open)}
   >
-    {#each lines as line, i (i)}
-      {#if line === ''}
-        <div class="h-2"></div>
-      {:else if line.startsWith('Accepted values:') || line.startsWith('Default:')}
-        {@const [label, ...rest] = line.split(':')}
-        <p><span class="font-semibold text-slate-700">{label}:</span>{rest.join(':')}</p>
-      {:else}
-        <p>{line}</p>
-      {/if}
-    {/each}
-  </span>
+    <CircleQuestionMark size={12} />
+  </button>
+  {#if open}
+    <span
+      class="absolute bottom-full left-1/2 z-20 mb-1.5 w-64 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-md border border-slate-200 bg-white p-2.5 text-xs font-normal normal-case leading-relaxed text-slate-600 shadow-md"
+    >
+      {#each lines as line, i (i)}
+        {#if line === ''}
+          <div class="h-2"></div>
+        {:else if line.startsWith('Accepted values:') || line.startsWith('Default:')}
+          {@const [label, ...rest] = line.split(':')}
+          <p><span class="font-semibold text-slate-700">{label}:</span>{rest.join(':')}</p>
+        {:else}
+          <p>{line}</p>
+        {/if}
+      {/each}
+    </span>
+  {/if}
 </span>

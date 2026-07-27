@@ -66,4 +66,23 @@ export class BuilderPage {
     await this.optionTextInput(0).fill(correctOption);
     await this.optionTextInput(1).fill(wrongOption);
   }
+
+  /** "Add setting" buttons, in DOM order — index 0 is always the quiz metadata card's own (it
+   * renders before any question card), index 1+ are each open question form's, in order. */
+  addSettingButton(index: number): Locator {
+    return this.page.getByRole('button', { name: 'Add setting' }).nth(index);
+  }
+
+  /** A settings row's key <select>, in the same DOM order as `addSettingButton`. */
+  settingKeySelect(index: number): Locator {
+    return this.page.locator('select[aria-label="Setting key"]').nth(index);
+  }
+
+  settingValueInput(index: number): Locator {
+    return this.page.getByPlaceholder('value').nth(index);
+  }
+
+  settingHelpButton(index: number): Locator {
+    return this.page.getByRole('button', { name: 'What does this setting do?' }).nth(index);
+  }
 }

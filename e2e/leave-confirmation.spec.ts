@@ -17,10 +17,11 @@ test("clicking an in-page link mid-run shows this app's own leave-confirmation m
   const play = new PlayPage(page);
   await play.goto(quiz.id);
 
-  // Clicking a real in-page link (the header logo) mid-run is intercepted before it navigates —
-  // this app's own modal appears instead of the browser's generic beforeunload dialog, since a
-  // click (unlike back/forward/tab-close/refresh) can be caught before the navigation starts.
-  await page.getByRole('link', { name: 'Qwiz' }).click();
+  // Clicking a real in-page link (the play screen's minimal header "Back" link) mid-run is
+  // intercepted before it navigates — this app's own modal appears instead of the browser's
+  // generic beforeunload dialog, since a click (unlike back/forward/tab-close/refresh) can be
+  // caught before the navigation starts.
+  await page.getByRole('link', { name: 'Back', exact: true }).click();
   const leaveDialog = page.getByRole('dialog');
   await expect(leaveDialog).toBeVisible();
   await expect(page).toHaveURL(new RegExp(`/local/play\\?id=${quiz.id}`));
@@ -31,7 +32,7 @@ test("clicking an in-page link mid-run shows this app's own leave-confirmation m
   await expect(page).toHaveURL(new RegExp(`/local/play\\?id=${quiz.id}`));
 
   // Confirming leave actually navigates away.
-  await page.getByRole('link', { name: 'Qwiz' }).click();
+  await page.getByRole('link', { name: 'Back', exact: true }).click();
   await leaveDialog.getByRole('button', { name: 'Leave' }).click();
   await expect(page).toHaveURL('/');
 

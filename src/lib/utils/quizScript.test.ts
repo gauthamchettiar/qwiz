@@ -5,12 +5,15 @@ import {
   parseQuizScriptFrontmatter,
   parseQuizScriptQuestion,
   parseQwizFile,
+  QUIZ_SETTING_RULES,
   serializeQuizScript,
   serializeQuizScriptFrontmatter,
   serializeQuizScriptQuestion,
+  settingDefaultValue,
   settingValueSuggestions,
   suggestedSettingKeysForVariant,
-  validateSettingValue
+  validateSettingValue,
+  type QuizScriptQuestion
 } from './quizScript';
 
 describe('parseOptionContent', () => {
@@ -121,6 +124,29 @@ describe('suggestedSettingKeysForVariant / settingValueSuggestions', () => {
     expect(settingValueSuggestions('shuffle')).toEqual(['true', 'false']);
     expect(settingValueSuggestions('difficulty')).toEqual(['easy', 'medium', 'hard']);
     expect(settingValueSuggestions('point')).toEqual([]);
+  });
+});
+
+describe('settingDefaultValue', () => {
+  it('returns the boolean/enum/number default as a string', () => {
+    expect(settingDefaultValue('shuffle')).toBe('false');
+    expect(settingDefaultValue('option_display')).toBe('list');
+    expect(settingDefaultValue('point')).toBe('1');
+  });
+
+  it('returns an empty string for a setting with no real default', () => {
+    expect(settingDefaultValue('min_answers')).toBe('');
+    expect(settingDefaultValue('numeric_tolerance')).toBe('');
+  });
+
+  it('reads from the quiz-wide table when passed QUIZ_SETTING_RULES', () => {
+    expect(settingDefaultValue('timer_mode', QUIZ_SETTING_RULES)).toBe('off');
+    expect(settingDefaultValue('shuffle_questions', QUIZ_SETTING_RULES)).toBe('true');
+    expect(settingDefaultValue('points_to_win', QUIZ_SETTING_RULES)).toBe('');
+  });
+
+  it('returns an empty string for an unknown key', () => {
+    expect(settingDefaultValue('not_a_real_key')).toBe('');
   });
 });
 
@@ -298,6 +324,57 @@ describe('parseQuizScriptQuestion', () => {
     const { question } = parseQuizScriptQuestion(source);
     expect(question.text).toBe('=Not actually an option marker');
   });
+
+  it('parses a question-level post-answer analysis line alongside media', () => {
+    const source = [
+      'Question',
+      '!<analysis>[Why?](Water boils at 100C at sea level.)',
+      '{',
+      '=hat',
+      '~dog',
+      '}'
+    ].join('\n');
+    const { question, errors } = parseQuizScriptQuestion(source);
+    expect(errors).toEqual([]);
+    expect(question.analysis).toEqual({
+      label: 'Why?',
+      content: 'Water boils at 100C at sea level.'
+    });
+  });
+
+  it('errors on a second "!<analysis>" line', () => {
+    const source = [
+      'Question',
+      '!<analysis>[Why?](first)',
+      '!<analysis>[Why again?](second)',
+      '{',
+      '=a',
+      '~b',
+      '}'
+    ].join('\n');
+    const { question, errors } = parseQuizScriptQuestion(source);
+    expect(question.analysis).toEqual({ label: 'Why?', content: 'first' });
+    expect(errors.some((e) => /only have one "!<analysis>"/.test(e.message))).toBe(true);
+  });
+
+  it('escapes a question-text line that would otherwise be read as an analysis line', () => {
+    const question: QuizScriptQuestion = {
+      variant: 'question',
+      text: '!<analysis>[not really](an analysis line)',
+      media: [],
+      options: [
+        { content: { kind: 'text', text: 'a' }, correct: true },
+        { content: { kind: 'text', text: 'b' }, correct: false }
+      ],
+      extras: [],
+      settings: {}
+    };
+    const serialized = serializeQuizScriptQuestion(question);
+    const { question: reparsed, errors } = parseQuizScriptQuestion(serialized);
+    expect(errors).toEqual([]);
+    expect(reparsed.text).toBe(question.text);
+    expect(reparsed.analysis).toBeUndefined();
+  });
 });
 
 describe('character_input parsing', () => {
@@ -323,6 +400,19 @@ describe('character_input parsing', () => {
     const source = ['character_input: pick', '{', '=![alt](url)', '}'].join('\n');
     const { errors } = parseQuizScriptQuestion(source);
     expect(errors.some((e) => /plain text/.test(e.message))).toBe(true);
+  });
+
+  it('rejects more than one accepted answer — the guess mechanic is one fixed board', () => {
+    const source = ['character_input: word', '{', '=paris', '~london', '}'].join('\n');
+    const { errors } = parseQuizScriptQuestion(source);
+    expect(
+      errors.some((e) => /"character_input" allows exactly one accepted answer/.test(e.message))
+    ).toBe(true);
+  });
+
+  it('allows exactly one accepted answer', () => {
+    const source = ['character_input: word', '{', '=paris', '}'].join('\n');
+    expect(parseQuizScriptQuestion(source).errors).toEqual([]);
   });
 
   it('accepts its own settings (letter_bank, prereveal_mode, prereveal_count, letter_bank_chars)', () => {
@@ -527,7 +617,18 @@ describe('serializeQuizScriptQuestion round-trips through parseQuizScriptQuestio
         ':penalty=-1'
       ].join('\n')
     ],
-    ['weighted options', ['Pick', '{', '=Four %4%', '~Five %-1%', '}'].join('\n')]
+    ['weighted options', ['Pick', '{', '=Four %4%', '~Five %-1%', '}'].join('\n')],
+    [
+      'with post-answer analysis',
+      [
+        'What is H2O?',
+        '!<analysis>[Why?](Two hydrogen atoms bond with one oxygen atom.)',
+        '{',
+        '=Water',
+        '~Salt',
+        '}'
+      ].join('\n')
+    ]
   ] as const;
 
   it.each(cases)('%s', (_label, source) => {
