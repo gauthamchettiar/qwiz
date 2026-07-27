@@ -117,6 +117,13 @@ export interface QuizScriptOption {
    * that character, e.g. `=[P]aris` pre-reveals index 0. `undefined`/empty when none are marked.
    * Never set for any other variant. */
   prerevealed?: number[];
+  /** `match`/`categorise` only: the right-hand label this item pairs with (`match`) or the bucket
+   * it belongs to (`categorise`) — authored as `=item -> target`. For `match`, every option's own
+   * `target` is unique and doubles as that item's one right-column entry; for `categorise`, several
+   * options can share the same `target` string, and the distinct set of targets across all options
+   * IS the list of buckets (there's no separate bucket-naming syntax). Always plain text — a
+   * target can't be an image/video. Never set for any other variant. */
+  target?: string;
 }
 
 /** A question-level hint: `label` is the prompt shown before it's revealed (e.g. "Need a hint?"),
@@ -177,23 +184,48 @@ const ANALYSIS_LINE = /^!<analysis>\[(.*)\]\((.*)\)$/;
 const VARIANT_LINE = /^variant\s*:\s*(.+)$/i;
 const SETTING_LINE = /^:([A-Za-z_][\w-]*)\s*=\s*(.*)$/;
 const FRONTMATTER_LINE = /^([A-Za-z_][\w-]*)\s*:\s*(.*)$/;
+/** `match`/`categorise` option shape: `item -> target`, split on the FIRST " -> " (non-greedy
+ * left side) — a known, documented simplification, same category as `matchTypedGuesses`' own
+ * "Known limitation" comment in grading.ts: an item whose own text contains a literal " -> " would
+ * split in the wrong place. Quote or backslash-escape the line (see `parseEscaped`) to opt out. */
+const OPTION_TARGET = /^(.*?)\s->\s(.*)$/;
 
 /** Variant names recognized as a compact `<name>: text` header. A whitelist rather than "any
  * `word:` prefix" so an ordinary text line that happens to contain an early colon (e.g. a ratio
  * like "Ratio: 3:4") isn't mistaken for a variant declaration. "question" is deliberately absent —
  * it's just the default a question gets by not declaring anything, not a real variant, so a
  * hand-typed `question: ...` header isn't recognized (it just reads as plain question text). */
-export const KNOWN_VARIANTS = ['single_choice', 'multiple_choice', 'typed', 'character_input'];
+export const KNOWN_VARIANTS = [
+  'single_choice',
+  'multiple_choice',
+  'typed',
+  'character_input',
+  'order',
+  'match',
+  'categorise',
+  'fill_in_blanks'
+];
 
 const VARIANT_HEADER_LINE = new RegExp(`^(${KNOWN_VARIANTS.join('|')})\\s*:\\s*(.*)$`, 'i');
 
-/** The four settings-applicability groups a question variant maps to (see
- * `settingsGroupForVariant`) — the bare/default variant collapses to `'multiple_choice'`, its most
- * permissive sibling (any number of correct options); `single_choice` gets its own group precisely
- * because some settings (`min_answers`/`max_answers`/`partial_points`) apply to `multiple_choice`
- * but never make sense on `single_choice`, which can only ever have zero or one option selected —
- * there's no "some but not all" or "more than one" for any of those three to mean anything for. */
-export type SettingsGroup = 'single_choice' | 'multiple_choice' | 'typed' | 'character_input';
+/** The settings-applicability groups a question variant maps to (see `settingsGroupForVariant`) —
+ * the bare/default variant collapses to `'multiple_choice'`, its most permissive sibling (any
+ * number of correct options); `single_choice` gets its own group precisely because some settings
+ * (`min_answers`/`max_answers`/`partial_points`) apply to `multiple_choice` but never make sense on
+ * `single_choice`, which can only ever have zero or one option selected — there's no "some but not
+ * all" or "more than one" for any of those three to mean anything for. `order`/`match`/`categorise`/
+ * `fill_in_blanks` each get their own group for the same reason: each has its own shape of "correct
+ * answer" (a sequence, a set of pairs, a set of bucket assignments, a set of blank fills) that no
+ * existing group's settings were written to describe. */
+export type SettingsGroup =
+  | 'single_choice'
+  | 'multiple_choice'
+  | 'typed'
+  | 'character_input'
+  | 'order'
+  | 'match'
+  | 'categorise'
+  | 'fill_in_blanks';
 
 export interface SettingRule {
   kind: 'number' | 'boolean' | 'enum' | 'string';
@@ -229,23 +261,41 @@ export const SETTING_RULES: Record<string, SettingRule> = {
   point: {
     kind: 'number',
     default: 1,
-    appliesTo: ['single_choice', 'multiple_choice', 'typed', 'character_input'],
+    appliesTo: [
+      'single_choice',
+      'multiple_choice',
+      'typed',
+      'character_input',
+      'order',
+      'match',
+      'categorise',
+      'fill_in_blanks'
+    ],
     description:
-      "Points awarded for each correct option that doesn't specify its own %N% weight.\n\nAccepted values: any number\nDefault: 1"
+      "Points awarded for each correct option/pair/placement that doesn't specify its own %N% weight.\n\nAccepted values: any number\nDefault: 1"
   },
   penalty: {
     kind: 'number',
     default: 0,
-    appliesTo: ['single_choice', 'multiple_choice', 'typed', 'character_input'],
+    appliesTo: [
+      'single_choice',
+      'multiple_choice',
+      'typed',
+      'character_input',
+      'order',
+      'match',
+      'categorise',
+      'fill_in_blanks'
+    ],
     description:
-      "Points deducted for each incorrect option that doesn't specify its own %N% weight.\n\nAccepted values: any number\nDefault: 0"
+      "Points deducted for each incorrect option/pair/placement that doesn't specify its own %N% weight.\n\nAccepted values: any number\nDefault: 0"
   },
   partial_points: {
     kind: 'boolean',
     default: false,
-    appliesTo: ['multiple_choice', 'typed'],
+    appliesTo: ['multiple_choice', 'typed', 'order', 'match', 'categorise', 'fill_in_blanks'],
     description:
-      'Whether getting some (not all) correct options/accepted answers earns partial credit instead of requiring an exact match — e.g. for a typed question with 3 accepted answers, matching only 1 of them awards that one\'s points instead of 0.\n\nNot meaningful for single_choice: with at most one correct option, there\'s never a "some but not all" scenario for it to apply to. Only meaningful for a multi-guess typed question (max_answers > 1) — single-input typed matching has no concept of partial either.\n\nAccepted values: true, false\nDefault: false'
+      'Whether getting some (not all) of a question right earns partial credit instead of requiring an exact match — e.g. for a typed question with 3 accepted answers, matching only 1 of them awards that one\'s points instead of 0. For order/match/categorise/fill_in_blanks, "some but not all" means some but not all items/pairs/buckets/blanks placed correctly.\n\nNot meaningful for single_choice: with at most one correct option, there\'s never a "some but not all" scenario for it to apply to. Only meaningful for a multi-guess typed question (max_answers > 1) — single-input typed matching has no concept of partial either.\n\nAccepted values: true, false\nDefault: false'
   },
   option_display: {
     kind: 'enum',
@@ -277,28 +327,37 @@ export const SETTING_RULES: Record<string, SettingRule> = {
   difficulty: {
     kind: 'enum',
     values: ['easy', 'medium', 'hard'],
-    appliesTo: ['single_choice', 'multiple_choice', 'typed', 'character_input'],
+    appliesTo: [
+      'single_choice',
+      'multiple_choice',
+      'typed',
+      'character_input',
+      'order',
+      'match',
+      'categorise',
+      'fill_in_blanks'
+    ],
     description:
       "How difficult this question is, for organizing or filtering later — purely informational, doesn't affect grading or play.\n\nAccepted values: easy, medium, hard\nDefault: none"
   },
   case_sensitive: {
     kind: 'boolean',
     default: false,
-    appliesTo: ['typed'],
+    appliesTo: ['typed', 'fill_in_blanks'],
     description:
-      "For a typed question, whether a player's answer must match an accepted answer's exact letter case instead of being compared case-insensitively. Other normalization (whitespace, punctuation, accents) always applies regardless of this setting. Not meaningful for character_input: the player guesses by clicking a bank letter, not typing text, so there's no \"wrong case\" input to compare against — matching there is always case-insensitive.\n\nAccepted values: true, false\nDefault: false"
+      "For a typed question (or a fill_in_blanks question with blank_input=type), whether a player's answer must match an accepted answer's exact letter case instead of being compared case-insensitively. Other normalization (whitespace, punctuation, accents) always applies regardless of this setting. Not meaningful for character_input: the player guesses by clicking a bank letter, not typing text, so there's no \"wrong case\" input to compare against — matching there is always case-insensitive. A no-op on fill_in_blanks when blank_input=bank, since picking a bank word is never a case mismatch.\n\nAccepted values: true, false\nDefault: false"
   },
   numeric_tolerance: {
     kind: 'number',
-    appliesTo: ['typed'],
+    appliesTo: ['typed', 'fill_in_blanks'],
     description:
-      'For a typed question, the allowed absolute difference between a numeric answer and a numeric response (e.g. 0.5 lets "3.5" match "3"). Falls back to normalized text comparison when either side isn\'t a number. Cannot be combined with fuzzy_tolerance on the same question.\n\nAccepted values: any number\nDefault: none — numeric-tolerance matching is off'
+      'For a typed question (or a fill_in_blanks question with blank_input=type), the allowed absolute difference between a numeric answer and a numeric response (e.g. 0.5 lets "3.5" match "3"). Falls back to normalized text comparison when either side isn\'t a number. Cannot be combined with fuzzy_tolerance on the same question. A no-op on fill_in_blanks when blank_input=bank.\n\nAccepted values: any number\nDefault: none — numeric-tolerance matching is off'
   },
   fuzzy_tolerance: {
     kind: 'number',
-    appliesTo: ['typed'],
+    appliesTo: ['typed', 'fill_in_blanks'],
     description:
-      "For a typed question, how many typos a response may have and still match, as a percentage of the accepted answer's length (edit distance). Cannot be combined with numeric_tolerance on the same question.\n\nAccepted values: a number from 0 to 100\nDefault: none — fuzzy matching is off"
+      "For a typed question (or a fill_in_blanks question with blank_input=type), how many typos a response may have and still match, as a percentage of the accepted answer's length (edit distance). Cannot be combined with numeric_tolerance on the same question. A no-op on fill_in_blanks when blank_input=bank.\n\nAccepted values: a number from 0 to 100\nDefault: none — fuzzy matching is off"
   },
   input_display: {
     kind: 'enum',
@@ -336,6 +395,14 @@ export const SETTING_RULES: Record<string, SettingRule> = {
     appliesTo: ['character_input'],
     description:
       'Additional random characters (on top of any explicit [x] pre-reveal brackets in the answer) revealed from the start, free of charge.\n\nAccepted values: any number\nDefault: 0'
+  },
+  blank_input: {
+    kind: 'enum',
+    values: ['bank', 'type'],
+    default: 'bank',
+    appliesTo: ['fill_in_blanks'],
+    description:
+      'How a fill_in_blanks question is answered. "bank": pick words from an on-screen word bank (correct answers plus any ~ distractors) and place them into blanks. "type": type each blank\'s answer directly, matched the same way a typed question\'s response is (case_sensitive/numeric_tolerance/fuzzy_tolerance all apply).\n\nAccepted values: bank, type\nDefault: bank'
   }
 };
 
@@ -350,6 +417,10 @@ function settingsGroupForVariant(variant: string): SettingsGroup {
   if (variant === 'single_choice') return 'single_choice';
   if (variant === 'typed') return 'typed';
   if (variant === 'character_input') return 'character_input';
+  if (variant === 'order') return 'order';
+  if (variant === 'match') return 'match';
+  if (variant === 'categorise') return 'categorise';
+  if (variant === 'fill_in_blanks') return 'fill_in_blanks';
   return 'multiple_choice';
 }
 
@@ -1007,6 +1078,104 @@ function parseQuestionBlock(block: SourceLine[], errors: QuizScriptError[]): Qui
     }
   }
 
+  // order has no right/wrong item, only a right/wrong POSITION — every listed item is
+  // implicitly correct by construction, same "hard, self-healing invariant" as typed above.
+  // Unlike typed/character_input, image/video content is left alone: ordering pictures
+  // chronologically is a perfectly sensible use of this variant, and nothing here needs to
+  // string-compare an item's content the way typed/character_input matching does.
+  if (question.variant === 'order') {
+    question.options = question.options.map((o) => ({ ...o, correct: true }));
+    if (question.options.length < 2) {
+      errors.push({
+        line: firstLine,
+        message: '"order" needs at least 2 items — a single item has no meaningful order.'
+      });
+    }
+  }
+
+  // match/categorise share the same `item -> target` option syntax (see `OPTION_TARGET`) — every
+  // listed pair is implicitly correct by construction, same invariant as order/typed/
+  // character_input above. Only plain text is supported on either side for now (matching typed/
+  // character_input's own "must be plain text" restriction) — image/video items are a real,
+  // deferred enhancement, not something this parser silently mishandles.
+  if (question.variant === 'match' || question.variant === 'categorise') {
+    for (const option of question.options) {
+      if (option.content.kind !== 'text') {
+        errors.push({
+          line: firstLine,
+          message: `"${question.variant}" options must be plain text — an image/video item isn't meaningful here.`
+        });
+      }
+    }
+    question.options = question.options.map((o) => {
+      if (o.content.kind !== 'text') return { ...o, correct: true };
+      const targetMatch = OPTION_TARGET.exec(o.content.text);
+      if (!targetMatch) return { ...o, correct: true };
+      return {
+        ...o,
+        content: { kind: 'text' as const, text: targetMatch[1].trim() },
+        correct: true,
+        target: targetMatch[2].trim()
+      };
+    });
+    if (question.options.some((o) => o.content.kind === 'text' && o.target === undefined)) {
+      errors.push({
+        line: firstLine,
+        message: `Every "${question.variant}" option needs a "-> target" pairing, e.g. "=Paris -> France".`
+      });
+    }
+    if (question.options.length < 2) {
+      errors.push({
+        line: firstLine,
+        message: `"${question.variant}" needs at least 2 items.`
+      });
+    }
+    // Only meaningful for match: a duplicated target would make more than one left-side item
+    // "correctly" pair with the same right-side entry, which the 1-to-1 pairing this variant
+    // renders (one right-column slot per target) can't actually represent. categorise has no such
+    // constraint — many items sharing one target/bucket is the entire point of that variant.
+    if (question.variant === 'match') {
+      const targets = question.options.map((o) => o.target).filter((t) => t !== undefined);
+      const duplicates = targets.filter((t, i) => targets.indexOf(t) !== i);
+      if (duplicates.length > 0) {
+        errors.push({
+          line: firstLine,
+          message: `"match" targets must be unique — "${duplicates[0]}" is paired with more than one item.`
+        });
+      }
+    }
+  }
+
+  // fill_in_blanks' `text` embeds its blanks as `___` tokens, filled left-to-right by this
+  // question's correct ("=") options in order — unlike typed/character_input/order/match/
+  // categorise, the `=`/`~` marker stays meaningful here: `~` options are distractor words added
+  // to the word bank with no blank of their own, exactly mirroring how `typed`'s own marker
+  // convention would work if typed didn't force every option correct.
+  if (question.variant === 'fill_in_blanks') {
+    for (const option of question.options) {
+      if (option.content.kind !== 'text') {
+        errors.push({
+          line: firstLine,
+          message:
+            "fill_in_blanks options must be plain text — an image/video blank answer isn't meaningful here."
+        });
+      }
+    }
+    const blankCount = (question.text.match(/___/g) ?? []).length;
+    const answerCount = question.options.filter((o) => o.correct).length;
+    if (blankCount === 0) {
+      errors.push({
+        line: firstLine,
+        message: 'fill_in_blanks needs at least one "___" blank in the question text.'
+      });
+    } else if (blankCount !== answerCount) {
+      errors.push({
+        line: firstLine,
+        message: `fill_in_blanks has ${blankCount} blank(s) in the text but ${answerCount} correct ("=") option(s) — these must match, one answer per blank in order.`
+      });
+    }
+  }
+
   if (question.options.length === 0) {
     errors.push({ line: firstLine, message: 'Question has no options.' });
   } else if (!question.options.some((o) => o.correct)) {
@@ -1268,7 +1437,8 @@ function formatOption(option: QuizScriptOption): string {
     option.content.kind === 'text' && option.prerevealed
       ? { kind: 'text', text: insertPrerevealMarkers(option.content.text, option.prerevealed) }
       : option.content;
-  return `${marker}${formatOptionContent(content)}${points}`;
+  const target = option.target === undefined ? '' : ` -> ${option.target}`;
+  return `${marker}${formatOptionContent(content)}${target}${points}`;
 }
 
 function formatReveal(reveal: QuizScriptReveal): string {

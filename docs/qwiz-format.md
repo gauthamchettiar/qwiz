@@ -79,6 +79,14 @@ Recognized variants:
 - **`typed`** — type a free-text answer, matched against one or more accepted answers.
 - **`character_input`** — guess a word letter-by-letter from an on-screen bank, Hangman-style —
   see [Character input](#character-input) below.
+- **`order`** — drag (or tap-to-pick-then-tap-to-place) items into the correct sequence — see
+  [Order](#order) below.
+- **`match`** — pair up items from a left column with items from a right column — see
+  [Match](#match) below.
+- **`categorise`** — sort items into buckets, several items per bucket — see
+  [Categorise](#categorise) below.
+- **`fill_in_blanks`** — fill in blanks in the question text from a word bank or by typing — see
+  [Fill in the blanks](#fill-in-the-blanks) below.
 
 Omitting a variant entirely defaults to the same behavior as `multiple_choice`.
 
@@ -146,6 +154,104 @@ optional (defaults to "Why?" when shown); `content` is the explanation itself.
 Only appears on the per-question intermediate screen (`show_intermediate_screen`, gated the same
 way as live `reveal_answers`/`reveal_scores` — see [below](#quiz-wide-settings)) — it's never
 shown on the end-of-quiz Review screen for quizzes that defer reveal to the end.
+
+### Order
+
+`order` presents a set of items and asks the player to arrange them into the correct sequence —
+the order they're written in `{ }` IS the answer key, so it's never shown to the player unshuffled.
+
+```
+order: Arrange chronologically
+{
+=First
+=Second
+=Third
+}
+```
+
+- Every line starts with `=` — the `=`/`~` marker doesn't matter (both are accepted purely for
+  authoring convenience, same as `typed`), since every listed item is implicitly part of the
+  sequence; there's no "wrong item," only a wrong position.
+- At least 2 items are required — a single item has no meaningful order.
+- An item's content can be an image or video, using the same syntax as question-level media —
+  ordering pictures (e.g. "arrange these photos chronologically") is a real use case, unlike
+  `typed`/`character_input` where content must always be plain text.
+- Played by tapping an item to pick it up, then tapping a numbered position to place it (or
+  tapping a filled position to swap) — works identically via mouse, touch, or keyboard
+  (Tab + Enter/Space), with no drag gesture required.
+
+### Match
+
+`match` presents two columns and asks the player to pair up each left-side item with its matching
+right-side entry — a 1-to-1 pairing, every target used exactly once.
+
+```
+match: Match the capital to its country
+{
+=Paris -> France
+=Tokyo -> Japan
+=Berlin -> Germany
+}
+```
+
+- Every line is `item -> target`, split on the first `" -> "` — quote or backslash-escape the
+  line (see [Escaping](#escaping)) if an item's own text genuinely needs to contain that.
+- At least 2 pairs are required, and every target must be unique — two items can't both correctly
+  pair with the same target (that's what [Categorise](#categorise) is for).
+- Both `item` and `target` must be plain text (no image/video) for now.
+- Played the same tap-to-pick-then-tap-to-place way as `order`: tap a left item, then tap a right
+  target to pair them (or tap an already-paired target to steal it for the currently-picked item).
+
+### Categorise
+
+`categorise` presents a set of items and a set of buckets, and asks the player to sort each item
+into its correct bucket — unlike `match`, several items can correctly share one bucket.
+
+```
+categorise: Sort these animals by habitat
+{
+=Fish -> Water
+=Frog -> Water
+=Lion -> Land
+=Eagle -> Air
+}
+```
+
+- Same `item -> target` syntax as `match`, but `target` is a bucket name here, not a unique
+  pairing partner — the buckets shown to the player are simply the distinct set of targets across
+  every option (there's no separate bucket-naming syntax). Repeating a target across several
+  options is expected, not an error.
+- At least 2 items are required. Both `item` and `target` must be plain text.
+- Played by tapping an item to pick it up, then tapping a bucket to place it there (or tapping an
+  already-placed item to pick it back up).
+
+### Fill in the blanks
+
+`fill_in_blanks` embeds one or more blanks directly in the question text and asks the player to
+fill each one, either by picking words from a bank or by typing.
+
+```
+fill_in_blanks: The ___ is the powerhouse of the ___.
+{
+=mitochondria
+=cell
+~nucleus
+}
+:blank_input=bank
+```
+
+- Blanks are `___` (three underscores) tokens written directly in the question text — the number
+  of `___` tokens must exactly match the number of correct (`=`) options, since each one is filled,
+  left to right, by the correct options in the order they're written.
+- `~` options don't fill any blank — they're extra distractor words added to the bank, same
+  purpose as `letter_bank=auto`'s decoy letters in `character_input`: without them, every bank pick
+  would be a guaranteed-right word with no risk to it.
+- `blank_input` (per-question setting, see [below](#per-question-settings)) controls how a blank is
+  filled: `bank` (default) — tap a bank word, then tap a blank to place it (same tap-to-place
+  interaction as `order`/`match`/`categorise`), matched by exact text since the player picked it
+  verbatim. `type` — a plain inline text field per blank, matched the same way a `typed` question's
+  response is (`case_sensitive`/`numeric_tolerance`/`fuzzy_tolerance` all apply).
+- Both blank-answer and distractor content must be plain text.
 
 ### Character input
 

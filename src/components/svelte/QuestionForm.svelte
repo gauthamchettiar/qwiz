@@ -20,7 +20,16 @@
   // "question" isn't offered here — it's not a real variant, just what a question gets by not
   // declaring anything (see KNOWN_VARIANTS in quizScript.ts). More real variants can be added to
   // this list as they're actually built.
-  const SELECTABLE_VARIANTS = ['single_choice', 'multiple_choice', 'typed', 'character_input'];
+  const SELECTABLE_VARIANTS = [
+    'single_choice',
+    'multiple_choice',
+    'typed',
+    'character_input',
+    'order',
+    'match',
+    'categorise',
+    'fill_in_blanks'
+  ];
 
   // "Elements" is one unified list in form mode (image/video/reveal, switchable per row, same
   // idea as quizare's extras editor) even though the underlying data keeps them in two separate
@@ -73,6 +82,25 @@
   // first place — code mode still catches it via formErrors below either way, but this avoids the
   // mistake happening at all rather than just reporting it after the fact.
   const isSingleChoice = $derived(variant === 'single_choice');
+  // order has no right/wrong item, only a right/wrong POSITION (every option is forced
+  // `correct: true` at parse time — see quizScript.ts) — so its option rows keep the image/video
+  // kind picker (ordering pictures is a real use case) but drop the correct checkbox/radio
+  // entirely, and reuse the existing move-up/move-down buttons as the actual authoring mechanism
+  // for the correct order: whatever sequence the author arranges them in IS the answer key.
+  const isOrder = $derived(variant === 'order');
+  // match/categorise share the same "item -> target" option shape (see quizScript.ts's
+  // OPTION_TARGET) — every option is forced `correct: true` at parse time, same as order, so
+  // their rows drop the correct checkbox too, but add a second plain-text input for the target
+  // (the right-column label for match, the bucket name for categorise) alongside the item text.
+  const isMatch = $derived(variant === 'match');
+  const isCategorise = $derived(variant === 'categorise');
+  const usesTargetRows = $derived(isMatch || isCategorise);
+  // fill_in_blanks' `___` tokens in the question text are filled left-to-right by this question's
+  // correct ("=") options in order; unlike order/match/categorise, the correct/incorrect marker
+  // stays meaningful (an unchecked option becomes a distractor word in the bank instead) — so its
+  // rows keep the correct checkbox but, like typed/character_input, drop the image/video kind
+  // picker (a blank answer is always plain text).
+  const isFillInBlanks = $derived(variant === 'fill_in_blanks');
   const suggestedKeys = $derived(suggestedSettingKeysForVariant(variant));
   let text = $state(untrack(() => question.text));
   let elements: ElementItem[] = $state(
@@ -187,6 +215,15 @@
     if (variant === 'character_input' && options.length > 1) {
       options = options.slice(0, 1);
     }
+    // order/match/categorise force every option correct at PARSE time regardless (see
+    // quizScript.ts), but code mode's live preview serializes `currentQuestion` as-is, before any
+    // re-parse — so without this, an option left over from whatever variant was previously
+    // selected (e.g. the blank template's own "one correct, one not" starter options) would show a
+    // stray, meaningless `~` marker the author never typed. Normalizing here keeps code mode
+    // honest immediately.
+    if (variant === 'order' || variant === 'match' || variant === 'categorise') {
+      options = options.map((o) => ({ ...o, correct: true }));
+    }
     emit();
   }
   function addOption() {
@@ -195,7 +232,8 @@
       {
         _key: crypto.randomUUID(),
         content: { kind: 'text', text: '' },
-        correct: usesAnswerRows,
+        correct: usesAnswerRows || isOrder || usesTargetRows,
+        target: usesTargetRows ? '' : undefined,
         points: ''
       }
     ];
@@ -265,6 +303,13 @@
         prerevealed: prerevealed && prerevealed.length > 0 ? prerevealed : undefined
       };
     });
+    emit();
+  }
+  // match/categorise only: the right-hand label an item's own text (setOptionText/setTypedAnswerText
+  // aren't used for these two — see usesTargetRows) is paired with — the form-mode counterpart to
+  // code mode's "item -> target" syntax.
+  function setOptionTarget(optionKey: string, raw: string) {
+    options = options.map((o) => (o._key === optionKey ? { ...o, target: raw } : o));
     emit();
   }
   // character_input only: toggles whether the answer text's character at `index` is pre-revealed
@@ -435,11 +480,36 @@
 
   <div class="space-y-1.5">
     <p class="text-xs font-medium text-slate-500">
-      {usesAnswerRows ? 'Accepted answers' : 'Options'}
+      {usesAnswerRows
+        ? 'Accepted answers'
+        : isOrder
+          ? 'Items, in the correct order (use ↑/↓ to arrange)'
+          : isMatch
+            ? 'Pairs'
+            : isCategorise
+              ? 'Items and their bucket'
+              : isFillInBlanks
+                ? 'Blank answers (checked) and word-bank distractors (unchecked)'
+                : 'Options'}
     </p>
     {#each options as option, index (option._key)}
       <div class="flex flex-wrap items-center gap-1.5">
-        {#if usesAnswerRows}
+        {#if usesTargetRows}
+          <input
+            bind:this={optionRefs[index]}
+            class="min-w-0 flex-1 rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
+            placeholder="Item"
+            value={option.content.kind === 'text' ? option.content.text : ''}
+            oninput={(e) => setTypedAnswerText(option._key, e.currentTarget.value)}
+          />
+          <span class="shrink-0 text-sm text-slate-500">→</span>
+          <input
+            class="min-w-0 flex-1 rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
+            placeholder={isMatch ? 'Matches with' : 'Bucket'}
+            value={option.target ?? ''}
+            oninput={(e) => setOptionTarget(option._key, e.currentTarget.value)}
+          />
+        {:else if usesAnswerRows}
           <input
             bind:this={optionRefs[index]}
             class="min-w-0 flex-1 rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
@@ -447,8 +517,26 @@
             value={option.content.kind === 'text' ? option.content.text : ''}
             oninput={(e) => setTypedAnswerText(option._key, e.currentTarget.value)}
           />
+        {:else if isFillInBlanks}
+          <input
+            type="checkbox"
+            bind:checked={option.correct}
+            onchange={emit}
+            aria-label="Correct"
+          />
+          <input
+            bind:this={optionRefs[index]}
+            class="min-w-0 flex-1 rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
+            placeholder={option.correct ? 'Blank answer' : 'Distractor word'}
+            value={option.content.kind === 'text' ? option.content.text : ''}
+            oninput={(e) => setTypedAnswerText(option._key, e.currentTarget.value)}
+          />
         {:else}
-          {#if isSingleChoice}
+          {#if isOrder}
+            <!-- No correct checkbox: every order item is correct by construction (see
+                 quizScript.ts) — the move up/down buttons below are the actual authoring
+                 mechanism for the correct sequence. -->
+          {:else if isSingleChoice}
             <input
               type="radio"
               name="correct-option"

@@ -377,6 +377,122 @@ describe('parseQuizScriptQuestion', () => {
   });
 });
 
+describe('order parsing', () => {
+  it('forces every option correct: true regardless of marker', () => {
+    const source = ['order: Arrange chronologically', '{', '=First', '~Second', '}'].join('\n');
+    const { question, errors } = parseQuizScriptQuestion(source);
+    expect(errors).toEqual([]);
+    expect(question.options.every((o) => o.correct)).toBe(true);
+  });
+
+  it('errors when fewer than 2 items are given', () => {
+    const source = ['order: Arrange', '{', '=Only one', '}'].join('\n');
+    const { errors } = parseQuizScriptQuestion(source);
+    expect(errors.some((e) => /needs at least 2 items/.test(e.message))).toBe(true);
+  });
+
+  it('allows image/video items, unlike typed/character_input', () => {
+    const source = [
+      'order: Arrange',
+      '{',
+      '=![first](https://example.com/1.png)',
+      '=![second](https://example.com/2.png)',
+      '}'
+    ].join('\n');
+    const { question, errors } = parseQuizScriptQuestion(source);
+    expect(errors).toEqual([]);
+    expect(question.options[0].content).toEqual({
+      kind: 'image',
+      alt: 'first',
+      url: 'https://example.com/1.png'
+    });
+  });
+});
+
+describe('match/categorise parsing', () => {
+  it('parses "item -> target" pairs for match', () => {
+    const source = ['match: Match capitals', '{', '=Paris -> France', '=Tokyo -> Japan', '}'].join(
+      '\n'
+    );
+    const { question, errors } = parseQuizScriptQuestion(source);
+    expect(errors).toEqual([]);
+    expect(question.options).toEqual([
+      { content: { kind: 'text', text: 'Paris' }, correct: true, target: 'France' },
+      { content: { kind: 'text', text: 'Tokyo' }, correct: true, target: 'Japan' }
+    ]);
+  });
+
+  it('categorise allows several items to share one target/bucket', () => {
+    const source = [
+      'categorise: Sort animals',
+      '{',
+      '=Fish -> Water',
+      '=Frog -> Water',
+      '=Lion -> Land',
+      '}'
+    ].join('\n');
+    const { question, errors } = parseQuizScriptQuestion(source);
+    expect(errors).toEqual([]);
+    expect(question.options.map((o) => o.target)).toEqual(['Water', 'Water', 'Land']);
+  });
+
+  it('errors when match targets are not unique', () => {
+    const source = ['match: q', '{', '=A -> X', '=B -> X', '}'].join('\n');
+    const { errors } = parseQuizScriptQuestion(source);
+    expect(errors.some((e) => /targets must be unique/.test(e.message))).toBe(true);
+  });
+
+  it('does not error when categorise targets repeat', () => {
+    const source = ['categorise: q', '{', '=A -> X', '=B -> X', '}'].join('\n');
+    const { errors } = parseQuizScriptQuestion(source);
+    expect(errors).toEqual([]);
+  });
+
+  it('errors when an option is missing its "-> target"', () => {
+    const source = ['match: q', '{', '=A -> X', '=B', '}'].join('\n');
+    const { errors } = parseQuizScriptQuestion(source);
+    expect(errors.some((e) => /needs a "-> target" pairing/.test(e.message))).toBe(true);
+  });
+
+  it('errors when fewer than 2 items are given', () => {
+    const source = ['match: q', '{', '=A -> X', '}'].join('\n');
+    const { errors } = parseQuizScriptQuestion(source);
+    expect(errors.some((e) => /needs at least 2 items/.test(e.message))).toBe(true);
+  });
+});
+
+describe('fill_in_blanks parsing', () => {
+  it('maps correct options to blanks in order and incorrect ones become bank distractors', () => {
+    const source = [
+      'fill_in_blanks: The ___ is the powerhouse of the ___.',
+      '{',
+      '=mitochondria',
+      '=cell',
+      '~nucleus',
+      '}'
+    ].join('\n');
+    const { question, errors } = parseQuizScriptQuestion(source);
+    expect(errors).toEqual([]);
+    expect(question.options.map((o) => [o.content, o.correct])).toEqual([
+      [{ kind: 'text', text: 'mitochondria' }, true],
+      [{ kind: 'text', text: 'cell' }, true],
+      [{ kind: 'text', text: 'nucleus' }, false]
+    ]);
+  });
+
+  it('errors when there are no "___" blanks', () => {
+    const source = ['fill_in_blanks: No blanks here', '{', '=word', '}'].join('\n');
+    const { errors } = parseQuizScriptQuestion(source);
+    expect(errors.some((e) => /at least one "___" blank/.test(e.message))).toBe(true);
+  });
+
+  it('errors when the blank count and correct-answer count disagree', () => {
+    const source = ['fill_in_blanks: One ___ blank', '{', '=a', '=b', '}'].join('\n');
+    const { errors } = parseQuizScriptQuestion(source);
+    expect(errors.some((e) => /1 blank\(s\).*2 correct/.test(e.message))).toBe(true);
+  });
+});
+
 describe('character_input parsing', () => {
   it('parses bracket pre-reveal markers and strips them from the option text', () => {
     const source = ['character_input: word', '{', '=[P]a[r]is', '}'].join('\n');
@@ -626,6 +742,36 @@ describe('serializeQuizScriptQuestion round-trips through parseQuizScriptQuestio
         '{',
         '=Water',
         '~Salt',
+        '}'
+      ].join('\n')
+    ],
+    [
+      'order',
+      ['order: Arrange chronologically', '{', '=First', '=Second', '=Third', '}'].join('\n')
+    ],
+    [
+      'match with weighted pairs',
+      ['match: Match capitals', '{', '=Paris -> France %2%', '=Tokyo -> Japan', '}'].join('\n')
+    ],
+    [
+      'categorise with shared buckets',
+      [
+        'categorise: Sort animals',
+        '{',
+        '=Fish -> Water',
+        '=Frog -> Water',
+        '=Lion -> Land',
+        '}'
+      ].join('\n')
+    ],
+    [
+      'fill_in_blanks with distractors',
+      [
+        'fill_in_blanks: The ___ is the powerhouse of the ___.',
+        '{',
+        '=mitochondria',
+        '=cell',
+        '~nucleus',
         '}'
       ].join('\n')
     ]

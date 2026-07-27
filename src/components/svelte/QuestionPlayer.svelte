@@ -1,10 +1,11 @@
 <script lang="ts">
   import { CircleCheck, CircleX, Eye, Plus, RotateCcw, X } from '@lucide/svelte';
-  import type { QuizScriptOption, QuizScriptQuestion } from '@/lib/utils/quizScript';
+  import type { QuizScriptQuestion } from '@/lib/utils/quizScript';
   import {
     blankDraft,
     boxAnswer,
     buildPlayRun,
+    categoriseBuckets,
     characterInputAnswerText,
     characterInputLetterBank,
     characterInputLetterFullyRevealed,
@@ -13,6 +14,7 @@
     characterInputPrerevealedPositions,
     characterInputRevealPositionsAfterGuess,
     choiceOptionsLayoutClass,
+    fillInBlanksAnswerOptions,
     gradeDraft,
     isDraftComplete,
     isGuessableChar,
@@ -25,8 +27,12 @@
     type PlayQuestion,
     type QuestionDraft
   } from '@/lib/utils/grading';
-  import { extractYoutubeId } from '@/lib/utils/youtube';
   import CharacterBank from './CharacterBank.svelte';
+  import CategoriseBoard from './CategoriseBoard.svelte';
+  import FillInBlanksBoard from './FillInBlanksBoard.svelte';
+  import MatchBoard from './MatchBoard.svelte';
+  import OptionContent from './OptionContent.svelte';
+  import OrderBoard from './OrderBoard.svelte';
 
   // The one live "answer this question" widget, used two ways:
   // - `standalone` (QuestionCard's in-editor "try it" tester): owns its own Submit/Try-again cycle
@@ -64,6 +70,15 @@
   const pq = $derived(playQuestionProp ?? buildPlayRun([question], {})[0]);
   const isTyped = $derived(question.variant === 'typed');
   const isCharacterInput = $derived(question.variant === 'character_input');
+  const isOrder = $derived(question.variant === 'order');
+  const isMatch = $derived(question.variant === 'match');
+  const isCategorise = $derived(question.variant === 'categorise');
+  const categoriseBucketLabels = $derived(isCategorise ? categoriseBuckets(question) : []);
+  const isFillInBlanks = $derived(question.variant === 'fill_in_blanks');
+  const fillInBlanksAnswers = $derived(isFillInBlanks ? fillInBlanksAnswerOptions(question) : []);
+  const fillInBlanksMode = $derived(
+    question.settings.blank_input === 'type' ? 'type' : ('bank' as const)
+  );
 
   // Deliberately captured once, not `$derived` — this component expects a fresh mount per
   // question (see the doc comment above `$props()`), so `initialDraft` is only ever read at
@@ -102,6 +117,33 @@
   let revealedPositions = $state<Set<number>>(
     seed.revealedPositions.size > 0 ? new Set(seed.revealedPositions) : runRevealedPositions()
   );
+  // order only: one slot per option, sized fresh (all-empty) unless a persisted draft already has
+  // the right number of slots — same "reuse a persisted seed, else resolve fresh at mount" pattern
+  // as `boxChars`/`runBoxChars()` above.
+  function runOrderPlacement(): (number | null)[] {
+    return new Array(question.options.length).fill(null);
+  }
+  let orderPlacement = $state<(number | null)[]>(
+    seed.orderPlacement.length === question.options.length
+      ? [...seed.orderPlacement]
+      : runOrderPlacement()
+  );
+  let picked = $state<number | null>(seed.picked);
+  // match only: left original option index -> right original option index (whose own `.target`
+  // is what's displayed there) — see `pickMatchLeft`/`clickMatchRight` below.
+  let matchPairs = $state<Map<number, number>>(new Map(seed.matchPairs));
+  // categorise only: original option index -> bucket index into `categoriseBuckets(question)`.
+  let categoriseAssignments = $state<Map<number, number>>(new Map(seed.categoriseAssignments));
+  // fill_in_blanks only: one entry per blank, sized fresh (all-empty) unless a persisted draft
+  // already has the right number — same pattern as `orderPlacement`/`runOrderPlacement` above.
+  function runBlankAnswers(): string[] {
+    return new Array(fillInBlanksAnswerOptions(question).length).fill('');
+  }
+  let blankAnswers = $state<string[]>(
+    seed.blankAnswers.length === fillInBlanksAnswerOptions(question).length
+      ? [...seed.blankAnswers]
+      : runBlankAnswers()
+  );
   let boxRefs: HTMLInputElement[] = $state([]);
   let typedSingleInputRef: HTMLInputElement | undefined = $state();
   let typedGuessInputRef: HTMLInputElement | undefined = $state();
@@ -125,7 +167,12 @@
       typedGuessDraft,
       guessedLetters: new Map(guessedLetters),
       extraPrerevealed: new Set(extraPrerevealed),
-      revealedPositions: new Set(revealedPositions)
+      revealedPositions: new Set(revealedPositions),
+      orderPlacement: [...orderPlacement],
+      picked,
+      matchPairs: new Map(matchPairs),
+      categoriseAssignments: new Map(categoriseAssignments),
+      blankAnswers: [...blankAnswers]
     };
   }
 
@@ -206,6 +253,136 @@
   function selectSingle(optionIndex: number) {
     if (isLocked) return;
     selected = new Set([optionIndex]);
+  }
+
+  // order's tap-to-select-then-place interaction, entirely in terms of `orderPlacement`
+  // (`(number|null)[]`, one slot per option, holding the original option index placed there) and
+  // `picked` (the original option index currently "held," or `null`) — no drag events, so this is
+  // native-keyboard-operable for free via plain `<button>` Tab/Enter, same as every other control
+  // in this component.
+  //
+  // Clicking a bank item (one not currently in any slot) toggles it picked/unpicked. Clicking an
+  // empty slot while something is picked places it there. Clicking an already-filled slot while
+  // something is picked SWAPS: the picked item takes that slot, and whatever was already there
+  // becomes the newly picked item (so it can immediately be placed elsewhere, or clicked again in
+  // the bank to just set it back down). Clicking a filled slot while nothing is picked picks its
+  // occupant back up, emptying that slot.
+  function pickOrderItem(optionIndex: number) {
+    if (isLocked) return;
+    picked = picked === optionIndex ? null : optionIndex;
+  }
+
+  function clickOrderSlot(slotIndex: number) {
+    if (isLocked) return;
+    const occupant = orderPlacement[slotIndex];
+    if (picked !== null) {
+      const next = [...orderPlacement];
+      const oldSlot = next.indexOf(picked);
+      if (oldSlot !== -1) next[oldSlot] = null;
+      next[slotIndex] = picked;
+      orderPlacement = next;
+      picked = occupant;
+    } else if (occupant !== null) {
+      const next = [...orderPlacement];
+      next[slotIndex] = null;
+      orderPlacement = next;
+      picked = occupant;
+    }
+  }
+
+  // match's tap-to-select-then-place interaction, in terms of `matchPairs` (left original option
+  // index -> right original option index) and `picked` (the currently-held LEFT item). Clicking a
+  // left item toggles it picked — if it was already paired, that pairing is dropped first so it
+  // can be re-targeted. Clicking a right item while something's picked completes the pair,
+  // stealing that right target away from whatever it was previously paired with (a right target
+  // can only ever belong to one pair at a time). Clicking an already-paired right item with
+  // nothing picked un-pairs it and picks its left item back up — same "click an occupied slot to
+  // reclaim it" idea as order's board.
+  function pickMatchLeft(leftIndex: number) {
+    if (isLocked) return;
+    if (picked === leftIndex) {
+      picked = null;
+      return;
+    }
+    matchPairs = new Map([...matchPairs].filter(([left]) => left !== leftIndex));
+    picked = leftIndex;
+  }
+
+  function clickMatchRight(rightIndex: number) {
+    if (isLocked) return;
+    if (picked !== null) {
+      const withoutStolen = [...matchPairs].filter(([, right]) => right !== rightIndex);
+      matchPairs = new Map([...withoutStolen, [picked, rightIndex]]);
+      picked = null;
+      return;
+    }
+    const existingLeft = [...matchPairs].find(([, right]) => right === rightIndex)?.[0];
+    if (existingLeft !== undefined) {
+      matchPairs = new Map([...matchPairs].filter(([left]) => left !== existingLeft));
+      picked = existingLeft;
+    }
+  }
+
+  // categorise's tap-to-select-then-place interaction, in terms of `categoriseAssignments`
+  // (option index -> bucket index) and `picked`. Unlike match, a bucket can hold several items at
+  // once, so assigning to a bucket never has to evict anything already there.
+  function pickCategoriseItem(optionIndex: number) {
+    if (isLocked) return;
+    picked = picked === optionIndex ? null : optionIndex;
+  }
+
+  function clickCategoriseBucket(bucketIndex: number) {
+    if (isLocked || picked === null) return;
+    const withoutPicked = [...categoriseAssignments].filter(([option]) => option !== picked);
+    categoriseAssignments = new Map([...withoutPicked, [picked, bucketIndex]]);
+    picked = null;
+  }
+
+  function pickCategoriseItemBackUp(optionIndex: number) {
+    if (isLocked) return;
+    categoriseAssignments = new Map(
+      [...categoriseAssignments].filter(([option]) => option !== optionIndex)
+    );
+    picked = optionIndex;
+  }
+
+  // fill_in_blanks (blank_input=bank) tap-to-select-then-place interaction — `picked` (shared with
+  // order/match/categorise above) holds the original option index of the currently-held bank word.
+  function pickBankWord(optionIndex: number) {
+    if (isLocked) return;
+    picked = picked === optionIndex ? null : optionIndex;
+  }
+
+  function clickBlank(blankIndex: number) {
+    if (isLocked) return;
+    if (picked !== null) {
+      const option = question.options[picked];
+      const text = option.content.kind === 'text' ? option.content.text : '';
+      const next = [...blankAnswers];
+      next[blankIndex] = text;
+      blankAnswers = next;
+      picked = null;
+      return;
+    }
+    if (!blankAnswers[blankIndex]) return;
+    // Pick it back up — best-effort match a bank option by text (see FillInBlanksBoard's own
+    // "Known limitation" doc comment on why this isn't index-exact for duplicate bank words).
+    const text = blankAnswers[blankIndex];
+    const match = question.options.findIndex(
+      (o) => o.content.kind === 'text' && o.content.text === text
+    );
+    const next = [...blankAnswers];
+    next[blankIndex] = '';
+    blankAnswers = next;
+    if (match !== -1) picked = match;
+  }
+
+  // fill_in_blanks (blank_input=type) — a plain per-blank text input, no picking involved.
+  function setBlankText(blankIndex: number, value: string) {
+    if (isLocked) return;
+    const next = [...blankAnswers];
+    next[blankIndex] = value;
+    blankAnswers = next;
   }
 
   function revealHint(extraIndex: number) {
@@ -323,32 +500,6 @@
     revealedPositions = runRevealedPositions();
   }
 </script>
-
-{#snippet optionContent(content: QuizScriptOption['content'])}
-  {#if content.kind === 'text'}
-    <p class="text-sm text-slate-900">{content.text}</p>
-  {:else if content.kind === 'image'}
-    <img
-      src={content.url}
-      alt={content.alt}
-      class="max-h-56 rounded-md border border-slate-200 object-contain"
-    />
-  {:else}
-    {@const videoId = extractYoutubeId(content.url)}
-    {#if videoId}
-      <div class="aspect-video overflow-hidden rounded-md border border-slate-200">
-        <iframe
-          class="h-full w-full"
-          src={`https://www.youtube.com/embed/${videoId}`}
-          title={content.alt || 'Video option'}
-          allowfullscreen
-        ></iframe>
-      </div>
-    {:else}
-      <p class="text-sm text-slate-500">{content.alt || content.url}</p>
-    {/if}
-  {/if}
-{/snippet}
 
 {#snippet boxRow()}
   <div class="flex flex-wrap items-center gap-6">
@@ -479,10 +630,12 @@
 {/snippet}
 
 <div class="space-y-4">
-  <p class="whitespace-pre-wrap text-base font-medium text-slate-900">{question.text}</p>
+  {#if !isFillInBlanks}
+    <p class="whitespace-pre-wrap text-base font-medium text-slate-900">{question.text}</p>
+  {/if}
 
   {#each question.media as media, i (i)}
-    {@render optionContent(media)}
+    <OptionContent content={media} />
   {/each}
 
   {#each question.extras as extra, i (i)}
@@ -605,6 +758,58 @@
       locked={isLocked}
       onGuess={guessLetter}
     />
+  {:else if isOrder}
+    <OrderBoard
+      options={question.options}
+      optionOrder={pq.optionOrder}
+      placement={orderPlacement}
+      {picked}
+      locked={isLocked}
+      revealAnswers={isLocked && revealAnswers}
+      onPick={pickOrderItem}
+      onSlotClick={clickOrderSlot}
+    />
+  {:else if isMatch}
+    <MatchBoard
+      options={question.options}
+      leftOrder={pq.optionOrder}
+      rightOrder={pq.targetOrder ?? []}
+      pairs={matchPairs}
+      {picked}
+      locked={isLocked}
+      revealAnswers={isLocked && revealAnswers}
+      onPickLeft={pickMatchLeft}
+      onClickRight={clickMatchRight}
+    />
+  {:else if isCategorise}
+    <CategoriseBoard
+      options={question.options}
+      itemOrder={pq.optionOrder}
+      buckets={categoriseBucketLabels}
+      bucketOrder={pq.targetOrder ?? []}
+      assignments={categoriseAssignments}
+      {picked}
+      locked={isLocked}
+      revealAnswers={isLocked && revealAnswers}
+      onPickItem={pickCategoriseItem}
+      onPickItemBackUp={pickCategoriseItemBackUp}
+      onClickBucket={clickCategoriseBucket}
+    />
+  {:else if isFillInBlanks}
+    <FillInBlanksBoard
+      text={question.text}
+      options={question.options}
+      bankOrder={pq.optionOrder}
+      {blankAnswers}
+      answerOptions={fillInBlanksAnswers}
+      {picked}
+      mode={fillInBlanksMode}
+      locked={isLocked}
+      revealAnswers={isLocked && revealAnswers}
+      onPickBankWord={pickBankWord}
+      onClickBlank={clickBlank}
+      onTypeBlank={setBlankText}
+    />
   {:else}
     <div class={choiceOptionsLayoutClass(question)}>
       {#each pq.optionOrder as optionIndex (optionIndex)}
@@ -644,7 +849,7 @@
             />
           {/if}
           <div class="min-w-0 flex-1">
-            {@render optionContent(option.content)}
+            <OptionContent content={option.content} />
           </div>
           {#if isLocked && revealAnswers}
             {#if option.correct}

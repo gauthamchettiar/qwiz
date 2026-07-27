@@ -11,11 +11,17 @@ import {
   characterInputRevealPositionsAfterGuess,
   choiceOptionsLayoutClass,
   effectivePoints,
+  gradeCategoriseQuestion,
   gradeCharacterInputQuestion,
   gradeDraft,
+  gradeFillInBlanksQuestion,
+  gradeMatchQuestion,
+  gradeOrderQuestion,
   gradeQuestion,
   gradeRun,
   gradeTypedQuestion,
+  categoriseBuckets,
+  fillInBlanksCount,
   isDraftComplete,
   isTypedMatch,
   levenshteinDistance,
@@ -366,6 +372,231 @@ describe('gradeCharacterInputQuestion', () => {
     const q = makeQuestion({ variant: 'character_input', options: [characterInputOption('cat')] });
     const draft = { ...blankDraft(), extraPrerevealed: new Set([0]) }; // pre-reveals "c"
     expect(gradeCharacterInputQuestion(q, draft).max).toBe(2); // a, t only
+  });
+});
+
+describe('gradeOrderQuestion', () => {
+  const q = makeQuestion({
+    variant: 'order',
+    options: [textOption('First', true), textOption('Second', true), textOption('Third', true)]
+  });
+
+  it('exact match (default): every slot correct scores the full max', () => {
+    expect(gradeOrderQuestion(q, [0, 1, 2], new Set())).toEqual({ earned: 3, max: 3 });
+  });
+
+  it('exact match: any wrong slot scores 0, even if only one is off', () => {
+    expect(gradeOrderQuestion(q, [0, 2, 1], new Set())).toEqual({ earned: 0, max: 3 });
+  });
+
+  it('exact match: an incomplete placement (nulls) scores 0, not a crash', () => {
+    expect(gradeOrderQuestion(q, [0, null, null], new Set())).toEqual({ earned: 0, max: 3 });
+  });
+
+  it('partial_points: each correctly-placed slot scores independently', () => {
+    const partial = makeQuestion({
+      variant: 'order',
+      options: q.options,
+      settings: { partial_points: true }
+    });
+    expect(gradeOrderQuestion(partial, [0, 2, 1], new Set())).toEqual({ earned: 1, max: 3 });
+  });
+
+  it('respects per-option %N% weights and the question default point/penalty', () => {
+    const weighted = makeQuestion({
+      variant: 'order',
+      options: [textOption('First', true, 5), textOption('Second', true)],
+      settings: { point: 2, partial_points: true }
+    });
+    // slot 0 correct (weight 5), slot 1 wrong (point default 2, not earned).
+    expect(gradeOrderQuestion(weighted, [0, null], new Set())).toEqual({ earned: 5, max: 7 });
+  });
+});
+
+function matchOption(text: string, target: string, points?: number): QuizScriptOption {
+  return { content: { kind: 'text', text }, correct: true, target, points };
+}
+
+describe('gradeMatchQuestion', () => {
+  const q = makeQuestion({
+    variant: 'match',
+    options: [matchOption('Paris', 'France'), matchOption('Tokyo', 'Japan')]
+  });
+
+  it('a pair is correct iff it maps an option back to its own target (index i -> i)', () => {
+    const pairs = new Map([
+      [0, 0],
+      [1, 1]
+    ]);
+    expect(gradeMatchQuestion(q, pairs, new Set())).toEqual({ earned: 2, max: 2 });
+  });
+
+  it('exact match: a crossed/wrong pair scores 0 overall', () => {
+    const pairs = new Map([
+      [0, 1],
+      [1, 0]
+    ]);
+    expect(gradeMatchQuestion(q, pairs, new Set())).toEqual({ earned: 0, max: 2 });
+  });
+
+  it('exact match: an incomplete set of pairs scores 0, not a crash', () => {
+    const pairs = new Map([[0, 0]]);
+    expect(gradeMatchQuestion(q, pairs, new Set())).toEqual({ earned: 0, max: 2 });
+  });
+
+  it('partial_points: each correct pair scores independently', () => {
+    const partial = makeQuestion({
+      variant: 'match',
+      options: q.options,
+      settings: { partial_points: true }
+    });
+    const pairs = new Map([
+      [0, 0],
+      [1, 0]
+    ]);
+    expect(gradeMatchQuestion(partial, pairs, new Set())).toEqual({ earned: 1, max: 2 });
+  });
+});
+
+describe('gradeCategoriseQuestion', () => {
+  const q = makeQuestion({
+    variant: 'categorise',
+    options: [
+      matchOption('Fish', 'Water'),
+      matchOption('Frog', 'Water'),
+      matchOption('Lion', 'Land')
+    ]
+  });
+  // categoriseBuckets(q) -> ['Water', 'Land'], so bucket 0 = Water, bucket 1 = Land.
+
+  it('every item correctly bucketed scores the full max', () => {
+    const assignments = new Map([
+      [0, 0],
+      [1, 0],
+      [2, 1]
+    ]);
+    expect(gradeCategoriseQuestion(q, assignments, new Set())).toEqual({ earned: 3, max: 3 });
+  });
+
+  it('several items correctly sharing one bucket is fine, unlike match', () => {
+    // Both Fish and Frog assigned to bucket 0 (Water) — both correct simultaneously.
+    const assignments = new Map([
+      [0, 0],
+      [1, 0],
+      [2, 0]
+    ]); // Lion wrongly in Water
+    expect(gradeCategoriseQuestion(q, assignments, new Set())).toEqual({ earned: 0, max: 3 }); // exact match fails
+  });
+
+  it('partial_points: each correctly-bucketed item scores independently', () => {
+    const partial = makeQuestion({
+      variant: 'categorise',
+      options: q.options,
+      settings: { partial_points: true }
+    });
+    const assignments = new Map([
+      [0, 0],
+      [1, 0],
+      [2, 0]
+    ]); // Lion wrong
+    expect(gradeCategoriseQuestion(partial, assignments, new Set())).toEqual({
+      earned: 2,
+      max: 3
+    });
+  });
+});
+
+function blankOption(text: string, correct: boolean, points?: number): QuizScriptOption {
+  return { content: { kind: 'text', text }, correct, points };
+}
+
+describe('gradeFillInBlanksQuestion', () => {
+  const q = makeQuestion({
+    variant: 'fill_in_blanks',
+    text: 'The ___ is the powerhouse of the ___.',
+    options: [
+      blankOption('mitochondria', true),
+      blankOption('cell', true),
+      blankOption('nucleus', false)
+    ]
+  });
+
+  it('bank mode (default): exact bank-word matches score full credit', () => {
+    expect(gradeFillInBlanksQuestion(q, ['mitochondria', 'cell'], new Set())).toEqual({
+      earned: 2,
+      max: 2
+    });
+  });
+
+  it('bank mode: an empty or wrong blank fails exact match entirely', () => {
+    expect(gradeFillInBlanksQuestion(q, ['mitochondria', ''], new Set())).toEqual({
+      earned: 0,
+      max: 2
+    });
+    expect(gradeFillInBlanksQuestion(q, ['nucleus', 'cell'], new Set())).toEqual({
+      earned: 0,
+      max: 2
+    });
+  });
+
+  it('partial_points: each correct blank scores independently', () => {
+    const partial = makeQuestion({
+      variant: 'fill_in_blanks',
+      text: q.text,
+      options: q.options,
+      settings: { partial_points: true }
+    });
+    expect(gradeFillInBlanksQuestion(partial, ['mitochondria', ''], new Set())).toEqual({
+      earned: 1,
+      max: 2
+    });
+  });
+
+  it('type mode: typed matching (normalization/case) applies, unlike bank mode', () => {
+    const typedMode = makeQuestion({
+      variant: 'fill_in_blanks',
+      text: q.text,
+      options: q.options,
+      settings: { blank_input: 'type' }
+    });
+    expect(gradeFillInBlanksQuestion(typedMode, ['  MITOCHONDRIA ', 'Cell'], new Set())).toEqual({
+      earned: 2,
+      max: 2
+    });
+  });
+
+  it('type mode: fuzzy_tolerance forgives a typo, same as a typed question', () => {
+    const fuzzy = makeQuestion({
+      variant: 'fill_in_blanks',
+      text: q.text,
+      options: q.options,
+      settings: { blank_input: 'type', fuzzy_tolerance: 20 }
+    });
+    expect(gradeFillInBlanksQuestion(fuzzy, ['mitochondri', 'cell'], new Set())).toEqual({
+      earned: 2,
+      max: 2
+    });
+  });
+});
+
+describe('fillInBlanksCount', () => {
+  it('counts "___" tokens in the question text', () => {
+    expect(fillInBlanksCount(makeQuestion({ text: 'a ___ b ___ c' }))).toBe(2);
+    expect(fillInBlanksCount(makeQuestion({ text: 'no blanks here' }))).toBe(0);
+  });
+});
+
+describe('categoriseBuckets', () => {
+  it('returns the distinct target labels in first-appearance order', () => {
+    const q = makeQuestion({
+      variant: 'categorise',
+      options: [
+        { content: { kind: 'text', text: 'Fish' }, correct: true, target: 'Water' },
+        { content: { kind: 'text', text: 'Frog' }, correct: true, target: 'Water' },
+        { content: { kind: 'text', text: 'Lion' }, correct: true, target: 'Land' }
+      ]
+    });
+    expect(categoriseBuckets(q)).toEqual(['Water', 'Land']);
   });
 });
 

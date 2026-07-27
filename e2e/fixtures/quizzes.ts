@@ -71,6 +71,113 @@ export function buildCharacterInputQuiz(overrides: Partial<Quiz> = {}): Quiz {
   };
 }
 
+/** A single-question quiz exercising `order`: three items whose authored order is the answer key
+ * — shared between order.spec.ts and the accessibility suite. */
+export function buildOrderQuiz(overrides: Partial<Quiz> = {}): Quiz {
+  const now = new Date().toISOString();
+  return {
+    id: nextId(),
+    title: 'Order e2e',
+    description: 'order coverage',
+    category: 'e2e',
+    tags: ['e2e'],
+    settings: { shuffle_questions: false },
+    createdAt: now,
+    updatedAt: now,
+    questions: [
+      {
+        id: 'q1',
+        code: ['order: Arrange chronologically', '{', '=First', '=Second', '=Third', '}'].join('\n')
+      }
+    ],
+    ...overrides
+  };
+}
+
+/** A single-question quiz exercising `match`: two 1-to-1 item/target pairs — shared between
+ * match-categorise.spec.ts and the accessibility suite. */
+export function buildMatchQuiz(overrides: Partial<Quiz> = {}): Quiz {
+  const now = new Date().toISOString();
+  return {
+    id: nextId(),
+    title: 'Match e2e',
+    description: 'match coverage',
+    category: 'e2e',
+    tags: ['e2e'],
+    settings: { shuffle_questions: false },
+    createdAt: now,
+    updatedAt: now,
+    questions: [
+      {
+        id: 'q1',
+        code: ['match: Match capitals', '{', '=Paris -> France', '=Tokyo -> Japan', '}'].join('\n')
+      }
+    ],
+    ...overrides
+  };
+}
+
+/** A single-question quiz exercising `categorise`: two items sharing one bucket, one in another —
+ * shared between match-categorise.spec.ts and the accessibility suite. */
+export function buildCategoriseQuiz(overrides: Partial<Quiz> = {}): Quiz {
+  const now = new Date().toISOString();
+  return {
+    id: nextId(),
+    title: 'Categorise e2e',
+    description: 'categorise coverage',
+    category: 'e2e',
+    tags: ['e2e'],
+    settings: { shuffle_questions: false },
+    createdAt: now,
+    updatedAt: now,
+    questions: [
+      {
+        id: 'q1',
+        code: [
+          'categorise: Sort animals',
+          '{',
+          '=Fish -> Water',
+          '=Frog -> Water',
+          '=Lion -> Land',
+          '}'
+        ].join('\n')
+      }
+    ],
+    ...overrides
+  };
+}
+
+/** A single-question quiz exercising `fill_in_blanks` in the default (bank) mode: two blanks, two
+ * correct answers, one distractor — shared between fill-in-blanks.spec.ts and the accessibility
+ * suite. */
+export function buildFillInBlanksQuiz(overrides: Partial<Quiz> = {}): Quiz {
+  const now = new Date().toISOString();
+  return {
+    id: nextId(),
+    title: 'Fill in the blanks e2e',
+    description: 'fill_in_blanks coverage',
+    category: 'e2e',
+    tags: ['e2e'],
+    settings: { shuffle_questions: false },
+    createdAt: now,
+    updatedAt: now,
+    questions: [
+      {
+        id: 'q1',
+        code: [
+          'fill_in_blanks: The ___ is the powerhouse of the ___.',
+          '{',
+          '=mitochondria',
+          '=cell',
+          '~nucleus',
+          '}'
+        ].join('\n')
+      }
+    ],
+    ...overrides
+  };
+}
+
 /** A whole .qwiz document as a paste-able string, for the import dialog spec. */
 export const SAMPLE_QWIZ_SOURCE = [
   '---',

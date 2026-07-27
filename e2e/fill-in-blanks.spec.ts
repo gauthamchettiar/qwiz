@@ -1,0 +1,98 @@
+import { expect, test } from '@playwright/test';
+import { buildFillInBlanksQuiz } from './fixtures/quizzes';
+import { BuilderPage } from './pages/BuilderPage';
+import { PlayPage } from './pages/PlayPage';
+import { resetStorage, seedQuizzes } from './utils/storage';
+
+test.beforeEach(async ({ page }) => {
+  await page.goto('/');
+  await resetStorage(page);
+});
+
+test('authoring a fill_in_blanks question keeps the correct checkbox, unlike order/match/categorise', async ({
+  page
+}) => {
+  const builder = new BuilderPage(page);
+  await builder.gotoCreate();
+  await builder.titleInput.fill('Fill in the Blanks Quiz');
+  await builder.addQuestion();
+  await page.getByLabel('Variant', { exact: true }).selectOption('fill_in_blanks');
+  await builder.questionTextInput().fill('The ___ is the powerhouse of the ___.');
+
+  await expect(page.getByRole('checkbox', { name: 'Correct' })).toHaveCount(2);
+
+  await page.getByPlaceholder('Blank answer').nth(0).fill('mitochondria');
+  await page.getByRole('checkbox', { name: 'Correct' }).nth(1).check();
+  await page.getByPlaceholder('Blank answer').nth(1).fill('cell');
+  await page.getByRole('button', { name: 'Add option' }).click();
+  // The 3rd row starts unchecked (a distractor) — leave it that way.
+  await page.getByPlaceholder('Distractor word').fill('nucleus');
+
+  await page.getByRole('button', { name: 'Edit question code' }).click();
+  await expect(page.locator('main textarea.font-mono')).toHaveValue(
+    /=mitochondria[\s\S]*=cell[\s\S]*~nucleus/
+  );
+});
+
+test('bank mode: picking bank words into blanks wins full credit', async ({ page }) => {
+  const quiz = buildFillInBlanksQuiz();
+  await seedQuizzes(page, [quiz]);
+
+  const play = new PlayPage(page);
+  await play.goto(quiz.id);
+
+  await expect(page.getByText('Tap a word to pick it up')).toBeVisible();
+
+  await page.getByRole('button', { name: 'mitochondria', exact: true }).click();
+  await page.getByRole('button', { name: '___' }).first().click();
+  await page.getByRole('button', { name: 'cell', exact: true }).click();
+  await page.getByRole('button', { name: '___' }).first().click();
+
+  await play.submitAnswerButton.click();
+  await expect(page.getByText('2 / 2 points')).toBeVisible();
+});
+
+test('bank mode: an incomplete answer cannot be submitted', async ({ page }) => {
+  const quiz = buildFillInBlanksQuiz();
+  await seedQuizzes(page, [quiz]);
+
+  const play = new PlayPage(page);
+  await play.goto(quiz.id);
+
+  await page.getByRole('button', { name: 'mitochondria', exact: true }).click();
+  await page.getByRole('button', { name: '___' }).first().click();
+
+  await expect(play.submitAnswerButton).toBeDisabled();
+});
+
+test('type mode: typed answers are matched with the same tolerances a typed question uses', async ({
+  page
+}) => {
+  const quiz = buildFillInBlanksQuiz({
+    questions: [
+      {
+        id: 'q1',
+        code: [
+          'fill_in_blanks: The ___ is the powerhouse of the ___.',
+          '{',
+          '=mitochondria',
+          '=cell',
+          '~nucleus',
+          '}',
+          ':blank_input=type',
+          ':fuzzy_tolerance=15'
+        ].join('\n')
+      }
+    ]
+  });
+  await seedQuizzes(page, [quiz]);
+
+  const play = new PlayPage(page);
+  await play.goto(quiz.id);
+
+  await page.getByLabel('Blank 1').fill('mitochondri'); // typo, forgiven by fuzzy_tolerance
+  await page.getByLabel('Blank 2').fill('CELL'); // case, always ignored by default
+
+  await play.submitAnswerButton.click();
+  await expect(page.getByText('2 / 2 points')).toBeVisible();
+});
