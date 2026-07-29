@@ -1,9 +1,6 @@
 <script lang="ts">
   import { fade } from 'svelte/transition';
   import {
-    CircleCheck,
-    CircleX,
-    Eye,
     ChevronRight,
     ChevronLeft,
     RotateCcw,
@@ -12,29 +9,22 @@
     Timer,
     Lightbulb
   } from '@lucide/svelte';
-  import {
-    parseQuizScriptQuestion,
-    type QuizScriptOption,
-    type QuizScriptQuestion
-  } from '@/lib/utils/quizScript';
+  import { parseQuizScriptQuestion, type QuizScriptQuestion } from '@/lib/utils/quizScript';
   import {
     blankDraft,
     buildPlayRun,
-    choiceOptionsLayoutClass,
+    draftFromAnswer,
     gradeDraft,
     gradeRun,
     isDraftComplete,
-    matchTypedGuesses,
     questionMaxPoints,
     settingNumber,
     settingString,
-    typedSingleAnswerMatches,
     type AnswerRecord,
     type PlayQuestion,
     type QuestionDraft,
     type QuestionResult
   } from '@/lib/utils/grading';
-  import { extractYoutubeId } from '@/lib/utils/youtube';
   import type { Quiz } from '@/lib/schemas/quiz';
   import QuestionPlayer from './QuestionPlayer.svelte';
   import Dialog from './Dialog.svelte';
@@ -434,180 +424,19 @@
   });
 </script>
 
-{#snippet optionContent(content: QuizScriptOption['content'])}
-  {#if content.kind === 'text'}
-    <p class="text-sm text-slate-900">{content.text}</p>
-  {:else if content.kind === 'image'}
-    <img
-      src={content.url}
-      alt={content.alt}
-      class="max-h-56 rounded-md border border-slate-200 object-contain"
-    />
-  {:else}
-    {@const videoId = extractYoutubeId(content.url)}
-    {#if videoId}
-      <div class="aspect-video overflow-hidden rounded-md border border-slate-200">
-        <iframe
-          class="h-full w-full"
-          src={`https://www.youtube.com/embed/${videoId}`}
-          title={content.alt || 'Video option'}
-          allowfullscreen
-        ></iframe>
-      </div>
-    {:else}
-      <p class="text-sm text-slate-500">{content.alt || content.url}</p>
-    {/if}
-  {/if}
-{/snippet}
-
-<!-- Always the question's own authored order, in a fixed wrapped-chip layout — `option_display`
-     and `shuffle` don't apply to typed questions (see quizScript.ts's SETTING_RULES appliesTo),
-     so unlike choice's own option rendering, there's no per-question layout or order to honor here. -->
-{#snippet typedAcceptedAnswers(q: QuizScriptQuestion)}
-  <div class="mt-2">
-    <p class="text-xs font-medium text-slate-500">Accepted answers</p>
-    <div class="mt-1 flex flex-wrap gap-1.5">
-      {#each q.options as option, i (i)}
-        {#if option.content.kind === 'text'}
-          <span
-            class="rounded-md border border-green-300 bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700"
-          >
-            {option.content.text}
-          </span>
-        {/if}
-      {/each}
-    </div>
-  </div>
-{/snippet}
-
-{#snippet typedAnswerReview(q: QuizScriptQuestion, response: string | string[])}
-  {#if typeof response === 'string'}
-    {@const matched = typedSingleAnswerMatches(q.options, response, q.settings)}
-    <div
-      class="rounded-md border p-3 {matched !== null
-        ? 'border-green-400 bg-green-50'
-        : 'border-red-400 bg-red-50'}"
-    >
-      <p class="flex items-center gap-1.5 text-sm text-slate-900">
-        {#if matched !== null}<CircleCheck
-            size={14}
-            class="shrink-0 text-green-600"
-          />{:else}<CircleX size={14} class="shrink-0 text-red-500" />{/if}
-        {response.trim() || '(left blank)'}
+<!-- The author's own "why" note for a question, shown once its answer is revealed — identical on
+     the post-answer screen and the end-of-run Review screen, so it lives in one snippet. -->
+{#snippet analysisNote(question: QuizScriptQuestion)}
+  {#if question.analysis}
+    <div class="rounded-md border border-dashed border-indigo-200 bg-indigo-50 p-3">
+      <p class="flex items-center gap-1 text-xs font-medium text-indigo-700">
+        <Lightbulb size={13} />
+        {question.analysis.label || 'Why?'}
+      </p>
+      <p class="mt-0.5 whitespace-pre-wrap text-sm text-slate-900">
+        {question.analysis.content}
       </p>
     </div>
-  {:else}
-    {@const { perGuess } = matchTypedGuesses(q.options, response, q.settings)}
-    <div class="flex flex-wrap gap-1.5">
-      {#each response as guess, i (i)}
-        {@const status = perGuess[i]?.status}
-        <span
-          class="rounded-md border px-2 py-0.5 text-xs font-medium {status === 'matched'
-            ? 'border-green-300 bg-green-50 text-green-700'
-            : status === 'wrong'
-              ? 'border-red-300 bg-red-50 text-red-700'
-              : 'border-slate-300 bg-slate-50 text-slate-500'}"
-        >
-          {guess.trim() || '(blank)'}
-        </span>
-      {/each}
-    </div>
-  {/if}
-  {@render typedAcceptedAnswers(q)}
-{/snippet}
-
-<!-- Review counterpart of QuestionPlayer's `typedLockedNeutral` — the player's own response(s),
-     no correctness marking, no accepted-answer list (reveal_answers=never). -->
-{#snippet typedReviewNeutral(response: string | string[])}
-  <div class="rounded-md border border-slate-200 bg-slate-50 p-3">
-    {#if typeof response === 'string'}
-      <p class="text-sm text-slate-700">{response.trim() || '(left blank)'}</p>
-    {:else}
-      <div class="flex flex-wrap gap-1.5">
-        {#each response as guess, i (i)}
-          <span
-            class="rounded-md border border-slate-300 bg-white px-2 py-0.5 text-xs font-medium text-slate-700"
-          >
-            {guess.trim() || '(blank)'}
-          </span>
-        {/each}
-      </div>
-    {/if}
-  </div>
-{/snippet}
-
-<!-- Read-only recap of one already-graded question: its text/media, every hint (revealed or
-     not), and either every option or the typed answer(s) vs the accepted-answer list — correctness
-     marking and the points line each independently gated on `showAnswersAtEnd`/`showScoresAtEnd`.
-     Used once per question on the end-of-quiz Review screen. -->
-{#snippet questionReview(playQuestion: PlayQuestion, answer: AnswerRecord, result: QuestionResult)}
-  {@const q = playQuestion.question}
-  <p class="whitespace-pre-wrap text-base font-medium text-slate-900">{q.text}</p>
-
-  {#each q.media as media, i (i)}
-    {@render optionContent(media)}
-  {/each}
-
-  {#each q.extras as extra, i (i)}
-    <div class="rounded-md border border-dashed border-slate-300 bg-slate-50 p-3">
-      {#if answer.revealed.has(i)}
-        <p class="flex items-center gap-1 text-xs font-medium text-slate-500">
-          <Eye size={12} />
-          {extra.label || 'Hint'}
-        </p>
-        <p class="mt-1 text-sm text-slate-700">{extra.content}</p>
-      {:else}
-        <p class="flex items-center gap-1.5 text-sm text-slate-500">
-          <Eye size={14} />
-          {extra.label || 'Hint'} (not revealed)
-        </p>
-      {/if}
-    </div>
-  {/each}
-
-  {#if answer.kind === 'typed'}
-    {#if showAnswersAtEnd}
-      {@render typedAnswerReview(q, answer.response)}
-    {:else}
-      {@render typedReviewNeutral(answer.response)}
-    {/if}
-  {:else}
-    <div class={choiceOptionsLayoutClass(q)}>
-      {#each playQuestion.optionOrder as optionIndex (optionIndex)}
-        {@const option = q.options[optionIndex]}
-        <div
-          class="flex items-start gap-2 rounded-md border p-3 {showAnswersAtEnd
-            ? option.correct
-              ? 'border-green-400 bg-green-50'
-              : answer.selected.has(optionIndex)
-                ? 'border-red-400 bg-red-50'
-                : 'border-slate-200'
-            : answer.selected.has(optionIndex)
-              ? 'border-indigo-300 bg-indigo-50'
-              : 'border-slate-200'}"
-        >
-          <div class="min-w-0 flex-1">
-            {@render optionContent(option.content)}
-            {#if answer.selected.has(optionIndex)}
-              <p class="mt-0.5 text-xs font-medium text-slate-500">Your answer</p>
-            {/if}
-          </div>
-          {#if showAnswersAtEnd}
-            {#if option.correct}
-              <CircleCheck size={16} class="mt-1 shrink-0 text-green-600" />
-            {:else if answer.selected.has(optionIndex)}
-              <CircleX size={16} class="mt-1 shrink-0 text-red-500" />
-            {/if}
-          {/if}
-        </div>
-      {/each}
-    </div>
-  {/if}
-
-  {#if showScoresAtEnd}
-    <p class="text-sm font-medium {result.earned > 0 ? 'text-green-700' : 'text-slate-500'}">
-      {result.earned} / {result.max} points
-    </p>
   {/if}
 {/snippet}
 
@@ -630,11 +459,27 @@
           <p class="text-sm font-medium text-slate-500">{summary.earned} / {summary.max} points</p>
         {/if}
       </div>
+      <!-- Each already-graded question is replayed through the very same `<QuestionPlayer>` that
+           answered it — locked, seeded with the recorded answer via `draftFromAnswer` — rather
+           than a parallel read-only renderer. A second renderer is what left every variant
+           except choice/typed unrenderable here: it only ever knew those two answer shapes, so an
+           order/match/categorise/fill_in_blanks/character_input answer reached it as a `selected`
+           set that doesn't exist on those records. -->
       {#each run as playQuestion, i (i)}
-        <div class="space-y-4 rounded-lg border border-slate-200 bg-white p-6">
-          <p class="text-xs font-medium text-slate-500">Question {i + 1} of {run.length}</p>
-          {@render questionReview(playQuestion, answers[i], results[i])}
-        </div>
+        {@const answer = answers[i]}
+        {#if answer}
+          <div class="space-y-4 rounded-lg border border-slate-200 bg-white p-6">
+            <p class="text-xs font-medium text-slate-500">Question {i + 1} of {run.length}</p>
+            <QuestionPlayer
+              question={playQuestion.question}
+              {playQuestion}
+              draft={draftFromAnswer(playQuestion.question, answer)}
+              locked
+              revealAnswers={showAnswersAtEnd}
+              revealScores={showScoresAtEnd}
+            />
+          </div>
+        {/if}
       {/each}
     </div>
   {:else if finished && summary}
@@ -746,16 +591,8 @@
         />
       {/key}
 
-      {#if locksAnswerImmediately && locked && current.question.analysis}
-        <div class="rounded-md border border-dashed border-indigo-200 bg-indigo-50 p-3">
-          <p class="flex items-center gap-1 text-xs font-medium text-indigo-700">
-            <Lightbulb size={13} />
-            {current.question.analysis.label || 'Why?'}
-          </p>
-          <p class="mt-0.5 whitespace-pre-wrap text-sm text-slate-900">
-            {current.question.analysis.content}
-          </p>
-        </div>
+      {#if locksAnswerImmediately && locked}
+        {@render analysisNote(current.question)}
       {/if}
 
       <div class="flex items-center justify-between">

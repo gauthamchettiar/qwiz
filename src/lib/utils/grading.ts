@@ -866,7 +866,11 @@ export type AnswerRecord =
       revealedPositions: Set<number>;
       revealed: Set<number>;
     }
-  | { kind: 'order'; placement: number[]; revealed: Set<number> }
+  /** `placement` keeps its `null` holes rather than compacting them out — slot position IS the
+   * answer for this variant (see `gradeOrderQuestion`), so a partly-filled board recorded as a
+   * dense array would replay as a completely different set of placements on the Review screen
+   * than the one that was actually graded. */
+  | { kind: 'order'; placement: (number | null)[]; revealed: Set<number> }
   | { kind: 'match'; pairs: Map<number, number>; revealed: Set<number> }
   | { kind: 'categorise'; assignments: Map<number, number>; revealed: Set<number> }
   | { kind: 'fill_in_blanks'; answers: string[]; revealed: Set<number> };
@@ -904,7 +908,7 @@ export function gradeDraft(
       result: gradeOrderQuestion(question, draft.orderPlacement, draft.revealed),
       answer: {
         kind: 'order',
-        placement: draft.orderPlacement.filter((p): p is number => p !== null),
+        placement: [...draft.orderPlacement],
         revealed: new Set(draft.revealed)
       }
     };
@@ -943,6 +947,80 @@ export function gradeDraft(
     result: gradeQuestion(question, draft.selected, draft.revealed),
     answer: { kind: 'choice', selected: new Set(draft.selected), revealed: new Set(draft.revealed) }
   };
+}
+
+/** Inverse of `boxAnswer` — splits an already-assembled answer string back into one character per
+ * box, padding short words and dropping overflow so the result always has exactly `sum(groups)`
+ * entries regardless of what the string actually contains. Only ever needed to REPLAY a recorded
+ * answer (see `draftFromAnswer`); nothing in the live answering path runs this direction. */
+function boxCharsFromAnswer(answer: string, groups: number[]): string[] {
+  const words = answer.split(' ');
+  return groups.flatMap((len, g) =>
+    Array.from({ length: len }, (_, i) => (words[g] ?? '')[i] ?? '')
+  );
+}
+
+/** Rebuilds the `QuestionDraft` that produced `answer` — the inverse of the `AnswerRecord` half of
+ * `gradeDraft`, for every variant. This is what lets the end-of-run Review screen re-render an
+ * already-graded question through the very same `QuestionPlayer` that was used to answer it
+ * (locked, with reveal styling) instead of a second, parallel set of read-only review components
+ * that has to be kept in sync with the real one — which is exactly how every non-choice, non-typed
+ * variant ended up silently unrenderable on that screen.
+ *
+ * `question` is needed only to decide which typed input mode a `'typed'` record's response belongs
+ * in (single field / character boxes / banked guesses), the same three-way split
+ * `typedResponseFromDraft` makes in the other direction. */
+export function draftFromAnswer(question: QuizScriptQuestion, answer: AnswerRecord): QuestionDraft {
+  const draft = blankDraft();
+  draft.revealed = new Set(answer.revealed);
+
+  switch (answer.kind) {
+    case 'choice':
+      draft.selected = new Set(answer.selected);
+      break;
+    case 'typed':
+      if (Array.isArray(answer.response)) {
+        draft.typedGuesses = [...answer.response];
+      } else if (question.settings.input_display === 'boxes') {
+        draft.boxChars = boxCharsFromAnswer(answer.response, typedBoxGroups(question));
+      } else {
+        draft.typedSingleAnswer = answer.response;
+      }
+      break;
+    case 'character_input':
+      draft.guessedLetters = new Map(answer.guessedLetters);
+      draft.extraPrerevealed = new Set(answer.extraPrerevealed);
+      draft.revealedPositions = new Set(answer.revealedPositions);
+      break;
+    case 'order':
+      draft.orderPlacement = [...answer.placement];
+      break;
+    case 'match':
+      draft.matchPairs = new Map(answer.pairs);
+      break;
+    case 'categorise':
+      draft.categoriseAssignments = new Map(answer.assignments);
+      break;
+    case 'fill_in_blanks':
+      draft.blankAnswers = [...answer.answers];
+      break;
+  }
+
+  return draft;
+}
+
+/** How a graded question reads to the player, for the reveal screen's own banner: full marks,
+ * something-but-not-everything (only reachable with `partial_points`), or nothing. Deliberately
+ * derived from the score rather than from per-option correctness so one rule covers all seven
+ * variants — including hint costs, which can legitimately drag a fully-correct answer down to
+ * 'partial'. A question whose `max` is 0 (every option weighted `%0%`) reads as 'correct' at
+ * `earned >= max`, since there was never anything to lose. */
+export type AnswerVerdict = 'correct' | 'partial' | 'incorrect';
+
+export function answerVerdict(result: QuestionResult): AnswerVerdict {
+  if (result.earned >= result.max) return 'correct';
+  if (result.earned > 0) return 'partial';
+  return 'incorrect';
 }
 
 /** A question's full achievable points — knowable upfront from the question and its settings

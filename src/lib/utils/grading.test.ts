@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { QuizScriptOption, QuizScriptQuestion, QuizScriptSettings } from './quizScript';
 import {
+  answerVerdict,
   blankDraft,
   boxAnswer,
   characterInputLetterBank,
@@ -10,6 +11,7 @@ import {
   characterInputPrerevealedPositions,
   characterInputRevealPositionsAfterGuess,
   choiceOptionsLayoutClass,
+  draftFromAnswer,
   effectivePoints,
   gradeCategoriseQuestion,
   gradeCharacterInputQuestion,
@@ -35,7 +37,8 @@ import {
   typedBoxCount,
   typedBoxGroups,
   typedSingleAnswerMatches,
-  buildPlayRun
+  buildPlayRun,
+  type QuestionDraft
 } from './grading';
 
 function textOption(text: string, correct: boolean, points?: number): QuizScriptOption {
@@ -820,5 +823,151 @@ describe('gradeRun', () => {
   it('a zero-max run never wins and reports 0%', () => {
     const result = gradeRun([], {});
     expect(result).toEqual({ earned: 0, max: 0, percentage: 0, won: false });
+  });
+});
+
+describe('answerVerdict', () => {
+  it('is correct at full marks, partial in between, incorrect at nothing', () => {
+    expect(answerVerdict({ earned: 3, max: 3 })).toBe('correct');
+    expect(answerVerdict({ earned: 2, max: 3 })).toBe('partial');
+    expect(answerVerdict({ earned: 0, max: 3 })).toBe('incorrect');
+  });
+
+  it('a negative score (penalties, hint costs) still reads as incorrect', () => {
+    expect(answerVerdict({ earned: -2, max: 3 })).toBe('incorrect');
+  });
+
+  it('a question with nothing to win reads as correct rather than as a failure', () => {
+    expect(answerVerdict({ earned: 0, max: 0 })).toBe('correct');
+  });
+});
+
+describe('draftFromAnswer', () => {
+  // The property the end-of-run Review screen actually depends on: replaying a recorded answer
+  // back through a draft must grade to exactly what was originally recorded, for every variant —
+  // otherwise the review screen shows a different answer (or a different score) than the one the
+  // player gave. Before `draftFromAnswer` existed, the review screen re-implemented this by hand
+  // and only ever handled choice/typed.
+  function roundTrips(question: QuizScriptQuestion, draft: QuestionDraft) {
+    const original = gradeDraft(question, draft);
+    const replayed = gradeDraft(question, draftFromAnswer(question, original.answer));
+    expect(replayed.result).toEqual(original.result);
+    expect(replayed.answer).toEqual(original.answer);
+  }
+
+  it('round-trips a choice answer', () => {
+    roundTrips(makeQuestion(), { ...blankDraft(), selected: new Set([0]) });
+  });
+
+  it('round-trips a single-input typed answer', () => {
+    const q = makeQuestion({ variant: 'typed', options: [textOption('paris', true)] });
+    roundTrips(q, { ...blankDraft(), typedSingleAnswer: 'Paris' });
+  });
+
+  it('round-trips a boxes-mode typed answer, including its per-word box split', () => {
+    const q = makeQuestion({
+      variant: 'typed',
+      options: [textOption('new york', true)],
+      settings: { input_display: 'boxes' }
+    });
+    const draft = { ...blankDraft(), boxChars: ['n', 'e', 'w', 'y', 'o', 'r', 'k'] };
+    roundTrips(q, draft);
+    expect(draftFromAnswer(q, gradeDraft(q, draft).answer).boxChars).toEqual([
+      'n',
+      'e',
+      'w',
+      'y',
+      'o',
+      'r',
+      'k'
+    ]);
+  });
+
+  it('round-trips a multi-guess typed answer', () => {
+    const q = makeQuestion({
+      variant: 'typed',
+      options: [textOption('red', true), textOption('blue', true)],
+      settings: { max_answers: 2 }
+    });
+    roundTrips(q, { ...blankDraft(), typedGuesses: ['red', 'green'] });
+  });
+
+  it('round-trips a character_input answer, pre-reveals included', () => {
+    const q = makeQuestion({
+      variant: 'character_input',
+      options: [characterInputOption('cat', [0])]
+    });
+    roundTrips(q, {
+      ...blankDraft(),
+      guessedLetters: new Map([
+        ['a', 'correct' as const],
+        ['z', 'wrong' as const]
+      ]),
+      revealedPositions: new Set([0, 1])
+    });
+  });
+
+  it('round-trips a partially-placed order answer without collapsing its empty slots', () => {
+    const q = makeQuestion({
+      variant: 'order',
+      options: [textOption('first', true), textOption('second', true), textOption('third', true)],
+      settings: { partial_points: true }
+    });
+    // The regression this specifically guards: recording only the non-null entries turned
+    // [null, 1, null] into [1], which replays as "option 1 placed in slot 0" — a wrong answer
+    // scored as a right one.
+    const draft = { ...blankDraft(), orderPlacement: [null, 1, null] };
+    roundTrips(q, draft);
+    expect(draftFromAnswer(q, gradeDraft(q, draft).answer).orderPlacement).toEqual([null, 1, null]);
+  });
+
+  it('round-trips a match answer', () => {
+    const q = makeQuestion({
+      variant: 'match',
+      options: [matchOption('Paris', 'France'), matchOption('Tokyo', 'Japan')]
+    });
+    roundTrips(q, {
+      ...blankDraft(),
+      matchPairs: new Map([
+        [0, 1],
+        [1, 0]
+      ])
+    });
+  });
+
+  it('round-trips a categorise answer', () => {
+    const q = makeQuestion({
+      variant: 'categorise',
+      options: [matchOption('Paris', 'Europe'), matchOption('Tokyo', 'Asia')]
+    });
+    roundTrips(q, {
+      ...blankDraft(),
+      categoriseAssignments: new Map([
+        [0, 0],
+        [1, 1]
+      ])
+    });
+  });
+
+  it('round-trips a fill_in_blanks answer', () => {
+    const q = makeQuestion({
+      variant: 'fill_in_blanks',
+      text: 'The ___ is the powerhouse of the ___.',
+      options: [
+        blankOption('mitochondria', true),
+        blankOption('cell', true),
+        blankOption('nucleus', false)
+      ]
+    });
+    roundTrips(q, { ...blankDraft(), blankAnswers: ['mitochondria', 'nucleus'] });
+  });
+
+  it('carries revealed hints across for every variant', () => {
+    const q = makeQuestion({
+      extras: [{ label: 'Hint', content: 'It rhymes with door', points: -1 }]
+    });
+    const draft = { ...blankDraft(), selected: new Set([0]), revealed: new Set([0]) };
+    roundTrips(q, draft);
+    expect(draftFromAnswer(q, gradeDraft(q, draft).answer).revealed).toEqual(new Set([0]));
   });
 });

@@ -88,11 +88,23 @@
     onfocus={(e) => {
       show = true;
       filterQuery = '';
-      // Deferred a tick: WebKit positions the cursor from the click that caused this focus
-      // *after* the focus event finishes, which silently collapses a selection made
-      // synchronously here — same fix either way (focus-by-click or focus-by-Tab).
-      const input = e.currentTarget;
-      setTimeout(() => input.select());
+      // Covers focus-by-Tab; focus-by-pointer is handled in `onmousedown` below.
+      e.currentTarget.select();
+    }}
+    onmousedown={(e) => {
+      // Selecting the whole value on click is the point of this field (see `filterQuery`), but the
+      // browser's own caret placement is a mousedown default action that runs *after* the focus
+      // handler above, collapsing whatever it selected. Suppressing that default and driving
+      // focus/select explicitly keeps the whole thing synchronous.
+      //
+      // The previous fix — deferring the select to a `setTimeout` so it ran after the caret
+      // placement — worked but raced: once the dropdown's own render got in front of the timer it
+      // landed up to ~30ms late, so the field visibly collapsed to a caret and only snapped to
+      // fully-selected a frame or two later. Browsers also disagreed about when the caret lands
+      // (WebKit does it after `click`, Chromium before), which no single deferral covers.
+      e.preventDefault();
+      e.currentTarget.focus();
+      e.currentTarget.select();
     }}
     onblur={() => (show = false)}
     onkeydown={onKeydown}

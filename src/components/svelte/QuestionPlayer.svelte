@@ -27,6 +27,7 @@
     type PlayQuestion,
     type QuestionDraft
   } from '@/lib/utils/grading';
+  import AnswerVerdict from './AnswerVerdict.svelte';
   import CharacterBank from './CharacterBank.svelte';
   import CategoriseBoard from './CategoriseBoard.svelte';
   import FillInBlanksBoard from './FillInBlanksBoard.svelte';
@@ -630,6 +631,14 @@
 {/snippet}
 
 <div class="space-y-4">
+  <!-- Leads the locked question rather than trailing it: on the run's post-answer screen this is
+       the whole reason the screen exists, and burying the outcome under the board the player just
+       filled in made "did I get it right?" something they had to work out for themselves from the
+       green/red option tinting. -->
+  {#if isLocked && result && (revealAnswers || revealScores)}
+    <AnswerVerdict {result} showVerdict={revealAnswers} showScore={revealScores} />
+  {/if}
+
   {#if !isFillInBlanks}
     <p class="whitespace-pre-wrap text-base font-medium text-slate-900">{question.text}</p>
   {/if}
@@ -649,7 +658,7 @@
       {:else}
         <button
           type="button"
-          class="flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:underline disabled:cursor-not-allowed disabled:text-slate-400 disabled:no-underline"
+          class="flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:underline disabled:cursor-not-allowed disabled:text-slate-500 disabled:no-underline"
           disabled={isLocked}
           onclick={() => revealHint(i)}
         >
@@ -874,12 +883,6 @@
       {:else}
         {isTyped ? 'Give' : 'Select'} up to {maxAnswers} {noun}{maxAnswers === 1 ? '' : 's'}.
       {/if}
-    </p>
-  {/if}
-
-  {#if isLocked && revealScores && result}
-    <p class="text-sm font-medium {result.earned > 0 ? 'text-green-700' : 'text-slate-500'}">
-      {result.earned} / {result.max} points
     </p>
   {/if}
 
