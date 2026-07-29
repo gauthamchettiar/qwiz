@@ -94,3 +94,28 @@ test('a long question, its options, settings, and elements never overflow the vi
   );
   expect(overflow).toBeLessThanOrEqual(0);
 });
+
+test("an open setting description never widens the page, whatever it's anchored to", async ({
+  page
+}) => {
+  const builder = new BuilderPage(page);
+  await builder.gotoCreate();
+
+  // The rightmost "?" in the legend is the worst case: an absolutely-positioned, trigger-centred
+  // panel hangs off the right edge of the document from there, which widens the scrollable area
+  // and makes mobile browsers zoom the whole page out to fit it.
+  const helpButtons = page.getByRole('button', { name: 'What does this setting do?' });
+  await helpButtons.last().click();
+  await expect(page.getByRole('note')).toBeVisible();
+
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - window.innerWidth
+  );
+  expect(overflow).toBeLessThanOrEqual(0);
+
+  // And it stays within the viewport rather than being clipped out of reach.
+  const box = await page.getByRole('note').boundingBox();
+  expect(box).not.toBeNull();
+  expect(box!.x).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+});
