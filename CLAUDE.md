@@ -54,7 +54,7 @@ genuinely public (a shareable read-only quiz link, say), revisit both.
 | Validation      | zod                                                                                  | schemas in `src/lib/schemas/`; types derive via `z.infer`                 |
 | Language        | TypeScript, `strict: true`                                                           | `astro/tsconfigs/strict` as base, plus a `@/*` path alias                 |
 | Package manager | pnpm                                                                                 | lockfile committed (`pnpm-lock.yaml`), `--frozen-lockfile` in CI          |
-| E2E tests       | Playwright                                                                           | primary safety net — 260 tests (65 per project) across 4 browser projects |
+| E2E tests       | Playwright                                                                           | primary safety net — 284 tests (71 per project) across 4 browser projects |
 | Unit tests      | Vitest                                                                               | pure logic in `src/lib/**` — 244 tests                                    |
 | Lint / format   | ESLint (flat config) + Prettier + `prettier-plugin-astro` + `prettier-plugin-svelte` |                                                                           |
 | Deploy          | Cloudflare Pages                                                                     | via GitHub Actions, see §8                                                |

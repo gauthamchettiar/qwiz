@@ -79,10 +79,12 @@
 </script>
 
 <div class="space-y-3">
+  <!-- Segment and blank written tight against each other (no line break between `{segment}` and the
+       `{#if}`): template whitespace becomes real whitespace in the output, which under
+       `whitespace-pre-wrap` showed up as a stray space before the sentence's own punctuation
+       ("...of the cell ."). The authored text already carries whatever spacing it needs. -->
   <p class="whitespace-pre-wrap text-base font-medium text-slate-900">
-    {#each segments as segment, i (i)}
-      {segment}
-      {#if i < segments.length - 1}
+    {#each segments as segment, i (i)}{segment}{#if i < segments.length - 1}
         {#if mode === 'type'}
           <input
             class="mx-0.5 w-28 rounded-md border border-slate-300 px-1.5 py-0.5 text-sm text-slate-900 focus:border-slate-400 focus:outline-none disabled:bg-slate-100 {locked &&
@@ -139,9 +141,7 @@
               {/if}
             {/if}
           </button>
-        {/if}
-      {/if}
-    {/each}
+        {/if}{/if}{/each}
   </p>
 
   {#if mode === 'bank'}
