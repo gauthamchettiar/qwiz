@@ -12,7 +12,7 @@ tags: [trivia, scoring, hints]
 ---
 
 single_choice: A "murmuration" is a collective noun for a large group of which animal?
-!<hint>[Nudge me (-1)](They do it at dusk, over piers and reed beds, in shapes that look like smoke.)
+!<reveal>[Nudge me](They do it at dusk, over piers and reed beds, in shapes that look like smoke.) %-1%
 {
 =Starlings
 ~Bats
@@ -59,7 +59,7 @@ multiple_choice: Pick the two elements that are liquid at room temperature.
 :difficulty=hard
 
 single_choice: In the standard 88-key piano, how many keys are black?
-!<hint>[Nudge me (-2)](Five per octave, and there are a bit over seven octaves.)
+!<reveal>[Nudge me](Five per octave, and there are a bit over seven octaves.) %-1%
 {
 =36
 ~30

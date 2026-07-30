@@ -11,7 +11,7 @@ tags: [hangman, letters, wordplay]
 ---
 
 character_input: A word for a group of crows — and for a sudden fear.
-!<hint>[Give me the first letter (-1)](It starts with M, and it rhymes with "sturder".)
+!<reveal>[First letter](It starts with M, and it rhymes with "sturder".) %-1%
 {
 =[M]urder
 }

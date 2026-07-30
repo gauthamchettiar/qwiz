@@ -20,7 +20,7 @@ fill_in_blanks: The ___ is the powerhouse of the ___, which is why it turns up i
 :points_correct=2
 
 fill_in_blanks: In 1969, ___ became the first person to walk on the ___.
-!<hint>[A nudge (-1)](He said something about a small step.)
+!<reveal>[A nudge](He said something about a small step.) %-1%
 {
 =Armstrong
 =Moon

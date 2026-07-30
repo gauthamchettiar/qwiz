@@ -32,6 +32,15 @@ describe('examples/*.qwiz', () => {
         parsed.errors,
         `${name} question ${index + 1}: ${JSON.stringify(parsed.errors)}`
       ).toEqual([]);
+
+      // A media or extra line the parser doesn't recognise isn't an error — it's just more question
+      // text, silently. That's how a whole set of examples ended up with `!<hint>` lines (the real
+      // tag is `!<reveal>`) that parsed perfectly and displayed as literal gibberish in the question.
+      // Nothing beginning `!<` is ever meant to survive into the text.
+      expect(
+        parsed.question.text,
+        `${name} question ${index + 1} has an unrecognised !<...> line, absorbed as question text`
+      ).not.toMatch(/!</);
     }
   });
 });

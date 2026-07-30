@@ -10,7 +10,7 @@ tags: [typed, spelling, recall]
 ---
 
 typed: What is the capital of Australia?
-!<hint>[Not the obvious one (-1)](It isn't Sydney, and it isn't Melbourne. It was purpose-built as a compromise between them.)
+!<reveal>[Not the obvious one](It isn't Sydney, and it isn't Melbourne. It was purpose-built as a compromise between them.) %-1%
 {
 =Canberra
 }

@@ -10,7 +10,7 @@ tags: [order, chronology, drag-and-drop]
 ---
 
 order: Drag these into the order they happened, earliest first.
-!<hint>[Which century? (-1)](The Great Fire was 1666. Everything else is on the other side of it.)
+!<reveal>[Which century?](The Great Fire was 1666. Everything else is on the other side of it.) %-1%
 {
 =Construction begins on Stonehenge
 =The eruption that buried Pompeii

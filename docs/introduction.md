@@ -53,5 +53,10 @@ writing your own.
 
 ## Next
 
+If you want a single self-contained specification — for your own reference, or to hand to a model
+that should generate `.qwiz` files — see [the complete `.qwiz` reference](./llm-reference.md). The
+[`examples/`](../examples) folder holds nine playable files covering every variant and setting,
+loadable from Import → Load a sample.
+
 See [the `.qwiz` format reference](./qwiz-format.md) for the full authoring syntax: question
 types, media, hints, scoring settings, and every quiz-wide/per-question option.

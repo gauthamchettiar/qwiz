@@ -54,8 +54,8 @@ genuinely public (a shareable read-only quiz link, say), revisit both.
 | Validation      | zod                                                                                  | schemas in `src/lib/schemas/`; types derive via `z.infer`                 |
 | Language        | TypeScript, `strict: true`                                                           | `astro/tsconfigs/strict` as base, plus a `@/*` path alias                 |
 | Package manager | pnpm                                                                                 | lockfile committed (`pnpm-lock.yaml`), `--frozen-lockfile` in CI          |
-| E2E tests       | Playwright                                                                           | primary safety net — 288 tests (72 per project) across 4 browser projects |
-| Unit tests      | Vitest                                                                               | pure logic in `src/lib/**` — 244 tests                                    |
+| E2E tests       | Playwright                                                                           | primary safety net — 312 tests (78 per project) across 4 browser projects |
+| Unit tests      | Vitest                                                                               | pure logic in `src/lib/**` — 279 tests                                    |
 | Lint / format   | ESLint (flat config) + Prettier + `prettier-plugin-astro` + `prettier-plugin-svelte` |                                                                           |
 | Deploy          | Cloudflare Pages                                                                     | via GitHub Actions, see §8                                                |
 
@@ -87,11 +87,15 @@ migration.
 
 ```
 .
+├── docs/                        # introduction.md, qwiz-format.md, settings.md,
+│                                # llm-reference.md (the whole format in one file, for a model)
+├── examples/                    # *.qwiz files — the app's "Load a sample" list, loaded via
+│                                # import.meta.glob ?raw; cover every variant and setting
 ├── e2e/                         # Playwright specs
 │   ├── fixtures/                # quizzes.ts — buildQuiz() factory, sample .qwiz source
 │   ├── pages/                   # Page Object Models: HomePage, BuilderPage, PlayPage
 │   ├── utils/                   # storage.ts (seed/reset localStorage), a11y.ts (axe helper),
-│   │                            # drag.ts (pointer-drag gesture helper)
+│   │                            # drag.ts (pointer-drag gesture), hydration.ts (island-ready wait)
 │   └── *.spec.ts
 ├── public/                      # copied verbatim to dist/ root
 │   ├── favicon.svg
@@ -401,7 +405,18 @@ The one thing genuinely under test — authoring — is always driven through th
 ### Discipline
 
 - **Never** `waitForTimeout`. Use web-first assertions (`await expect(locator).toBeVisible()`).
+- Don't run `pnpm build` (or anything that rebuilds `dist/`) while a Playwright run is in flight.
+  `playwright.config.ts` sets `reuseExistingServer` locally, so a stray `astro preview` from an
+  earlier run gets reused and a concurrent build rewrites `dist/` underneath it — which surfaces as
+  a scatter of unrelated 30s timeouts that vanish on re-run. Kill port 4321 first if in doubt.
 - Tests are independent: every spec's `beforeEach` navigates to `/` and calls `resetStorage`.
+- **Never interact with an island before it hydrates.** `page.goto` resolves on `load`, which is
+  before the island's JS has run, so a keystroke can land on an element with no handlers attached
+  yet — and `fill()` still appears to work, because Playwright sets the value directly. Only
+  handler-dependent interactions (pressing Enter, clicking a button) silently do nothing, which is
+  why this reproduced about 1 run in 12 and only in one spec. The page objects' `goto*` methods all
+  call `waitForHydration` (`e2e/utils/hydration.ts`, which waits for `astro-island[ssr]` to
+  disappear); any new navigation helper must do the same.
 - No real network calls exist in this app to stub — everything is local/synchronous. If a feature
   ever adds a `fetch` (there is none today), stub it via `page.route()` with a fixture, per the
   general Playwright discipline, rather than hitting anything real from CI.

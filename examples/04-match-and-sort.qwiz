@@ -19,7 +19,7 @@ match: Match each invention to the person credited with it.
 :points_correct=2
 
 match: Same idea, but the answers aren't on screen — type each one.
-!<hint>[One for free (-1)](A hydrophone listens underwater.)
+!<reveal>[One for free](A hydrophone listens underwater.) %-1%
 {
 =Anemometer -> Wind speed
 =Seismometer -> Earthquakes
