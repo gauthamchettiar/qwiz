@@ -71,6 +71,16 @@
       .map(([optionIndex]) => optionIndex);
   }
 
+  /** One assigned item's border+background as a SINGLE mutually-exclusive class string — see
+   * QuestionPlayer's `choiceOptionTone` for why a "base plus reveal override" pair of class strings
+   * silently resolves the wrong way. */
+  function itemTone(optionIndex: number): string {
+    if (locked && revealAnswers) {
+      return isCorrect(optionIndex) ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50';
+    }
+    return 'border-slate-300 bg-white hover:bg-slate-50';
+  }
+
   function dragParams(optionIndex: number) {
     return {
       id: optionIndex,
@@ -128,14 +138,9 @@
             <button
               type="button"
               use:draggable={dragParams(optionIndex)}
-              class="flex items-center gap-1 rounded-md border bg-white p-1.5 text-left text-sm transition-colors disabled:cursor-not-allowed {locked &&
-              revealAnswers
-                ? isCorrect(optionIndex)
-                  ? 'border-green-400 bg-green-50'
-                  : 'border-red-400 bg-red-50'
-                : 'border-slate-300 hover:bg-slate-50'} {drag?.id === optionIndex
-                ? 'opacity-40'
-                : ''}"
+              class="flex items-center gap-1 rounded-md border p-1.5 text-left text-sm transition-colors disabled:cursor-not-allowed {itemTone(
+                optionIndex
+              )} {drag?.id === optionIndex ? 'opacity-40' : ''}"
               disabled={locked}
               onclick={() => onPickItemBackUp(optionIndex)}
             >

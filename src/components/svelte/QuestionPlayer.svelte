@@ -158,6 +158,24 @@
     return new Array(typedBoxCount(question)).fill('');
   }
 
+  /** The border+background for one choice option, as a SINGLE mutually-exclusive class string.
+   *
+   * Deliberately not two class strings layered "base, then a reveal override on top": which of two
+   * conflicting utilities wins is decided by their order in the generated stylesheet, not by their
+   * order in the attribute, so `bg-indigo-50 bg-green-50` resolved to indigo (it comes later in
+   * Tailwind's palette) and an option the player got RIGHT rendered as merely "selected" instead of
+   * correct — while a correct option they didn't pick rendered green, right next to it. Any place
+   * that needs one of several exclusive looks has to pick exactly one, not stack them. */
+  function choiceOptionTone(optionIndex: number, correct: boolean): string {
+    if (isLocked && revealAnswers) {
+      if (correct) return 'border-green-400 bg-green-50';
+      return selected.has(optionIndex) ? 'border-red-400 bg-red-50' : 'border-slate-200';
+    }
+    return selected.has(optionIndex)
+      ? 'border-indigo-300 bg-indigo-50'
+      : 'border-slate-200 hover:bg-slate-50';
+  }
+
   function currentDraft(): QuestionDraft {
     return {
       selected: new Set(selected),
@@ -903,17 +921,10 @@
       {#each pq.optionOrder as optionIndex (optionIndex)}
         {@const option = question.options[optionIndex]}
         <label
-          class="flex cursor-pointer items-start gap-2 rounded-md border p-3 transition-colors {selected.has(
-            optionIndex
-          )
-            ? 'border-indigo-300 bg-indigo-50'
-            : 'border-slate-200 hover:bg-slate-50'} {isLocked && revealAnswers
-            ? option.correct
-              ? 'border-green-400 bg-green-50'
-              : selected.has(optionIndex)
-                ? 'border-red-400 bg-red-50'
-                : ''
-            : ''}"
+          class="flex cursor-pointer items-start gap-2 rounded-md border p-3 transition-colors {choiceOptionTone(
+            optionIndex,
+            option.correct
+          )}"
         >
           {#if isSingleSelect}
             <input

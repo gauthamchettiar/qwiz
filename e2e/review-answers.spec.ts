@@ -196,3 +196,42 @@ test('the reveal screen says outright whether the answer was right or wrong', as
   await play.submitAnswerButton.click();
   await expect(page.getByText('Correct', { exact: true })).toBeVisible();
 });
+
+test('an option the player got right is tinted correct, not merely selected', async ({ page }) => {
+  const quiz = buildQuiz({
+    questions: [
+      {
+        id: 'q1',
+        code: ['multiple_choice: Which are prime?', '{', '=2', '=3', '~4', '}'].join('\n')
+      }
+    ]
+  });
+  await seedQuizzes(page, [quiz]);
+
+  const play = new PlayPage(page);
+  await play.goto(quiz.id);
+
+  // 2 picked (correct), 3 left unpicked (also correct), 4 left unpicked (incorrect).
+  await page.getByLabel('2', { exact: true }).check();
+  await play.submitAnswerButton.click();
+
+  // Compares resolved colours against each other rather than against literal values, so this says
+  // what actually matters and doesn't care what colour space Tailwind emits. The reveal styling used
+  // to be a second class string layered over the "selected" one, and which of two conflicting
+  // Tailwind utilities wins is decided by their order in the stylesheet rather than in the attribute
+  // — so a correct option the player HAD picked came out indigo ("you chose this") while the
+  // identical correct option they hadn't picked came out green, right beside it.
+  async function background(optionText: string) {
+    return page
+      .locator('label')
+      .filter({ hasText: optionText })
+      .evaluate((el) => getComputedStyle(el).backgroundColor);
+  }
+
+  const correctAndPicked = await background('2');
+  const correctNotPicked = await background('3');
+  const incorrect = await background('4');
+
+  expect(correctAndPicked).toBe(correctNotPicked);
+  expect(correctAndPicked).not.toBe(incorrect);
+});

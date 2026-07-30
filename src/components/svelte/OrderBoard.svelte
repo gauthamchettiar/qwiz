@@ -56,6 +56,20 @@
     return drag?.id === optionIndex;
   }
 
+  /** One slot's border+background as a SINGLE mutually-exclusive class string — see
+   * QuestionPlayer's `choiceOptionTone` for why these can't be layered as "base plus a reveal
+   * override": conflicting utilities are resolved by stylesheet order, not attribute order, so a
+   * correctly-placed locked slot was rendering a green background inside a slate border. */
+  function slotTone(slotIndex: number, occupant: number | null): string {
+    if (locked && revealAnswers && occupant !== null) {
+      return occupant === slotIndex ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50';
+    }
+    if (isOver(slotIndex)) return 'border-indigo-500 bg-indigo-100 ring-2 ring-indigo-200';
+    if (placing) return 'border-indigo-300 bg-indigo-50/50 hover:bg-indigo-50';
+    if (occupant !== null) return 'border-slate-200 hover:bg-slate-50';
+    return 'border-dashed border-slate-300';
+  }
+
   function dragParams(optionIndex: number) {
     return {
       id: optionIndex,
@@ -84,19 +98,10 @@
             use:draggable={occupant !== null
               ? dragParams(occupant)
               : { id: -1, group: DROP_GROUP, disabled: true }}
-            class="min-w-0 flex-1 rounded-md border p-2.5 text-left transition-colors disabled:cursor-not-allowed {isOver(
-              slotIndex
-            )
-              ? 'border-indigo-500 bg-indigo-100 ring-2 ring-indigo-200'
-              : placing
-                ? 'border-indigo-300 bg-indigo-50/50 hover:bg-indigo-50'
-                : occupant !== null
-                  ? 'border-slate-200 hover:bg-slate-50'
-                  : 'border-dashed border-slate-300'} {locked && revealAnswers && occupant !== null
-              ? isCorrect
-                ? 'border-green-400 bg-green-50'
-                : 'border-red-400 bg-red-50'
-              : ''} {occupant !== null && isLifted(occupant) ? 'opacity-40' : ''}"
+            class="min-w-0 flex-1 rounded-md border p-2.5 text-left transition-colors disabled:cursor-not-allowed {slotTone(
+              slotIndex,
+              occupant
+            )} {occupant !== null && isLifted(occupant) ? 'opacity-40' : ''}"
             disabled={locked}
             onclick={() => onSlotClick(slotIndex)}
             aria-label={occupant !== null

@@ -54,7 +54,7 @@ genuinely public (a shareable read-only quiz link, say), revisit both.
 | Validation      | zod                                                                                  | schemas in `src/lib/schemas/`; types derive via `z.infer`                 |
 | Language        | TypeScript, `strict: true`                                                           | `astro/tsconfigs/strict` as base, plus a `@/*` path alias                 |
 | Package manager | pnpm                                                                                 | lockfile committed (`pnpm-lock.yaml`), `--frozen-lockfile` in CI          |
-| E2E tests       | Playwright                                                                           | primary safety net — 284 tests (71 per project) across 4 browser projects |
+| E2E tests       | Playwright                                                                           | primary safety net — 288 tests (72 per project) across 4 browser projects |
 | Unit tests      | Vitest                                                                               | pure logic in `src/lib/**` — 244 tests                                    |
 | Lint / format   | ESLint (flat config) + Prettier + `prettier-plugin-astro` + `prettier-plugin-svelte` |                                                                           |
 | Deploy          | Cloudflare Pages                                                                     | via GitHub Actions, see §8                                                |
@@ -212,6 +212,15 @@ Additional rules:
 
 - No arbitrary values (`w-[437px]`) except genuine one-offs like the code-mode breakout width in
   `QuestionCard.svelte`, which is commented explaining the specific math.
+- **Never layer two conflicting class strings and expect the later one to win.** Which of
+  `bg-indigo-50` and `bg-green-50` applies is decided by their order in the generated stylesheet,
+  not by their order in the `class` attribute — so a "base look, then an override on top" pair
+  silently resolves whichever way Tailwind's palette happens to be ordered. This produced two real
+  bugs: a choice option the player got RIGHT rendered as merely "selected" (indigo won over green),
+  and a correctly-placed `order` slot rendered a green background inside a slate border (slate won
+  over green). Anything with several mutually-exclusive looks picks exactly one via a function
+  returning a single class string — see `choiceOptionTone` in `QuestionPlayer.svelte` and the
+  `slotTone`/`leftTone`/`rightTone`/`itemTone`/`blankTone` helpers in the four boards.
 - Color palette is `slate` (neutral surfaces/text) + `indigo` (the one primary accent) +
   semantic `red`/`green`/`amber` for destructive/correct/warning states. No daisyUI semantic
   tokens (`bg-base-200`) since there's no theme-switching to abstract over.

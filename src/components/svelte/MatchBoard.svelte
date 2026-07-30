@@ -53,6 +53,32 @@
     return pairs.get(index) === index;
   }
 
+  /** Border+background for one column entry as a SINGLE mutually-exclusive class string — see
+   * QuestionPlayer's `choiceOptionTone` for why a "base plus reveal override" pair of class strings
+   * silently resolves the wrong way. */
+  function leftTone(leftIndex: number): string {
+    const paired = pairs.has(leftIndex);
+    if (locked && revealAnswers && paired) {
+      return isCorrect(leftIndex) ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50';
+    }
+    if (picked === leftIndex) return 'border-indigo-400 bg-indigo-50';
+    if (paired) return 'border-slate-300 bg-slate-50';
+    return 'border-slate-200 hover:bg-slate-50';
+  }
+
+  function rightTone(rightIndex: number): string {
+    const used = [...pairs.values()].includes(rightIndex);
+    if (locked && revealAnswers && used) {
+      return isCorrect(rightIndex) ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50';
+    }
+    if (drag?.overZone === rightIndex) {
+      return 'border-indigo-500 bg-indigo-100 ring-2 ring-indigo-200';
+    }
+    if (placing) return 'border-indigo-300 bg-indigo-50/50 hover:bg-indigo-50';
+    if (used) return 'border-slate-300 bg-slate-50';
+    return 'border-slate-200 hover:bg-slate-50';
+  }
+
   /** Which right-column entry a left item is currently paired with, as its 1-based position in the
    * column the player actually sees — a paired item is otherwise indistinguishable from any other,
    * which on a board of more than two rows makes it genuinely hard to tell what you've matched. */
@@ -93,16 +119,9 @@
             onDragChange: (state) => (drag = state),
             onDrop
           }}
-          class="w-full rounded-md border p-2.5 text-left transition-colors disabled:cursor-not-allowed {picked ===
-          leftIndex
-            ? 'border-indigo-400 bg-indigo-50'
-            : paired
-              ? 'border-slate-300 bg-slate-50'
-              : 'border-slate-200 hover:bg-slate-50'} {locked && revealAnswers && paired
-            ? isCorrect(leftIndex)
-              ? 'border-green-400 bg-green-50'
-              : 'border-red-400 bg-red-50'
-            : ''} {drag?.id === leftIndex ? 'opacity-40' : ''}"
+          class="w-full rounded-md border p-2.5 text-left transition-colors disabled:cursor-not-allowed {leftTone(
+            leftIndex
+          )} {drag?.id === leftIndex ? 'opacity-40' : ''}"
           disabled={locked}
           onclick={() => onPickLeft(leftIndex)}
           aria-pressed={picked === leftIndex}
@@ -142,18 +161,9 @@
         type="button"
         data-drop-group={DROP_GROUP}
         data-drop-zone={rightIndex}
-        class="flex w-full items-center gap-2 rounded-md border p-2.5 text-left text-sm transition-colors disabled:cursor-not-allowed {drag?.overZone ===
-        rightIndex
-          ? 'border-indigo-500 bg-indigo-100 ring-2 ring-indigo-200'
-          : placing
-            ? 'border-indigo-300 bg-indigo-50/50 hover:bg-indigo-50'
-            : used
-              ? 'border-slate-300 bg-slate-50'
-              : 'border-slate-200 hover:bg-slate-50'} {locked && revealAnswers && used
-          ? isCorrect(rightIndex)
-            ? 'border-green-400 bg-green-50'
-            : 'border-red-400 bg-red-50'
-          : ''}"
+        class="flex w-full items-center gap-2 rounded-md border p-2.5 text-left text-sm transition-colors disabled:cursor-not-allowed {rightTone(
+          rightIndex
+        )}"
         disabled={locked}
         onclick={() => onClickRight(rightIndex)}
       >

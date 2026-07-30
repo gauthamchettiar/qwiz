@@ -71,6 +71,33 @@
   let blankDrag = $state<DragState | null>(null);
   const placing = $derived(picked !== null || wordDrag !== null);
 
+  /** A blank's border+background as a SINGLE mutually-exclusive class string — see
+   * QuestionPlayer's `choiceOptionTone` for why a "base plus reveal override" pair of class strings
+   * silently resolves the wrong way. */
+  function blankTone(blankIndex: number): string {
+    if (locked && revealAnswers && blankAnswers[blankIndex]) {
+      return isBlankCorrect(blankIndex)
+        ? 'border-green-400 bg-green-50'
+        : 'border-red-400 bg-red-50';
+    }
+    if (wordDrag?.overZone === blankIndex) {
+      return 'border-indigo-500 bg-indigo-100 ring-2 ring-indigo-200';
+    }
+    if (placing) return 'border-indigo-300 bg-indigo-50/50 hover:bg-indigo-50';
+    if (blankAnswers[blankIndex]) return 'border-slate-300 bg-slate-50';
+    return 'border-dashed border-slate-300';
+  }
+
+  /** Same, for `blank_input=type`'s inline text inputs. */
+  function typedBlankTone(blankIndex: number): string {
+    if (locked && revealAnswers) {
+      return isBlankCorrect(blankIndex)
+        ? 'border-green-400 bg-green-50'
+        : 'border-red-400 bg-red-50';
+    }
+    return 'border-slate-300 focus:border-slate-400 disabled:bg-slate-100';
+  }
+
   function isBlankCorrect(blankIndex: number): boolean {
     const answer = answerOptions[blankIndex];
     const expected = answer?.content.kind === 'text' ? answer.content.text : '';
@@ -87,12 +114,9 @@
     {#each segments as segment, i (i)}{segment}{#if i < segments.length - 1}
         {#if mode === 'type'}
           <input
-            class="mx-0.5 w-28 rounded-md border border-slate-300 px-1.5 py-0.5 text-sm text-slate-900 focus:border-slate-400 focus:outline-none disabled:bg-slate-100 {locked &&
-            revealAnswers
-              ? isBlankCorrect(i)
-                ? 'border-green-400 bg-green-50'
-                : 'border-red-400 bg-red-50'
-              : ''}"
+            class="mx-0.5 w-28 rounded-md border px-1.5 py-0.5 text-sm text-slate-900 focus:outline-none {typedBlankTone(
+              i
+            )}"
             value={blankAnswers[i] ?? ''}
             disabled={locked}
             oninput={(e) => onTypeBlank(i, e.currentTarget.value)}
@@ -110,18 +134,9 @@
               onDragChange: (state) => (blankDrag = state),
               onDrop: onDropBlankBack
             }}
-            class="mx-0.5 inline-flex min-w-16 items-center gap-1 rounded-md border px-2 py-0.5 align-middle text-sm transition-colors disabled:cursor-not-allowed {wordDrag?.overZone ===
-            i
-              ? 'border-indigo-500 bg-indigo-100 ring-2 ring-indigo-200'
-              : placing
-                ? 'border-indigo-300 bg-indigo-50/50 hover:bg-indigo-50'
-                : blankAnswers[i]
-                  ? 'border-slate-300 bg-slate-50'
-                  : 'border-dashed border-slate-300'} {locked && revealAnswers && blankAnswers[i]
-              ? isBlankCorrect(i)
-                ? 'border-green-400 bg-green-50'
-                : 'border-red-400 bg-red-50'
-              : ''} {blankDrag?.id === i ? 'opacity-40' : ''}"
+            class="mx-0.5 inline-flex min-w-16 items-center gap-1 rounded-md border px-2 py-0.5 align-middle text-sm transition-colors disabled:cursor-not-allowed {blankTone(
+              i
+            )} {blankDrag?.id === i ? 'opacity-40' : ''}"
             disabled={locked}
             onclick={() => onClickBlank(i)}
             aria-label={blankAnswers[i]
