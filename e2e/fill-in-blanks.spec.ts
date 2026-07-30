@@ -44,9 +44,9 @@ test('bank mode: picking bank words into blanks wins full credit', async ({ page
   await expect(page.getByText('Tap a word to pick it up')).toBeVisible();
 
   await page.getByRole('button', { name: 'mitochondria', exact: true }).click();
-  await page.getByRole('button', { name: '___' }).first().click();
+  await page.getByRole('button', { name: /Blank 1/ }).click();
   await page.getByRole('button', { name: 'cell', exact: true }).click();
-  await page.getByRole('button', { name: '___' }).first().click();
+  await page.getByRole('button', { name: /Blank 2/ }).click();
 
   await play.submitAnswerButton.click();
   await expect(page.getByText('2 / 2 points')).toBeVisible();
@@ -60,7 +60,7 @@ test('bank mode: an incomplete answer cannot be submitted', async ({ page }) => 
   await play.goto(quiz.id);
 
   await page.getByRole('button', { name: 'mitochondria', exact: true }).click();
-  await page.getByRole('button', { name: '___' }).first().click();
+  await page.getByRole('button', { name: /Blank 1/ }).click();
 
   await expect(play.submitAnswerButton).toBeDisabled();
 });

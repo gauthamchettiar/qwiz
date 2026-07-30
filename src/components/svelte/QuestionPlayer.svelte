@@ -256,49 +256,78 @@
     selected = new Set([optionIndex]);
   }
 
-  // order's tap-to-select-then-place interaction, entirely in terms of `orderPlacement`
-  // (`(number|null)[]`, one slot per option, holding the original option index placed there) and
-  // `picked` (the original option index currently "held," or `null`) — no drag events, so this is
-  // native-keyboard-operable for free via plain `<button>` Tab/Enter, same as every other control
-  // in this component.
+  // --- order/match/categorise/fill_in_blanks placement ---------------------------------------
   //
-  // Clicking a bank item (one not currently in any slot) toggles it picked/unpicked. Clicking an
-  // empty slot while something is picked places it there. Clicking an already-filled slot while
-  // something is picked SWAPS: the picked item takes that slot, and whatever was already there
-  // becomes the newly picked item (so it can immediately be placed elsewhere, or clicked again in
-  // the bank to just set it back down). Clicking a filled slot while nothing is picked picks its
-  // occupant back up, emptying that slot.
+  // Each board supports two ways to place an item, and both go through the same `place*`/`assign*`
+  // primitive below so they can't drift apart:
+  //
+  // - TAP: tap an item to pick it up (`picked`), then tap a target. Keyboard-operable for free,
+  //   since every item and target is a plain `<button>` — this is the accessible path, and the
+  //   only one on which anything else depends.
+  // - DRAG: press and drag an item onto a target (see lib/utils/dragDrop.ts). A pointer-only
+  //   enhancement; the `drop*` handlers below are its entry point, and differ from the tap handlers
+  //   only in taking the item explicitly instead of reading whatever happens to be `picked`.
+
+  /** A drop on an item's own source list rather than on a real target — "put this back". Boards
+   * mark their bank/pool with this as its `data-drop-zone` (see `SOURCE_ZONE` in each board). */
+  const SOURCE_ZONE = -1;
+
+  /** Moves `optionIndex` into `slotIndex`, returning whatever ends up with nowhere to go (`null` if
+   * nothing does). Dropping onto a filled slot SWAPS when the incoming item came from another slot
+   * — its old slot takes the displaced occupant — since a swap is what "put this one here instead"
+   * obviously means once both are already in the sequence. An item arriving from the bank has no
+   * slot to donate, so the occupant it displaces is handed back to the caller instead. */
+  function placeOrderItem(optionIndex: number, slotIndex: number): number | null {
+    const next = [...orderPlacement];
+    const occupant = next[slotIndex];
+    const fromSlot = next.indexOf(optionIndex);
+    next[slotIndex] = optionIndex;
+    if (fromSlot !== -1) next[fromSlot] = occupant;
+    orderPlacement = next;
+    return fromSlot === -1 ? occupant : null;
+  }
+
+  function removeOrderItem(optionIndex: number) {
+    orderPlacement = orderPlacement.map((occupant) => (occupant === optionIndex ? null : occupant));
+  }
+
   function pickOrderItem(optionIndex: number) {
     if (isLocked) return;
     picked = picked === optionIndex ? null : optionIndex;
   }
 
+  /** Tapping a target: place what's held (keeping any displaced item in hand, ready for the next
+   * tap), or — with nothing held — pick the target's own occupant back up. */
   function clickOrderSlot(slotIndex: number) {
     if (isLocked) return;
-    const occupant = orderPlacement[slotIndex];
     if (picked !== null) {
-      const next = [...orderPlacement];
-      const oldSlot = next.indexOf(picked);
-      if (oldSlot !== -1) next[oldSlot] = null;
-      next[slotIndex] = picked;
-      orderPlacement = next;
-      picked = occupant;
-    } else if (occupant !== null) {
-      const next = [...orderPlacement];
-      next[slotIndex] = null;
-      orderPlacement = next;
+      picked = placeOrderItem(picked, slotIndex);
+      return;
+    }
+    const occupant = orderPlacement[slotIndex];
+    if (occupant !== null) {
+      removeOrderItem(occupant);
       picked = occupant;
     }
   }
 
-  // match's tap-to-select-then-place interaction, in terms of `matchPairs` (left original option
-  // index -> right original option index) and `picked` (the currently-held LEFT item). Clicking a
-  // left item toggles it picked — if it was already paired, that pairing is dropped first so it
-  // can be re-targeted. Clicking a right item while something's picked completes the pair,
-  // stealing that right target away from whatever it was previously paired with (a right target
-  // can only ever belong to one pair at a time). Clicking an already-paired right item with
-  // nothing picked un-pairs it and picks its left item back up — same "click an occupied slot to
-  // reclaim it" idea as order's board.
+  function dropOrderItem(optionIndex: number, zone: number) {
+    if (isLocked) return;
+    if (zone === SOURCE_ZONE) removeOrderItem(optionIndex);
+    else placeOrderItem(optionIndex, zone);
+    // A drag has no "still in hand" state to leave anything in — the gesture is over.
+    picked = null;
+  }
+
+  /** Pairs `leftIndex` with `rightIndex`, dropping whatever either side was previously part of: a
+   * right target can only belong to one pair at a time, and so can a left item. */
+  function pairMatch(leftIndex: number, rightIndex: number) {
+    matchPairs = new Map([
+      ...[...matchPairs].filter(([left, right]) => left !== leftIndex && right !== rightIndex),
+      [leftIndex, rightIndex]
+    ]);
+  }
+
   function pickMatchLeft(leftIndex: number) {
     if (isLocked) return;
     if (picked === leftIndex) {
@@ -309,11 +338,13 @@
     picked = leftIndex;
   }
 
+  /** Tapping a right target completes the held pair; tapping an already-paired one with nothing
+   * held un-pairs it and picks its left item back up — the same "reclaim an occupied target" idea
+   * as order's board. */
   function clickMatchRight(rightIndex: number) {
     if (isLocked) return;
     if (picked !== null) {
-      const withoutStolen = [...matchPairs].filter(([, right]) => right !== rightIndex);
-      matchPairs = new Map([...withoutStolen, [picked, rightIndex]]);
+      pairMatch(picked, rightIndex);
       picked = null;
       return;
     }
@@ -324,9 +355,27 @@
     }
   }
 
-  // categorise's tap-to-select-then-place interaction, in terms of `categoriseAssignments`
-  // (option index -> bucket index) and `picked`. Unlike match, a bucket can hold several items at
-  // once, so assigning to a bucket never has to evict anything already there.
+  function dropMatch(leftIndex: number, rightIndex: number) {
+    if (isLocked) return;
+    pairMatch(leftIndex, rightIndex);
+    picked = null;
+  }
+
+  /** Unlike match, a bucket holds any number of items at once, so assigning never evicts anything
+   * already there — only the item's own previous bucket is vacated. */
+  function assignCategorise(optionIndex: number, bucketIndex: number) {
+    categoriseAssignments = new Map([
+      ...[...categoriseAssignments].filter(([option]) => option !== optionIndex),
+      [optionIndex, bucketIndex]
+    ]);
+  }
+
+  function unassignCategorise(optionIndex: number) {
+    categoriseAssignments = new Map(
+      [...categoriseAssignments].filter(([option]) => option !== optionIndex)
+    );
+  }
+
   function pickCategoriseItem(optionIndex: number) {
     if (isLocked) return;
     picked = picked === optionIndex ? null : optionIndex;
@@ -334,21 +383,38 @@
 
   function clickCategoriseBucket(bucketIndex: number) {
     if (isLocked || picked === null) return;
-    const withoutPicked = [...categoriseAssignments].filter(([option]) => option !== picked);
-    categoriseAssignments = new Map([...withoutPicked, [picked, bucketIndex]]);
+    assignCategorise(picked, bucketIndex);
     picked = null;
   }
 
   function pickCategoriseItemBackUp(optionIndex: number) {
     if (isLocked) return;
-    categoriseAssignments = new Map(
-      [...categoriseAssignments].filter(([option]) => option !== optionIndex)
-    );
+    unassignCategorise(optionIndex);
     picked = optionIndex;
   }
 
-  // fill_in_blanks (blank_input=bank) tap-to-select-then-place interaction — `picked` (shared with
-  // order/match/categorise above) holds the original option index of the currently-held bank word.
+  function dropCategoriseItem(optionIndex: number, zone: number) {
+    if (isLocked) return;
+    if (zone === SOURCE_ZONE) unassignCategorise(optionIndex);
+    else assignCategorise(optionIndex, zone);
+    picked = null;
+  }
+
+  /** fill_in_blanks (blank_input=bank): a blank holds the literal TEXT of the bank word placed in
+   * it, not its option index — that's what grading compares (see `gradeFillInBlanksQuestion`). */
+  function fillBlank(blankIndex: number, optionIndex: number) {
+    const option = question.options[optionIndex];
+    const next = [...blankAnswers];
+    next[blankIndex] = option.content.kind === 'text' ? option.content.text : '';
+    blankAnswers = next;
+  }
+
+  function clearBlank(blankIndex: number) {
+    const next = [...blankAnswers];
+    next[blankIndex] = '';
+    blankAnswers = next;
+  }
+
   function pickBankWord(optionIndex: number) {
     if (isLocked) return;
     picked = picked === optionIndex ? null : optionIndex;
@@ -357,11 +423,7 @@
   function clickBlank(blankIndex: number) {
     if (isLocked) return;
     if (picked !== null) {
-      const option = question.options[picked];
-      const text = option.content.kind === 'text' ? option.content.text : '';
-      const next = [...blankAnswers];
-      next[blankIndex] = text;
-      blankAnswers = next;
+      fillBlank(blankIndex, picked);
       picked = null;
       return;
     }
@@ -372,10 +434,22 @@
     const match = question.options.findIndex(
       (o) => o.content.kind === 'text' && o.content.text === text
     );
-    const next = [...blankAnswers];
-    next[blankIndex] = '';
-    blankAnswers = next;
+    clearBlank(blankIndex);
     if (match !== -1) picked = match;
+  }
+
+  function dropBankWord(optionIndex: number, blankIndex: number) {
+    if (isLocked) return;
+    fillBlank(blankIndex, optionIndex);
+    picked = null;
+  }
+
+  /** Dragging a filled blank back onto the word bank empties it — the drag counterpart of tapping
+   * a filled blank, which instead picks its word back up into `picked`. */
+  function dropBlankBack(blankIndex: number, zone: number) {
+    if (isLocked || zone !== SOURCE_ZONE) return;
+    clearBlank(blankIndex);
+    picked = null;
   }
 
   // fill_in_blanks (blank_input=type) — a plain per-blank text input, no picking involved.
@@ -777,6 +851,7 @@
       revealAnswers={isLocked && revealAnswers}
       onPick={pickOrderItem}
       onSlotClick={clickOrderSlot}
+      onDrop={dropOrderItem}
     />
   {:else if isMatch}
     <MatchBoard
@@ -789,6 +864,7 @@
       revealAnswers={isLocked && revealAnswers}
       onPickLeft={pickMatchLeft}
       onClickRight={clickMatchRight}
+      onDrop={dropMatch}
     />
   {:else if isCategorise}
     <CategoriseBoard
@@ -803,6 +879,7 @@
       onPickItem={pickCategoriseItem}
       onPickItemBackUp={pickCategoriseItemBackUp}
       onClickBucket={clickCategoriseBucket}
+      onDrop={dropCategoriseItem}
     />
   {:else if isFillInBlanks}
     <FillInBlanksBoard
@@ -818,6 +895,8 @@
       onPickBankWord={pickBankWord}
       onClickBlank={clickBlank}
       onTypeBlank={setBlankText}
+      onDropWord={dropBankWord}
+      onDropBlankBack={dropBlankBack}
     />
   {:else}
     <div class={choiceOptionsLayoutClass(question)}>

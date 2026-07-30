@@ -54,8 +54,8 @@ genuinely public (a shareable read-only quiz link, say), revisit both.
 | Validation      | zod                                                                                  | schemas in `src/lib/schemas/`; types derive via `z.infer`                 |
 | Language        | TypeScript, `strict: true`                                                           | `astro/tsconfigs/strict` as base, plus a `@/*` path alias                 |
 | Package manager | pnpm                                                                                 | lockfile committed (`pnpm-lock.yaml`), `--frozen-lockfile` in CI          |
-| E2E tests       | Playwright                                                                           | primary safety net — 144 tests (36 per project) across 4 browser projects |
-| Unit tests      | Vitest                                                                               | pure logic in `src/lib/**` — 185 tests                                    |
+| E2E tests       | Playwright                                                                           | primary safety net — 260 tests (65 per project) across 4 browser projects |
+| Unit tests      | Vitest                                                                               | pure logic in `src/lib/**` — 244 tests                                    |
 | Lint / format   | ESLint (flat config) + Prettier + `prettier-plugin-astro` + `prettier-plugin-svelte` |                                                                           |
 | Deploy          | Cloudflare Pages                                                                     | via GitHub Actions, see §8                                                |
 
@@ -90,7 +90,8 @@ migration.
 ├── e2e/                         # Playwright specs
 │   ├── fixtures/                # quizzes.ts — buildQuiz() factory, sample .qwiz source
 │   ├── pages/                   # Page Object Models: HomePage, BuilderPage, PlayPage
-│   ├── utils/                   # storage.ts (seed/reset localStorage), a11y.ts (axe helper)
+│   ├── utils/                   # storage.ts (seed/reset localStorage), a11y.ts (axe helper),
+│   │                            # drag.ts (pointer-drag gesture helper)
 │   └── *.spec.ts
 ├── public/                      # copied verbatim to dist/ root
 │   ├── favicon.svg
@@ -107,7 +108,8 @@ migration.
 │   │   ├── stores/quizzes.ts    # the only file that touches localStorage — list/get/save/delete
 │   │   └── utils/                # quizScript.ts (parser/serializer), grading.ts, shuffle.ts,
 │   │                             # youtube.ts, download.ts, suggestions.ts, sampleQuizzes.ts,
-│   │                             # importQwiz.ts, clickOutside.ts, questionFocus.ts
+│   │                             # importQwiz.ts, clickOutside.ts, dragDrop.ts,
+│   │                             # questionFocus.ts
 │   ├── pages/
 │   │   ├── index.astro          # quiz list
 │   │   ├── 404.astro            # custom not-found page, matches the app's own visual language
@@ -316,6 +318,16 @@ and `clickOutside.ts`/`suggestions.ts` (untested but real logic) are the only fi
 don't threaten the aggregate; `download.ts`'s `downloadTextFile` is deliberately excluded from
 unit coverage since it's a browser-side-effect function (Blob/DOM), covered by e2e instead.
 
+`dragDrop.ts` is the one file with an explicit `/* v8 ignore start */` block, wrapping its
+`draggable` action and `buildGhost` for the same reason, but stated in the file since it's large
+enough to have moved the aggregate ~10 points on its own: pointer capture, `elementFromPoint`
+hit-testing and a ghost element in the document are things jsdom doesn't implement, so a unit test
+would only be asserting against mocks of the APIs under test. Its _decisions_ are factored out into
+pure exported helpers (`exceedsDragThreshold`, `findDropZone`, `dragActivation`) which ARE unit
+tested, and the gesture itself is covered in a real browser by `e2e/drag-and-drop.spec.ts`. Reach
+for `v8 ignore` only on that same basis — untestable-by-construction browser plumbing whose logic
+has been extracted out of it — never to get a number up.
+
 ### E2E tests (Playwright) — `e2e/`
 
 The primary contract for user-visible behavior. Config (`playwright.config.ts`):
@@ -365,6 +377,11 @@ The one thing genuinely under test — authoring — is always driven through th
 - Keyboard behavior for anything with real custom keyboard logic (the category/tag
   suggestion-dropdown arrow-key handling in `QuizBuilder.svelte`; Escape out of code mode) — not
   generic Tab-order checks, since there's no custom tab management in this app to verify.
+- Pointer gestures, if any, driven through `page.mouse` rather than Playwright's `dragTo` — see
+  `e2e/utils/drag.ts`'s `dragOnto`, which presses, moves past the drag threshold in steps, and
+  releases, because the app promotes a press into a drag on the first move past that threshold (see
+  `lib/utils/dragDrop.ts`). The tap path for the same board must stay covered alongside it: the two
+  mechanics share one state machine, and a change to either can silently break the other.
 - Mobile viewport: covered automatically by the `mobile` Playwright project running every spec, not
   by separate mobile-only specs.
 - Accessibility: `e2e/accessibility.spec.ts` runs `@axe-core/playwright` on every major screen via

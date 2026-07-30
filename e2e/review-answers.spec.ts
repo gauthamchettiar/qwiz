@@ -52,42 +52,6 @@ function buildEveryVariantQuiz(): Quiz {
   });
 }
 
-/** Answers whichever question is currently on screen well enough to submit it, then advances.
- * Deliberately not "answers correctly" — Review has to render a mix of right and wrong answers,
- * and each variant's own correctness is already covered by its own spec. */
-async function answerCurrentQuestion(page: import('@playwright/test').Page) {
-  const play = new PlayPage(page);
-
-  if (await page.getByLabel('4', { exact: true }).isVisible()) {
-    await page.getByLabel('4', { exact: true }).check();
-  } else if (await play.typedAnswerInput.isVisible()) {
-    await play.typedAnswerInput.fill('Rome');
-  } else if (await page.getByText('Arrange in the correct order').isVisible()) {
-    await page.getByRole('button', { name: 'Second', exact: true }).click();
-    await page.getByRole('button', { name: /Position 1, empty/ }).click();
-    await page.getByRole('button', { name: 'First', exact: true }).click();
-    await page.getByRole('button', { name: /Position 2, empty/ }).click();
-  } else if (await page.getByRole('button', { name: 'France', exact: true }).isVisible()) {
-    await page.getByRole('button', { name: 'Paris', exact: true }).click();
-    await page.getByRole('button', { name: 'France', exact: true }).click();
-    await page.getByRole('button', { name: 'Tokyo', exact: true }).click();
-    await page.getByRole('button', { name: 'Japan', exact: true }).click();
-  } else if (await page.getByText('Water', { exact: true }).isVisible()) {
-    await page.getByRole('button', { name: 'Fish', exact: true }).click();
-    await page.getByRole('button', { name: 'Place here' }).first().click();
-    await page.getByRole('button', { name: 'Lion', exact: true }).click();
-    await page.getByRole('button', { name: 'Place here' }).last().click();
-  } else if (await page.getByRole('button', { name: 'mitochondria' }).isVisible()) {
-    await page.getByRole('button', { name: 'mitochondria' }).click();
-    await page.getByRole('button', { name: '___' }).click();
-  } else {
-    // character_input — submittable at any point, so one guess is enough.
-    await page.getByRole('button', { name: 'a', exact: true }).click();
-  }
-
-  await play.submitAnswerButton.click();
-}
-
 test('Review answers renders every question variant, not just choice and typed', async ({
   page
 }) => {
@@ -97,13 +61,57 @@ test('Review answers renders every question variant, not just choice and typed',
   const play = new PlayPage(page);
   await play.goto(quiz.id);
 
-  for (let i = 0; i < quiz.questions.length; i++) {
-    await answerCurrentQuestion(page);
-    if (i === quiz.questions.length - 1) {
-      await play.seeResultsButton.click();
-    } else {
-      await play.nextQuestionButton.click();
+  // Answered in the fixture's authored order — `buildQuiz` pins `shuffle_questions: false`, so
+  // which question is on screen is known at every step rather than something to detect. Answers are
+  // deliberately a mix of right and wrong: Review has to render both, and each variant's own
+  // correctness is covered by its own spec.
+  const answerEach = [
+    async () => {
+      await page.getByLabel('4', { exact: true }).check();
+    },
+    async () => {
+      await play.typedAnswerInput.fill('Rome');
+    },
+    async () => {
+      // character_input is submittable at any point, so one guess is enough.
+      await page.getByRole('button', { name: 'a', exact: true }).click();
+    },
+    async () => {
+      await page.getByRole('button', { name: 'Second', exact: true }).click();
+      await page.getByRole('button', { name: /Position 1, empty/ }).click();
+      await page.getByRole('button', { name: 'First', exact: true }).click();
+      await page.getByRole('button', { name: /Position 2, empty/ }).click();
+    },
+    async () => {
+      await page.getByRole('button', { name: 'Paris', exact: true }).click();
+      await page.getByRole('button', { name: 'France', exact: true }).click();
+      await page.getByRole('button', { name: 'Tokyo', exact: true }).click();
+      await page.getByRole('button', { name: 'Japan', exact: true }).click();
+    },
+    async () => {
+      await page.getByRole('button', { name: 'Fish', exact: true }).click();
+      await page
+        .getByRole('group', { name: 'Water' })
+        .getByRole('button', { name: 'Place here' })
+        .click();
+      await page.getByRole('button', { name: 'Lion', exact: true }).click();
+      await page
+        .getByRole('group', { name: 'Land' })
+        .getByRole('button', { name: 'Place here' })
+        .click();
+    },
+    async () => {
+      await page.getByRole('button', { name: 'mitochondria' }).click();
+      await page.getByRole('button', { name: /Blank 1/ }).click();
     }
+  ];
+
+  for (const [i, answer] of answerEach.entries()) {
+    await expect(play.progressLabel()).toHaveText(`Question ${i + 1} of 7`);
+    await answer();
+    await play.submitAnswerButton.click();
+    if (i === answerEach.length - 1) await play.seeResultsButton.click();
+    else await play.nextQuestionButton.click();
   }
 
   await expect(play.resultHeading()).toBeVisible();

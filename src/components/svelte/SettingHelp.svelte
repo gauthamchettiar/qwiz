@@ -33,51 +33,59 @@
   // physically cannot do that, whatever it's anchored to.
   const PANEL_WIDTH = 256;
   const VIEWPORT_MARGIN = 12;
+  const TRIGGER_GAP = 6;
   /** Below this, an anchored bubble has nowhere useful to go — a full-width sheet at the bottom of
    * the screen is both readable and unambiguously dismissible. */
   const SHEET_MAX_WIDTH = 480;
+  /** Room needed below the trigger to open downwards. A deliberate over-estimate of the tallest
+   * description in SETTING_RULES, which is what lets this place the panel WITHOUT measuring it —
+   * see `place`. */
+  const ASSUMED_PANEL_HEIGHT = 200;
 
   let triggerEl: HTMLButtonElement | undefined = $state();
-  let panelEl: HTMLElement | undefined = $state();
   let isSheet = $state(false);
   let panelStyle = $state('');
-  // Suppresses the first frame, where the panel has been rendered (so it can be measured) but not
-  // yet placed — without this it flashes at the top-left corner before jumping into position.
-  let placed = $state(false);
 
+  /** Positions the panel from the trigger's viewport rect alone — deliberately without measuring
+   * the panel itself, so this can run BEFORE the panel is rendered and the very first frame is
+   * already in the right place. Measuring would mean rendering it once to get a height, placing it,
+   * then re-rendering: two passes, a visible jump unless the first is hidden, and a window in which
+   * the panel exists but isn't shown yet.
+   *
+   * Not needing the real height costs only the choice of direction, which `ASSUMED_PANEL_HEIGHT`
+   * covers: downwards whenever there's room for the tallest description, upwards otherwise, pinned
+   * to the trigger's own edge either way via a `translateY` the browser resolves against the
+   * panel's actual height. */
   function place() {
-    if (!triggerEl || !panelEl) return;
+    if (!triggerEl) return;
     const viewportWidth = window.innerWidth;
 
     if (viewportWidth <= SHEET_MAX_WIDTH) {
       isSheet = true;
       panelStyle = '';
-      placed = true;
       return;
     }
 
     isSheet = false;
     const rect = triggerEl.getBoundingClientRect();
     const width = Math.min(PANEL_WIDTH, viewportWidth - VIEWPORT_MARGIN * 2);
-    const height = panelEl.offsetHeight;
 
     const centered = rect.left + rect.width / 2 - width / 2;
     const left = Math.max(
       VIEWPORT_MARGIN,
       Math.min(centered, viewportWidth - VIEWPORT_MARGIN - width)
     );
-    // Above the trigger by preference (the settings rows it annotates are usually near the bottom
-    // of their card), flipping below only when there genuinely isn't room.
-    const above = rect.top - VIEWPORT_MARGIN - height;
-    const top = above >= VIEWPORT_MARGIN ? above : rect.bottom + VIEWPORT_MARGIN;
 
-    panelStyle = `left:${left}px;top:${top}px;width:${width}px;`;
-    placed = true;
+    const roomBelow = window.innerHeight - rect.bottom - VIEWPORT_MARGIN;
+    const below = roomBelow >= ASSUMED_PANEL_HEIGHT;
+    const top = below ? rect.bottom + TRIGGER_GAP : rect.top - TRIGGER_GAP;
+    const shift = below ? '0' : '-100%';
+
+    panelStyle = `left:${left}px;top:${top}px;width:${width}px;transform:translateY(${shift});`;
   }
 
   $effect(() => {
-    if (!open || !panelEl) return;
-    place();
+    if (!open) return;
     // A fixed panel doesn't travel with its trigger, so anything that moves the trigger has to
     // re-place it. Capture phase catches scrolling inside any container, not just the page.
     window.addEventListener('resize', place);
@@ -89,13 +97,17 @@
   });
 
   function toggle() {
-    open = !open;
-    if (!open) placed = false;
+    if (open) {
+      open = false;
+      return;
+    }
+    // Placed before the panel renders, not after — see `place`.
+    place();
+    open = true;
   }
 
   function close() {
     open = false;
-    placed = false;
   }
 </script>
 
@@ -113,12 +125,11 @@
   </button>
   {#if open}
     <div
-      bind:this={panelEl}
       id={panelId}
       role="note"
       class="z-30 border border-slate-200 bg-white text-xs font-normal normal-case leading-relaxed text-slate-600 shadow-lg {isSheet
         ? 'fixed inset-x-0 bottom-0 max-h-[60vh] overflow-y-auto rounded-t-xl border-b-0 p-4 pb-6'
-        : 'fixed rounded-md p-2.5'} {placed ? '' : 'invisible'}"
+        : 'fixed rounded-md p-2.5'}"
       style={panelStyle}
     >
       {#if isSheet}
