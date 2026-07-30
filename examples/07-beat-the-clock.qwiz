@@ -1,0 +1,81 @@
+---
+title: Beat the Clock
+description: Twenty seconds a question, five questions drawn at random from a bigger bank, and the reveal screen moves on without waiting for you. Run it twice — you won't get the same five.
+category: general knowledge
+tags: [timer, speed, random]
+:questions_per_run=5
+:shuffle_questions=true
+:timer_mode=per_question
+:timer_seconds=20
+:on_timeout=auto_submit
+:reveal_screen_seconds=4
+:show_running_score=true
+:percent_to_win=60
+:points_correct=2
+:options_layout=grid2x2
+:shuffle_options=true
+---
+
+single_choice: How many sides does a hexagon have?
+{
+=6
+~5
+~7
+~8
+}
+
+single_choice: Which gas do plants absorb from the air?
+{
+=Carbon dioxide
+~Oxygen
+~Nitrogen
+~Hydrogen
+}
+
+single_choice: What is 15% of 200?
+{
+=30
+~15
+~45
+~20
+}
+
+single_choice: Which ocean is the largest?
+{
+=Pacific
+~Atlantic
+~Indian
+~Arctic
+}
+
+single_choice: How many minutes are in a quarter of an hour?
+{
+=15
+~10
+~20
+~25
+}
+
+single_choice: Which of these is a prime number?
+{
+=17
+~21
+~27
+~33
+}
+
+single_choice: What colour do you get mixing blue and yellow?
+{
+=Green
+~Purple
+~Orange
+~Brown
+}
+
+single_choice: How many continents are there?
+{
+=7
+~5
+~6
+~8
+}

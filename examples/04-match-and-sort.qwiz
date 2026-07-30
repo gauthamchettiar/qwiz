@@ -1,0 +1,53 @@
+---
+title: Match & Sort
+description: Pair things up, then tip them into the right buckets. Two questions hide the targets entirely and make you type them from memory.
+category: general knowledge
+tags: [match, categorise, drag-and-drop]
+:percent_to_win=60
+:reveal_answers=after_every_question
+:reveal_scores=after_every_question
+:partial_credit=true
+---
+
+match: Match each invention to the person credited with it.
+{
+=The telephone -> Alexander Graham Bell
+=The printing press -> Johannes Gutenberg
+=The polio vaccine -> Jonas Salk
+=Dynamite -> Alfred Nobel
+}
+:points_correct=2
+
+match: Same idea, but the answers aren't on screen — type each one.
+!<hint>[One for free (-1)](A hydrophone listens underwater.)
+{
+=Anemometer -> Wind speed
+=Seismometer -> Earthquakes
+=Hygrometer -> Humidity
+}
+:answer_mode=type
+:typo_tolerance=30
+:points_correct=2
+
+categorise: Drop each animal into the group it belongs to.
+!<analysis>[Why?](A bucket holds any number of items, which is what makes categorise different from match — several animals share "Mammal" here.)
+{
+=Dolphin -> Mammal
+=Bat -> Mammal
+=Ostrich -> Bird
+=Penguin -> Bird
+=Komodo dragon -> Reptile
+}
+:points_correct=1
+
+categorise: Which country is each city in? Type it out.
+{
+=Osaka -> Japan
+=Lyon -> France
+=Porto -> Portugal
+=Cusco -> Peru
+}
+:answer_mode=type
+:match_case=false
+:typo_tolerance=25
+:points_correct=2

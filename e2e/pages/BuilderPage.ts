@@ -1,4 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
+import { waitForHydration } from '../utils/hydration';
 
 /** Page Object for both /local/create and /local/edit, which render the same QuizBuilder. */
 export class BuilderPage {
@@ -26,12 +27,16 @@ export class BuilderPage {
     this.notFoundMessage = page.getByText("That quiz couldn't be found.");
   }
 
+  // Both wait for hydration: the builder is an island, and a test that starts typing into
+  // server-rendered markup before its handlers attach is racing (see `waitForHydration`).
   async gotoCreate(): Promise<void> {
     await this.page.goto('/local/create');
+    await waitForHydration(this.page);
   }
 
   async gotoEdit(id: string): Promise<void> {
     await this.page.goto(`/local/edit?id=${id}`);
+    await waitForHydration(this.page);
   }
 
   /** The Nth question card's own text field, once it's open in form mode (true right after

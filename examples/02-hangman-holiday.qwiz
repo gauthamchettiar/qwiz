@@ -1,0 +1,53 @@
+---
+title: The Hangman's Holiday
+description: Guess the word one letter at a time. Every wrong letter costs you, and each round hands out its clues differently — some drip-feed, some dump the lot.
+category: word games
+tags: [hangman, letters, wordplay]
+:percent_to_win=60
+:reveal_answers=after_every_question
+:reveal_scores=after_every_question
+:points_wrong=-1
+:letter_bank=alphabet
+---
+
+character_input: A word for a group of crows — and for a sudden fear.
+!<hint>[Give me the first letter (-1)](It starts with M, and it rhymes with "sturder".)
+{
+=[M]urder
+}
+:letter_reveal=all
+:points_correct=2
+
+character_input: The Italian city built on 118 small islands.
+{
+=[V]enic[e]
+}
+:letters_shown_at_start=1
+:letter_reveal=all
+:points_correct=2
+
+character_input: Only these letters are on the board — the answer is a shade of blue.
+{
+=indigo
+}
+:letter_bank=fixed
+:letter_bank_chars=abcdegilmnopqrstu
+:letter_reveal=all
+:points_correct=3
+
+character_input: A repeated letter here only appears one occurrence at a time. Guess the fruit.
+{
+=banana
+}
+:letter_reveal=sequence
+:points_correct=3
+:difficulty=hard
+
+character_input: The bank is mostly real letters, with a few decoys thrown in.
+!<analysis>[Why?](letter_bank=auto builds the bank from the letters actually in the answer plus up to six random decoys, so a guess still carries real risk.)
+{
+=e[c]lipse
+}
+:letter_bank=auto
+:letter_reveal=random
+:points_correct=3

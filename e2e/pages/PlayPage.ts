@@ -1,4 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
+import { waitForHydration } from '../utils/hydration';
 
 export class PlayPage {
   readonly page: Page;
@@ -25,6 +26,7 @@ export class PlayPage {
 
   async goto(id: string): Promise<void> {
     await this.page.goto(`/local/play?id=${id}`);
+    await waitForHydration(this.page);
   }
 
   progressLabel(): Locator {
