@@ -40,8 +40,8 @@ multiple_choice: One of these uses a Nordic cross — the off-centre cross share
 }
 :points_correct=2
 
-single_choice: How close can you get? Each answer is worth what it deserves.
-!<analysis>[Why?](A trailing %N% sets one option's own point value, overriding the question default — so "nearly right" can be worth something without being marked correct.)
+multiple_choice: How close can you get? Each answer is worth what it deserves — pick one.
+!<analysis>[Why?](A trailing %N% sets one option's own point value, overriding the question default. It only pays out alongside partial_credit, though: without it a choice question is all-or-nothing, so a weighted wrong answer would still score zero. partial_credit isn't available on single_choice, which is why this is a multiple_choice capped at one pick.)
 ![A green flag with a yellow diamond and a blue globe](data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27300%27%20height%3D%27200%27%20viewBox%3D%270%200%2060%2040%27%3E%3Crect%20width%3D%2760%27%20height%3D%2740%27%20fill%3D%27%23009b3a%27%2F%3E%3Cpath%20d%3D%27M30%205%2055%2020%2030%2035%205%2020Z%27%20fill%3D%27%23fedf00%27%2F%3E%3Ccircle%20cx%3D%2730%27%20cy%3D%2720%27%20r%3D%277%27%20fill%3D%27%23002776%27%2F%3E%3C%2Fsvg%3E)
 {
 =Brazil %3%
@@ -49,6 +49,9 @@ single_choice: How close can you get? Each answer is worth what it deserves.
 ~Portugal %1%
 ~Mexico %0%
 }
+:partial_credit=true
+:min_answers=1
+:max_answers=1
 :difficulty=medium
 
 single_choice: Watch the clip, then answer: what is this video famous for being?
