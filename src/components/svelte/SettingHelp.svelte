@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { CircleQuestionMark } from '@lucide/svelte';
+  import { CircleQuestionMark, X } from '@lucide/svelte';
   import { clickOutside } from '@/lib/utils/clickOutside';
   import { SETTING_RULES, type SettingRule } from '@/lib/utils/quizScript';
 
@@ -19,22 +19,132 @@
   // screen, so a hover-only tooltip is simply unreachable there. Tap to open, tap the trigger
   // again/tap elsewhere/Escape to close; still works with a mouse via a plain click.
   let open = $state(false);
+
+  // One stable id per instance for the trigger/panel aria-controls relationship — same
+  // `$props.id()` usage as SuggestionInput's listbox, which must be a top-level declaration.
+  const instanceId = $props.id();
+  const panelId = `${instanceId}-help`;
+
+  // The panel is `position: fixed` and placed from the trigger's own viewport rect rather than
+  // `absolute`-positioned inside the settings row. As an absolutely-positioned, trigger-centred
+  // `w-64` box it could extend past the right edge of the document — which widens the scrollable
+  // area, and on mobile that means the browser zooms the whole page out to fit and leaves a strip
+  // of dead space to the right until the panel closes. A fixed box clamped to the viewport
+  // physically cannot do that, whatever it's anchored to.
+  const PANEL_WIDTH = 256;
+  const VIEWPORT_MARGIN = 12;
+  const TRIGGER_GAP = 6;
+  /** Below this, an anchored bubble has nowhere useful to go — a full-width sheet at the bottom of
+   * the screen is both readable and unambiguously dismissible. */
+  const SHEET_MAX_WIDTH = 480;
+  /** Room needed below the trigger to open downwards. A deliberate over-estimate of the tallest
+   * description in SETTING_RULES, which is what lets this place the panel WITHOUT measuring it —
+   * see `place`. */
+  const ASSUMED_PANEL_HEIGHT = 200;
+
+  let triggerEl: HTMLButtonElement | undefined = $state();
+  let isSheet = $state(false);
+  let panelStyle = $state('');
+
+  /** Positions the panel from the trigger's viewport rect alone — deliberately without measuring
+   * the panel itself, so this can run BEFORE the panel is rendered and the very first frame is
+   * already in the right place. Measuring would mean rendering it once to get a height, placing it,
+   * then re-rendering: two passes, a visible jump unless the first is hidden, and a window in which
+   * the panel exists but isn't shown yet.
+   *
+   * Not needing the real height costs only the choice of direction, which `ASSUMED_PANEL_HEIGHT`
+   * covers: downwards whenever there's room for the tallest description, upwards otherwise, pinned
+   * to the trigger's own edge either way via a `translateY` the browser resolves against the
+   * panel's actual height. */
+  function place() {
+    if (!triggerEl) return;
+    const viewportWidth = window.innerWidth;
+
+    if (viewportWidth <= SHEET_MAX_WIDTH) {
+      isSheet = true;
+      panelStyle = '';
+      return;
+    }
+
+    isSheet = false;
+    const rect = triggerEl.getBoundingClientRect();
+    const width = Math.min(PANEL_WIDTH, viewportWidth - VIEWPORT_MARGIN * 2);
+
+    const centered = rect.left + rect.width / 2 - width / 2;
+    const left = Math.max(
+      VIEWPORT_MARGIN,
+      Math.min(centered, viewportWidth - VIEWPORT_MARGIN - width)
+    );
+
+    const roomBelow = window.innerHeight - rect.bottom - VIEWPORT_MARGIN;
+    const below = roomBelow >= ASSUMED_PANEL_HEIGHT;
+    const top = below ? rect.bottom + TRIGGER_GAP : rect.top - TRIGGER_GAP;
+    const shift = below ? '0' : '-100%';
+
+    panelStyle = `left:${left}px;top:${top}px;width:${width}px;transform:translateY(${shift});`;
+  }
+
+  $effect(() => {
+    if (!open) return;
+    // A fixed panel doesn't travel with its trigger, so anything that moves the trigger has to
+    // re-place it. Capture phase catches scrolling inside any container, not just the page.
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  });
+
+  function toggle() {
+    if (open) {
+      open = false;
+      return;
+    }
+    // Placed before the panel renders, not after — see `place`.
+    place();
+    open = true;
+  }
+
+  function close() {
+    open = false;
+  }
 </script>
 
-<span class="relative inline-flex" use:clickOutside={() => (open = false)}>
+<span class="inline-flex" use:clickOutside={close}>
   <button
+    bind:this={triggerEl}
     type="button"
-    class="cursor-help text-slate-300 hover:text-slate-500"
+    class="cursor-help text-slate-400 hover:text-slate-600"
     aria-label="What does this setting do?"
     aria-expanded={open}
-    onclick={() => (open = !open)}
+    aria-controls={panelId}
+    onclick={toggle}
   >
     <CircleQuestionMark size={12} />
   </button>
   {#if open}
-    <span
-      class="absolute bottom-full left-1/2 z-20 mb-1.5 w-64 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-md border border-slate-200 bg-white p-2.5 text-xs font-normal normal-case leading-relaxed text-slate-600 shadow-md"
+    <div
+      id={panelId}
+      role="note"
+      class="z-30 border border-slate-200 bg-white text-xs font-normal normal-case leading-relaxed text-slate-600 shadow-lg {isSheet
+        ? 'fixed inset-x-0 bottom-0 max-h-[60vh] overflow-y-auto rounded-t-xl border-b-0 p-4 pb-6'
+        : 'fixed rounded-md p-2.5'}"
+      style={panelStyle}
     >
+      {#if isSheet}
+        <div class="mb-2 flex items-start justify-between gap-3">
+          <p class="font-mono text-xs font-semibold text-slate-900">{key}</p>
+          <button
+            type="button"
+            class="-mr-1 -mt-1 rounded p-1 text-slate-500 hover:bg-slate-100"
+            aria-label="Close description"
+            onclick={close}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      {/if}
       {#each lines as line, i (i)}
         {#if line === ''}
           <div class="h-2"></div>
@@ -45,6 +155,6 @@
           <p>{line}</p>
         {/if}
       {/each}
-    </span>
+    </div>
   {/if}
 </span>

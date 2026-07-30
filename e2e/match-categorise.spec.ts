@@ -87,10 +87,14 @@ test('categorise: several items can correctly share one bucket', async ({ page }
   const play = new PlayPage(page);
   await play.goto(quiz.id);
 
+  // Each bucket tray is a `role="group"` labelled with its own name — a stable handle for it,
+  // rather than reaching it through the DOM shape around its label.
   async function assign(item: string, bucket: string) {
     await page.getByRole('button', { name: item, exact: true }).click();
-    const bucketCard = page.getByText(bucket, { exact: true }).locator('..');
-    await bucketCard.getByRole('button', { name: 'Place here' }).click();
+    await page
+      .getByRole('group', { name: bucket })
+      .getByRole('button', { name: 'Place here' })
+      .click();
   }
 
   await assign('Fish', 'Water');
@@ -111,10 +115,10 @@ test('categorise: picking an item back up from a bucket returns it to the pool',
   await play.goto(quiz.id);
 
   await page.getByRole('button', { name: 'Fish', exact: true }).click();
-  const waterCard = page.getByText('Water', { exact: true }).locator('..');
-  await waterCard.getByRole('button', { name: 'Place here' }).click();
+  const waterTray = page.getByRole('group', { name: 'Water' });
+  await waterTray.getByRole('button', { name: 'Place here' }).click();
 
-  await waterCard.getByRole('button', { name: 'Fish', exact: true }).click();
+  await waterTray.getByRole('button', { name: 'Fish', exact: true }).click();
 
   await expect(play.submitAnswerButton).toBeDisabled();
 });

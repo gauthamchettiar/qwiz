@@ -21,3 +21,18 @@ body {
 button:not(:disabled) {
   cursor: pointer;
 }
+
+/* iOS Safari zooms the whole page in whenever a focused form control's font-size is under 16px,
+   and never zooms back out — which made tapping any field on this app (whose inputs are text-sm
+   /text-xs, i.e. 14px/12px) leave the layout stranded mid-zoom. 16px on touch pointers is the
+   only fix that doesn't involve blocking pinch-zoom via the viewport meta, which would be a
+   serious a11y regression (see Base.astro). Structural, not component styling — hence CSS rather
+   than a utility class on all ~41 controls, which would also be one more thing to remember on
+   every new field. */
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}

@@ -2,8 +2,10 @@
   import { Code, Copy, Play, Square } from '@lucide/svelte';
   import {
     parseQuizScriptQuestion,
+    resolveQuestionSettings,
     suggestedSettingKeysForVariant,
-    type QuizScriptQuestion
+    type QuizScriptQuestion,
+    type QuizScriptSettings
   } from '@/lib/utils/quizScript';
   import type { QuizQuestion } from '@/lib/schemas/quiz';
   import type { FocusTarget } from '@/lib/utils/questionFocus';
@@ -16,6 +18,7 @@
 
   let {
     question,
+    quizSettings,
     mode,
     draft,
     focusTarget,
@@ -28,6 +31,10 @@
     onDelete
   }: {
     question: QuizQuestion;
+    /** The quiz's own settings, so this card resolves the same inherited defaults a real run
+     * would — see `resolveQuestionSettings`. Without it the preview and the "try it" tester would
+     * both describe a question the player never actually gets. */
+    quizSettings: QuizScriptSettings;
     mode: 'view' | 'code' | 'form';
     draft: string;
     focusTarget: FocusTarget | null;
@@ -40,7 +47,12 @@
     onDelete: () => void;
   } = $props();
 
-  const parsedSaved = $derived(parseQuizScriptQuestion(question.code).question);
+  // Resolved (quiz defaults folded in), not just parsed — everything below reads settings off this,
+  // so there's no path where the editor shows one set of effective settings and the player another.
+  const parsedSaved = $derived.by(() => {
+    const parsed = parseQuizScriptQuestion(question.code).question;
+    return { ...parsed, settings: resolveQuestionSettings(parsed, quizSettings) };
+  });
   const draftErrors = $derived(mode === 'code' ? parseQuizScriptQuestion(draft).errors : []);
   // The legend below the code textarea only offers keys that actually apply to whatever variant
   // is currently written in `draft` (see `suggestedSettingKeysForVariant`) — re-parsed live so

@@ -6,7 +6,7 @@
   import { deleteQuiz, saveQuiz } from '@/lib/stores/quizzes';
   import { downloadTextFile, slugify } from '@/lib/utils/download';
   import {
-    QUIZ_SETTING_RULES,
+    QUIZ_FRONTMATTER_RULES,
     QUIZ_SUGGESTED_SETTING_KEYS,
     parseQuizScriptFrontmatter,
     parseQuizScriptQuestion,
@@ -56,7 +56,7 @@
     Object.fromEntries(
       settingsList
         .filter((s) => s.key.trim() !== '')
-        .map((s) => [s.key, validateSettingValue(s.key, s.value, QUIZ_SETTING_RULES).value])
+        .map((s) => [s.key, validateSettingValue(s.key, s.value, QUIZ_FRONTMATTER_RULES).value])
     )
   );
   let tagDraft = $state('');
@@ -209,7 +209,7 @@
    * value, but only when the row's value is genuinely still blank. */
   function selectSettingKey(setting: { key: string; value: string }) {
     if (setting.value.trim() === '')
-      setting.value = settingDefaultValue(setting.key, QUIZ_SETTING_RULES);
+      setting.value = settingDefaultValue(setting.key, QUIZ_FRONTMATTER_RULES);
   }
 
   // --- Question editing: view / code / form -------------------------------------------------
@@ -432,10 +432,41 @@
     return () => window.removeEventListener('keydown', onKey);
   });
 
+  let titleEl: HTMLInputElement | undefined = $state();
+  let errorListEl: HTMLElement | undefined = $state();
+  /** Which question card (if any) blocked the last save, so `focusFirstError` can scroll to it. */
+  let blockingQuestionId = $state<string | null>(null);
+
   function validate(): string[] {
     const found: string[] = [];
     if (title.trim().length === 0) found.push('Title is required.');
     return found;
+  }
+
+  /** Puts the reason a save failed on screen and, where there's a field to fix, in the cursor.
+   *
+   * The Save button lives at the bottom of a page that's as long as the quiz, and the error list
+   * is at the top — so before this, a save blocked by an empty title looked exactly like a save
+   * that did nothing at all: no movement, no message in view, no indication the click registered. */
+  function focusFirstError() {
+    const reduceMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const behavior = reduceMotion ? ('auto' as const) : ('smooth' as const);
+
+    if (title.trim().length === 0) {
+      titleEl?.scrollIntoView({ behavior, block: 'center' });
+      titleEl?.focus();
+      return;
+    }
+    if (blockingQuestionId) {
+      document
+        .querySelector(`[data-question-id="${blockingQuestionId}"]`)
+        ?.scrollIntoView({ behavior, block: 'center' });
+      return;
+    }
+    // No specific field to blame (a storage failure, say) — show the message itself instead.
+    errorListEl?.scrollIntoView({ behavior, block: 'center' });
   }
 
   // Shared by Save and Play: commits whatever's still sitting in the tag input or an in-progress
@@ -446,10 +477,27 @@
   // what's actually in the store would be showing stale content).
   function buildAndSaveQuiz(): Quiz | null {
     addTag();
-    commitActiveDraft();
+    blockingQuestionId = null;
+
+    // A code draft that doesn't parse used to be silently left uncommitted while the save went
+    // ahead — so the edit on screen simply wasn't in the saved quiz, with nothing said about it.
+    if (!commitActiveDraft()) {
+      const isMeta = activeEdit?.kind === 'meta';
+      blockingQuestionId = isMeta ? null : (activeEdit?.questionId ?? null);
+      errors = [
+        isMeta
+          ? "The quiz details code has an error, so it wasn't saved. Fix it or press Escape to discard the edit."
+          : "A question's code has an error, so it wasn't saved. Fix it or press Escape to discard the edit."
+      ];
+      focusFirstError();
+      return null;
+    }
 
     errors = validate();
-    if (errors.length > 0) return null;
+    if (errors.length > 0) {
+      focusFirstError();
+      return null;
+    }
 
     const now = new Date().toISOString();
     const quiz: Quiz = {
@@ -468,6 +516,7 @@
       errors = [
         "Couldn't save — your browser's storage might be full or unavailable (e.g. private browsing). Try removing a large image and saving again."
       ];
+      focusFirstError();
       return null;
     }
     return quiz;
@@ -538,7 +587,9 @@
     {/if}
   </div>
 
-  <ErrorList {errors} />
+  <div bind:this={errorListEl}>
+    <ErrorList {errors} />
+  </div>
 
   <div class="relative space-y-5 rounded-lg border border-slate-200 bg-white p-6">
     <!-- Same `lg:`-gated absolute/in-flow switch as QuestionCard.svelte's button strip — see its
@@ -570,7 +621,7 @@
           {#each QUIZ_SUGGESTED_SETTING_KEYS as key (key)}
             <span class="inline-flex items-center gap-0.5">
               {key}
-              <SettingHelp {key} rules={QUIZ_SETTING_RULES} />
+              <SettingHelp {key} rules={QUIZ_FRONTMATTER_RULES} />
             </span>
           {/each}
         </div>
@@ -581,6 +632,7 @@
     {:else}
       <div class="-mx-1 space-y-1">
         <input
+          bind:this={titleEl}
           type="text"
           class="w-full rounded-md px-1 py-1 text-2xl font-bold text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-200 {titleInvalid
             ? 'border border-red-300 ring-1 ring-red-100'
@@ -717,7 +769,7 @@
           {#each QUIZ_SUGGESTED_SETTING_KEYS as key (key)}
             <span class="inline-flex items-center gap-0.5 font-normal text-slate-500">
               {key}
-              <SettingHelp {key} rules={QUIZ_SETTING_RULES} />
+              <SettingHelp {key} rules={QUIZ_FRONTMATTER_RULES} />
             </span>
           {/each}
         </div>
@@ -725,9 +777,9 @@
           {@const usedElsewhere = settingsList
             .filter((s) => s._key !== setting._key)
             .map((s) => s.key)}
-          {@const valueSuggestions = settingValueSuggestions(setting.key, QUIZ_SETTING_RULES)}
+          {@const valueSuggestions = settingValueSuggestions(setting.key, QUIZ_FRONTMATTER_RULES)}
           {@const validation = setting.key.trim()
-            ? validateSettingValue(setting.key, setting.value, QUIZ_SETTING_RULES)
+            ? validateSettingValue(setting.key, setting.value, QUIZ_FRONTMATTER_RULES)
             : null}
           <div class="flex flex-wrap items-center gap-1.5">
             <select
@@ -748,7 +800,7 @@
               class="min-w-[6rem] flex-1"
             />
             {#if setting.key.trim()}
-              <SettingHelp key={setting.key} rules={QUIZ_SETTING_RULES} />
+              <SettingHelp key={setting.key} rules={QUIZ_FRONTMATTER_RULES} />
             {/if}
             <button
               type="button"
@@ -782,6 +834,7 @@
   {#each questions as question (question.id)}
     <QuestionCard
       {question}
+      {quizSettings}
       mode={activeEdit?.kind === 'question' && activeEdit.questionId === question.id
         ? activeEdit.mode
         : 'view'}

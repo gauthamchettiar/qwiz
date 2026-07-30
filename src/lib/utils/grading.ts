@@ -1,4 +1,9 @@
-import type { QuizScriptOption, QuizScriptQuestion, QuizScriptSettings } from './quizScript';
+import {
+  resolveQuestionSettings,
+  type QuizScriptOption,
+  type QuizScriptQuestion,
+  type QuizScriptSettings
+} from './quizScript';
 import { shuffledArray } from './shuffle';
 
 export interface QuestionResult {
@@ -7,13 +12,13 @@ export interface QuestionResult {
 }
 
 /** Exported so a player UI can read min_answers/max_answers/etc the same way grading itself reads
- * point/penalty/points_to_win — one place deciding what counts as "a number was actually set". */
+ * points_correct/points_wrong/points_to_win — one place deciding what counts as "a number was actually set". */
 export function settingNumber(value: string | number | boolean | undefined): number | undefined {
   return typeof value === 'number' ? value : undefined;
 }
 
-/** Exported so a player UI can read a boolean setting (e.g. `show_score`) the same way grading
- * itself reads `partial_points`/`case_sensitive`/etc. */
+/** Exported so a player UI can read a boolean setting (e.g. `show_running_score`) the same way grading
+ * itself reads `partial_credit`/`match_case`/etc. */
 export function settingBoolean(value: string | number | boolean | undefined): boolean {
   return value === true;
 }
@@ -30,7 +35,7 @@ export function settingString(
 }
 
 /** An option's effective point value: its own `%N%` weight if given, else the question's
- * `:point=`/`:penalty=` default for a correct/incorrect option respectively, else 1 for a
+ * `:points_correct=`/`:points_wrong=` default for a correct/incorrect option respectively, else 1 for a
  * correct option (a right answer is worth *something* by default) or 0 for an incorrect one (no
  * penalty unless the author opts in) — the reconciliation `QuizScriptOption.points` docs in
  * quizScript.ts call out as a scoring concern left to whatever actually grades a run. */
@@ -39,8 +44,8 @@ export function effectivePoints(
   settings: QuizScriptSettings
 ): number {
   if (option.points !== undefined) return option.points;
-  if (option.correct) return settingNumber(settings.point) ?? 1;
-  return settingNumber(settings.penalty) ?? 0;
+  if (option.correct) return settingNumber(settings.points_correct) ?? 1;
+  return settingNumber(settings.points_wrong) ?? 0;
 }
 
 /** Reveal-hint scoring: sum of revealed extras' (usually negative) cost, and the max sums only
@@ -74,10 +79,10 @@ function cappedPositiveSum(points: number[], cap: number | undefined): number {
 /** Grades one question given which option indices the player selected and which hint (extra)
  * indices they revealed — indices into `question.options`/`question.extras` in their ORIGINAL
  * (unshuffled) order, regardless of what order the player saw them in (see `PlayQuestion` below).
- * `partial_points` (default false, i.e. exact-match-or-nothing) controls whether picking some but
+ * `partial_credit` (default false, i.e. exact-match-or-nothing) controls whether picking some but
  * not all correct options earns partial credit or scores the whole question 0.
  *
- * Only the `partial_points` path caps its achievable max by `max_answers` (via
+ * Only the `partial_credit` path caps its achievable max by `max_answers` (via
  * `cappedPositiveSum`) when there are more correct/positive-scoring options than the player could
  * ever select at once — e.g. 3 correct options worth 1 point each with `max_answers=2` tops out at
  * 2, not 3. The exact-match path deliberately does NOT: it's strictly binary (the full correct
@@ -92,7 +97,7 @@ export function gradeQuestion(
   revealed: ReadonlySet<number>
 ): QuestionResult {
   const effective = question.options.map((o) => effectivePoints(o, question.settings));
-  const partial = settingBoolean(question.settings.partial_points);
+  const partial = settingBoolean(question.settings.partial_credit);
 
   let optionsEarned: number;
   let optionsMax: number;
@@ -114,13 +119,13 @@ export function gradeQuestion(
 }
 
 /** The options-container class for a `single_choice`/`multiple_choice` question, driven by
- * `option_display` — shared by QuestionView (author-side preview), QuestionPlayer (live
+ * `options_layout` — shared by QuestionView (author-side preview), QuestionPlayer (live
  * answering), and QuizPlayer (the run's Review screen), which all rendered this same three-way
  * branch independently before. "list" (or the setting being absent): one option per row.
  * "grid2x2": a fixed 2-column grid. "grid3x3": 2 columns on narrow screens, 3 on wider ones. */
 export function choiceOptionsLayoutClass(question: QuizScriptQuestion): string {
-  if (question.settings.option_display === 'grid2x2') return 'grid grid-cols-2 gap-2';
-  if (question.settings.option_display === 'grid3x3') {
+  if (question.settings.options_layout === 'grid2x2') return 'grid grid-cols-2 gap-2';
+  if (question.settings.options_layout === 'grid3x3') {
     return 'grid grid-cols-2 sm:grid-cols-3 gap-2';
   }
   return 'space-y-2';
@@ -132,7 +137,7 @@ export function choiceOptionsLayoutClass(question: QuizScriptQuestion): string {
 // instead of picked, so none of the Set-of-selected-indices logic above applies to it.
 
 /** Always-on normalization for typed-answer comparison: trim, accent-fold (NFD decompose then
- * strip combining marks, so "café" reads as "cafe"), lowercase unless `case_sensitive`, strip
+ * strip combining marks, so "café" reads as "cafe"), lowercase unless `match_case`, strip
  * punctuation (Unicode-aware — keeps letters/digits/whitespace only), collapse internal
  * whitespace runs, trim again. None of this is configurable except the casing step — same
  * category as whitespace-collapsing already being unconditional elsewhere in this format. */
@@ -144,7 +149,7 @@ const COMBINING_MARKS = new RegExp('[\\u0300-\\u036f]', 'g');
 
 export function normalizeTypedAnswer(text: string, settings: QuizScriptSettings): string {
   let s = text.trim().normalize('NFD').replace(COMBINING_MARKS, '');
-  if (!settingBoolean(settings.case_sensitive)) s = s.toLowerCase();
+  if (!settingBoolean(settings.match_case)) s = s.toLowerCase();
   s = s.replace(/[^\p{L}\p{N}\s]/gu, '').replace(/\s+/g, ' ');
   return s.trim();
 }
@@ -174,8 +179,8 @@ export function levenshteinDistance(a: string, b: string): number {
  * strips punctuation (by design, so "co-operate" matches "cooperate"), which would otherwise
  * destroy the decimal point in "3.14" before `Number()` ever saw it, silently comparing the wrong
  * values instead of just failing to match. Only when numeric parsing doesn't apply does normalized
- * comparison (with fuzzy-tolerance, if set) take over. Precedence when both `numeric_tolerance`
- * and `fuzzy_tolerance` happen to be set (the parser rejects this on any question it parses — see
+ * comparison (with fuzzy-tolerance, if set) take over. Precedence when both `number_tolerance`
+ * and `typo_tolerance` happen to be set (the parser rejects this on any question it parses — see
  * quizScript.ts — but a hand-built question object bypasses that): numeric wins whenever both
  * sides actually parse as numbers, since edit-distance on numbers is fairly meaningless ("31.4" vs
  * "3.14" is 2 edits but a very different value). */
@@ -184,7 +189,7 @@ export function isTypedMatch(
   answer: string,
   settings: QuizScriptSettings
 ): boolean {
-  const numericTolerance = settingNumber(settings.numeric_tolerance);
+  const numericTolerance = settingNumber(settings.number_tolerance);
   if (numericTolerance !== undefined) {
     const rRaw = response.trim();
     const aRaw = answer.trim();
@@ -200,7 +205,7 @@ export function isTypedMatch(
   const a = normalizeTypedAnswer(answer, settings);
   if (r === '' || a === '') return false;
 
-  const fuzzyTolerance = settingNumber(settings.fuzzy_tolerance);
+  const fuzzyTolerance = settingNumber(settings.typo_tolerance);
   if (fuzzyTolerance !== undefined) {
     const allowed = Math.round((fuzzyTolerance / 100) * a.length);
     return levenshteinDistance(r, a) <= allowed;
@@ -290,15 +295,15 @@ export function matchTypedGuesses(
  * guesses (in submission order) for multi-guess mode (`max_answers > 1` — see `PlayQuestion`/
  * `QuizPlayer.svelte`). Single mode's max is the *best* accepted answer's point value (any one
  * correct response already wins the blank, unlike multi-select's need-them-all sum) — there's no
- * concept of "partial" with only one guess, so `partial_points` is never consulted there.
+ * concept of "partial" with only one guess, so `partial_credit` is never consulted there.
  *
- * Multi-guess mode branches on `partial_points`, mirroring `gradeQuestion`'s own choice/exact
+ * Multi-guess mode branches on `partial_credit`, mirroring `gradeQuestion`'s own choice/exact
  * split exactly:
- * - `partial_points` (default false): each guess is graded independently and summed — a wrong
- *   guess costs `:penalty=`'s default (via a synthetic incorrect option, same as choice's own
- *   `partial_points` path lets a selected incorrect option's effective points count as negative
+ * - `partial_credit` (default false): each guess is graded independently and summed — a wrong
+ *   guess costs `:points_wrong=`'s default (via a synthetic incorrect option, same as choice's own
+ *   `partial_credit` path lets a selected incorrect option's effective points count as negative
  *   `earned`), and the achievable max is the best `max_answers` accepted answers (via
- *   `cappedPositiveSum` — same fix as choice's `partial_points` path, and for the same reason:
+ *   `cappedPositiveSum` — same fix as choice's `partial_credit` path, and for the same reason:
  *   "name N things" tops out at N, not at however many accepted answers happen to exist).
  * - Exact match (default): all-or-nothing — every accepted answer must be matched by some guess,
  *   with zero wrong guesses, or the question scores 0 regardless of how many were right; the max
@@ -318,7 +323,7 @@ export function gradeTypedQuestion(
     const matched = typedSingleAnswerMatches(question.options, response, settings);
     optionsMax = Math.max(0, ...question.options.map((o) => effectivePoints(o, settings)));
     optionsEarned = matched !== null ? effectivePoints(question.options[matched], settings) : 0;
-  } else if (settingBoolean(settings.partial_points)) {
+  } else if (settingBoolean(settings.partial_credit)) {
     const { perGuess, wrongCount } = matchTypedGuesses(question.options, response, settings);
     const wrongGuessPenalty = effectivePoints({ correct: false, points: undefined }, settings);
     optionsEarned =
@@ -350,7 +355,7 @@ export function gradeTypedQuestion(
   return { earned: optionsEarned + reveal.earned, max: optionsMax + reveal.max };
 }
 
-/** Character-box *shape* for a typed question in `input_display=boxes` — one group of boxes per
+/** Character-box *shape* for a typed question in `typed_input=boxes` — one group of boxes per
  * word of the first accepted answer's FULLY normalized text (not just whitespace-stripped),
  * deliberately matching what grading actually compares against: every visible box then
  * corresponds to something that matters, rather than showing a box for punctuation grading
@@ -379,7 +384,7 @@ export function typedBoxCount(question: QuizScriptQuestion): number {
 // A character_input question's single accepted answer (its first `=` option, same "first
 // accepted answer" convention typedBoxGroups uses) is guessed letter-by-letter via an on-screen
 // bank rather than typed — see docs/qwiz-format.md's "Character input" section for the authored
-// syntax (`[X]` pre-reveal brackets, letter_bank/prereveal_mode/prereveal_count settings).
+// syntax (`[X]` pre-reveal brackets, letter_bank/letter_reveal/letters_shown_at_start settings).
 
 /** A Unicode letter — the only kind of character this variant's letter bank deals with. Anything
  * else (spaces, punctuation, digits) is always shown, never guessable, and never counted toward
@@ -410,7 +415,7 @@ function distinctGuessableLetters(text: string): Set<string> {
   return letters;
 }
 
-/** `prereveal_count`'s random extra pre-reveal positions, resolved once — exported so
+/** `letters_shown_at_start`'s random extra pre-reveal positions, resolved once — exported so
  * `QuestionPlayer.svelte` can call it itself at mount time and seed `QuestionDraft.extraPrerevealed`
  * with a properly-sized, stable-for-this-session result, the same way it already calls
  * `typedBoxCount`/builds `boxChars` itself rather than `blankDraft()` doing it (`blankDraft()`
@@ -420,7 +425,7 @@ function distinctGuessableLetters(text: string): Set<string> {
 export function resolveExtraPrereveal(question: QuizScriptQuestion): Set<number> {
   const text = characterInputAnswerText(question);
   const bracketPositions = new Set(question.options[0]?.prerevealed ?? []);
-  const prerevealCount = settingNumber(question.settings.prereveal_count) ?? 0;
+  const prerevealCount = settingNumber(question.settings.letters_shown_at_start) ?? 0;
   const eligible = Array.from({ length: text.length }, (_, i) => i).filter(
     (i) => !bracketPositions.has(i) && isGuessableChar(text[i])
   );
@@ -428,7 +433,7 @@ export function resolveExtraPrereveal(question: QuizScriptQuestion): Set<number>
 }
 
 /** Every position in the answer text that's pre-revealed from the start — explicit `[X]` brackets
- * (`option.prerevealed`) plus `draft.extraPrerevealed`'s already-resolved `prereveal_count`
+ * (`option.prerevealed`) plus `draft.extraPrerevealed`'s already-resolved `letters_shown_at_start`
  * additions (see `resolveExtraPrereveal`). Exported so the bank/box UI can render "shown for free"
  * styling without duplicating this union. */
 export function characterInputPrerevealedPositions(
@@ -498,7 +503,7 @@ function letterOccurrences(text: string, letter: string): number[] {
 }
 
 /** Updates `revealedPositions` after a CORRECT guess of `letter`, per the question's
- * `prereveal_mode`: `all` reveals every occurrence of `letter` at once (classic Hangman);
+ * `letter_reveal`: `all` reveals every occurrence of `letter` at once (classic Hangman);
  * `sequence` reveals just the next (lowest-index) not-yet-revealed occurrence; `random` reveals one
  * random not-yet-revealed occurrence. A no-op if every occurrence is already revealed (e.g. a stray
  * re-click after the bank button should already be disabled). Only ever called for a letter
@@ -513,7 +518,7 @@ export function characterInputRevealPositionsAfterGuess(
   const remaining = occurrences.filter((i) => !revealedPositions.has(i));
   if (remaining.length === 0) return new Set(revealedPositions);
 
-  const mode = settingString(question.settings.prereveal_mode, 'all');
+  const mode = settingString(question.settings.letter_reveal, 'all');
   const toReveal =
     mode === 'all' ? remaining : mode === 'random' ? [shuffledArray(remaining)[0]] : [remaining[0]];
   return new Set([...revealedPositions, ...toReveal]);
@@ -521,7 +526,7 @@ export function characterInputRevealPositionsAfterGuess(
 
 /** Whether every occurrence of `letter` in the answer is currently revealed — what a bank button
  * checks (alongside a 'wrong' guess) to decide whether it should disable itself. Always true
- * immediately after a correct guess under `prereveal_mode=all`; only true once enough repeat clicks
+ * immediately after a correct guess under `letter_reveal=all`; only true once enough repeat clicks
  * have happened under `sequence`/`random` for a letter that repeats in the answer. `false` for a
  * letter that isn't in the answer at all — `.every()` on its empty occurrence list would
  * otherwise be vacuously `true`, which would wrongly pre-disable every never-guessed, not-in-the-
@@ -539,9 +544,9 @@ export function characterInputLetterFullyRevealed(
 
 /** Grades a character_input question. Scoring is per DISTINCT guessable letter, not per
  * occurrence — guessing "e" that appears three times in the answer is one scoring event, same
- * whether `prereveal_mode` reveals all three occurrences at once or trickles them out one guess at a
- * time (prereveal_mode is a pure display concern, irrelevant to grading here). A pre-revealed letter
- * (explicit bracket or `prereveal_count`, via `draft.extraPrerevealed`) counts toward neither
+ * whether `letter_reveal` reveals all three occurrences at once or trickles them out one guess at a
+ * time (letter_reveal is a pure display concern, irrelevant to grading here). A pre-revealed letter
+ * (explicit bracket or `letters_shown_at_start`, via `draft.extraPrerevealed`) counts toward neither
  * `earned` nor `max` — it was free, so it shouldn't inflate either side; `max` only counts the
  * letters actually left to guess. */
 export function gradeCharacterInputQuestion(
@@ -549,8 +554,8 @@ export function gradeCharacterInputQuestion(
   draft: QuestionDraft
 ): QuestionResult {
   const text = characterInputAnswerText(question);
-  const point = settingNumber(question.settings.point) ?? 1;
-  const penalty = settingNumber(question.settings.penalty) ?? 0;
+  const pointsCorrect = settingNumber(question.settings.points_correct) ?? 1;
+  const pointsWrong = settingNumber(question.settings.points_wrong) ?? 0;
 
   const prerevealedLetters = new Set<string>();
   for (const i of characterInputPrerevealedPositions(question, draft.extraPrerevealed)) {
@@ -567,8 +572,8 @@ export function gradeCharacterInputQuestion(
 
   const reveal = gradeRevealExtras(question.extras, draft.revealed);
   return {
-    earned: point * correctGuessedCount + penalty * wrongGuessCount + reveal.earned,
-    max: point * guessable.length + reveal.max
+    earned: pointsCorrect * correctGuessedCount + pointsWrong * wrongGuessCount + reveal.earned,
+    max: pointsCorrect * guessable.length + reveal.max
   };
 }
 
@@ -579,9 +584,9 @@ export function gradeCharacterInputQuestion(
 /** Grades an `order` question. `placement[i]` is the original option index the player put at
  * slot i (`null` while that slot is still empty); slot i is correct iff `placement[i] === i` — the
  * canonical, authored order. Mirrors `gradeQuestion`'s own exact-match/partial-credit split:
- * without `partial_points`, every slot must be correct or the question scores 0; with it, each
+ * without `partial_credit`, every slot must be correct or the question scores 0; with it, each
  * correctly-placed slot scores independently. Either way `max` is the same full sum — unlike
- * choice's own `partial_points` path, there's no `max_answers`-style cap to apply here, since every
+ * choice's own `partial_credit` path, there's no `max_answers`-style cap to apply here, since every
  * option has exactly one slot to land in regardless of mode. */
 export function gradeOrderQuestion(
   question: QuizScriptQuestion,
@@ -590,7 +595,7 @@ export function gradeOrderQuestion(
 ): QuestionResult {
   const effective = question.options.map((o) => effectivePoints(o, question.settings));
   const correctSum = effective.reduce((sum, p) => sum + p, 0);
-  const partial = settingBoolean(question.settings.partial_points);
+  const partial = settingBoolean(question.settings.partial_credit);
   const correctSlots = question.options.map((_, i) => placement[i] === i);
   const isExact = correctSlots.every(Boolean);
 
@@ -621,7 +626,7 @@ export function gradeMatchQuestion(
 ): QuestionResult {
   const effective = question.options.map((o) => effectivePoints(o, question.settings));
   const correctSum = effective.reduce((sum, p) => sum + p, 0);
-  const partial = settingBoolean(question.settings.partial_points);
+  const partial = settingBoolean(question.settings.partial_credit);
   const correctPairs = question.options.map((_, i) => pairs.get(i) === i);
   const isExact = correctPairs.every(Boolean) && pairs.size === question.options.length;
 
@@ -649,7 +654,7 @@ export function gradeCategoriseQuestion(
   const buckets = categoriseBuckets(question);
   const effective = question.options.map((o) => effectivePoints(o, question.settings));
   const correctSum = effective.reduce((sum, p) => sum + p, 0);
-  const partial = settingBoolean(question.settings.partial_points);
+  const partial = settingBoolean(question.settings.partial_credit);
   const correctAssignments = question.options.map((option, i) => {
     const bucketIndex = assignments.get(i);
     return bucketIndex !== undefined && buckets[bucketIndex] === option.target;
@@ -658,6 +663,86 @@ export function gradeCategoriseQuestion(
 
   const optionsEarned = partial
     ? effective.reduce((sum, p, i) => sum + (correctAssignments[i] ? p : 0), 0)
+    : isExact
+      ? correctSum
+      : 0;
+
+  const reveal = gradeRevealExtras(question.extras, revealed);
+  return { earned: optionsEarned + reveal.earned, max: correctSum + reveal.max };
+}
+
+// --- answer_mode=type: typing the answer instead of using a board ---------------------------
+// `order`, `match`, `categorise` and `fill_in_blanks` all place things rather than select them, and
+// all four can instead be answered by typing (`:answer_mode=type`). What gets typed differs per
+// variant, but everything after that — normalization, tolerance, the partial/exact split — is
+// identical, so it lives here once rather than in four grade functions.
+
+/** Whether this question is answered by typing rather than through its board. Only the four
+ * placement variants offer the choice (see `SETTING_RULES.answer_mode.appliesTo`); anything else is
+ * always false, so callers can ask unconditionally. */
+export function isTypedAnswerMode(question: QuizScriptQuestion): boolean {
+  return question.settings.answer_mode === 'type';
+}
+
+/** The expected text for each typed answer slot, in slot order:
+ * - `fill_in_blanks` — each blank's own answer word, left to right.
+ * - `order` — the item belonging at that position, so slot i expects option i (the authored
+ *   sequence IS the answer key).
+ * - `match`/`categorise` — each item's own `.target`: the thing it pairs with, or the bucket it
+ *   belongs in.
+ *
+ * Exported so a board can show the right answer next to a slot the player got wrong without
+ * re-deriving which option a slot corresponds to. */
+export function typedSlotExpectations(question: QuizScriptQuestion): string[] {
+  if (question.variant === 'fill_in_blanks') {
+    return fillInBlanksAnswerOptions(question).map((o) =>
+      o.content.kind === 'text' ? o.content.text : ''
+    );
+  }
+  if (question.variant === 'order') {
+    return question.options.map((o) => (o.content.kind === 'text' ? o.content.text : ''));
+  }
+  return question.options.map((o) => o.target ?? '');
+}
+
+/** How many typed slots this question has — what a draft's `blankAnswers` array is sized to. */
+export function typedSlotCount(question: QuizScriptQuestion): number {
+  return typedSlotExpectations(question).length;
+}
+
+/** Per-slot correctness for a typed answer, using the same matching a `typed` question gets
+ * (`match_case`/`number_tolerance`/`typo_tolerance` all apply). An empty slot is never correct,
+ * even against an empty expectation — leaving it blank isn't answering it. */
+export function typedSlotCorrectness(
+  question: QuizScriptQuestion,
+  answers: readonly string[]
+): boolean[] {
+  return typedSlotExpectations(question).map((expected, i) => {
+    const response = answers[i] ?? '';
+    if (response.trim() === '') return false;
+    return isTypedMatch(response, expected, question.settings);
+  });
+}
+
+/** Grades any of the four placement variants when it's answered by typing. Scoring weights come
+ * from the options the slots correspond to — the correct (`=`) options for `fill_in_blanks`, since
+ * its `~` distractors have no blank of their own, and every option for the other three, where each
+ * option owns exactly one slot. Mirrors the same `partial_credit` split every other grade function
+ * uses. */
+export function gradeTypedSlotsQuestion(
+  question: QuizScriptQuestion,
+  answers: readonly string[],
+  revealed: ReadonlySet<number>
+): QuestionResult {
+  const scoredOptions =
+    question.variant === 'fill_in_blanks' ? fillInBlanksAnswerOptions(question) : question.options;
+  const effective = scoredOptions.map((o) => effectivePoints(o, question.settings));
+  const correctSum = effective.reduce((sum, p) => sum + p, 0);
+  const correct = typedSlotCorrectness(question, answers);
+  const isExact = correct.every(Boolean);
+
+  const optionsEarned = settingBoolean(question.settings.partial_credit)
+    ? effective.reduce((sum, p, i) => sum + (correct[i] ? p : 0), 0)
     : isExact
       ? correctSum
       : 0;
@@ -686,8 +771,8 @@ export function fillInBlanksCount(question: QuizScriptQuestion): number {
 }
 
 /** Grades a `fill_in_blanks` question. `answers[i]` is the player's response for blank i — either
- * their typed text (`blank_input=type`, matched via `isTypedMatch`, same normalization/tolerance
- * settings a `typed` question uses) or their chosen bank word (`blank_input=bank`, the default —
+ * their typed text (`answer_mode=type`, matched via `isTypedMatch`, same normalization/tolerance
+ * settings a `typed` question uses) or their chosen bank word (`answer_mode=pick`, the default —
  * matched by exact text equality, since the player picked it verbatim off a button rather than
  * typing it, so there's no typo for fuzzy/case-insensitive matching to forgive). Mirrors
  * `gradeOrderQuestion`/`gradeMatchQuestion`/`gradeCategoriseQuestion`'s own exact-match/
@@ -697,17 +782,20 @@ export function gradeFillInBlanksQuestion(
   answers: readonly string[],
   revealed: ReadonlySet<number>
 ): QuestionResult {
+  if (isTypedAnswerMode(question)) return gradeTypedSlotsQuestion(question, answers, revealed);
+
   const answerOptions = fillInBlanksAnswerOptions(question);
   const effective = answerOptions.map((o) => effectivePoints(o, question.settings));
   const correctSum = effective.reduce((sum, p) => sum + p, 0);
-  const partial = settingBoolean(question.settings.partial_points);
-  const isBank = question.settings.blank_input !== 'type';
+  const partial = settingBoolean(question.settings.partial_credit);
 
+  // Pick mode only: the player chose this word off a button rather than typing it, so there's no
+  // typo or casing for the tolerance settings to forgive — exact text equality is the whole test.
   const correctBlanks = answerOptions.map((option, i) => {
     const response = answers[i] ?? '';
     if (response === '') return false;
     const answerText = option.content.kind === 'text' ? option.content.text : '';
-    return isBank ? response === answerText : isTypedMatch(response, answerText, question.settings);
+    return response === answerText;
   });
   const isExact = correctBlanks.every(Boolean);
 
@@ -739,18 +827,18 @@ export interface QuestionDraft {
   /** character_input only: which bank letters have been guessed so far, and whether each was
    * 'correct' (appears in the answer) or 'wrong'. */
   guessedLetters: Map<string, 'correct' | 'wrong'>;
-  /** character_input only: `prereveal_count`'s randomly-chosen extra pre-reveal positions —
+  /** character_input only: `letters_shown_at_start`'s randomly-chosen extra pre-reveal positions —
    * blank here (see `blankDraft`, which stays entirely question-agnostic); `QuestionPlayer.svelte`
    * resolves the real value itself via `resolveExtraPrereveal(question)` at mount, the same way it
    * already resolves `boxChars`' sizing via `runBoxChars()` rather than `blankDraft()` doing it. */
   extraPrerevealed: Set<number>;
   /** character_input only: every answer-text position currently visible — starts out equal to
    * the pre-revealed set (bracket + extraPrerevealed) and grows as correct guesses land, per
-   * `characterInputRevealPositionsAfterGuess`'s `prereveal_mode` handling. Separate from
+   * `characterInputRevealPositionsAfterGuess`'s `letter_reveal` handling. Separate from
    * `guessedLetters` because they answer different questions: guessedLetters is "was this letter
    * ever correctly guessed" (for scoring, and for locking a wrong letter's bank button forever);
    * revealedPositions is "what's currently visible" (for display, and — under
-   * `prereveal_mode=sequence`/`random` — for deciding whether a correct letter's bank button should
+   * `letter_reveal=sequence`/`random` — for deciding whether a correct letter's bank button should
    * still be clickable because not all of its occurrences are revealed yet). */
   revealedPositions: Set<number>;
   /** order only: one slot per option, holding the ORIGINAL option index placed there (`null` while
@@ -771,7 +859,7 @@ export interface QuestionDraft {
    * `categoriseBuckets(question)`'s derived distinct-target array — absent while unassigned. */
   categoriseAssignments: Map<number, number>;
   /** fill_in_blanks only: one entry per `___` blank in `question.text`, in left-to-right order —
-   * the player's typed text (`blank_input=type`) or their chosen bank word (`blank_input=bank`).
+   * the player's typed text (`answer_mode=type`) or their chosen bank word (`answer_mode=pick`).
    * Empty string means that blank is still unfilled. */
   blankAnswers: string[];
 }
@@ -816,7 +904,7 @@ function typedResponseFromDraft(
 ): string | string[] {
   const maxAnswers = settingNumber(question.settings.max_answers);
   if (maxAnswers !== undefined && maxAnswers > 1) return draft.typedGuesses;
-  if (question.settings.input_display === 'boxes')
+  if (question.settings.typed_input === 'boxes')
     return boxAnswer(draft.boxChars, typedBoxGroups(question));
   return draft.typedSingleAnswer;
 }
@@ -829,6 +917,10 @@ function typedResponseFromDraft(
  * partway through a real Hangman round. */
 export function isDraftComplete(question: QuizScriptQuestion, draft: QuestionDraft): boolean {
   if (question.variant === 'character_input') return true;
+  if (isTypedAnswerMode(question)) {
+    const slots = typedSlotCount(question);
+    return draft.blankAnswers.length === slots && draft.blankAnswers.every((a) => a.trim() !== '');
+  }
   if (question.variant === 'order') {
     return (
       draft.orderPlacement.length === question.options.length &&
@@ -845,11 +937,12 @@ export function isDraftComplete(question: QuizScriptQuestion, draft: QuestionDra
       draft.blankAnswers.length === blankCount && draft.blankAnswers.every((a) => a.trim() !== '')
     );
   }
+
   const minAnswers = settingNumber(question.settings.min_answers) ?? 0;
   if (question.variant !== 'typed') return draft.selected.size >= minAnswers;
   const maxAnswers = settingNumber(question.settings.max_answers);
   if (maxAnswers !== undefined && maxAnswers > 1) return draft.typedGuesses.length >= minAnswers;
-  if (question.settings.input_display === 'boxes')
+  if (question.settings.typed_input === 'boxes')
     return draft.boxChars.length > 0 && draft.boxChars.every((c) => c !== '');
   return draft.typedSingleAnswer.trim().length > 0;
 }
@@ -866,10 +959,18 @@ export type AnswerRecord =
       revealedPositions: Set<number>;
       revealed: Set<number>;
     }
-  | { kind: 'order'; placement: number[]; revealed: Set<number> }
+  /** `placement` keeps its `null` holes rather than compacting them out — slot position IS the
+   * answer for this variant (see `gradeOrderQuestion`), so a partly-filled board recorded as a
+   * dense array would replay as a completely different set of placements on the Review screen
+   * than the one that was actually graded. */
+  | { kind: 'order'; placement: (number | null)[]; revealed: Set<number> }
   | { kind: 'match'; pairs: Map<number, number>; revealed: Set<number> }
   | { kind: 'categorise'; assignments: Map<number, number>; revealed: Set<number> }
-  | { kind: 'fill_in_blanks'; answers: string[]; revealed: Set<number> };
+  | { kind: 'fill_in_blanks'; answers: string[]; revealed: Set<number> }
+  /** `order`/`match`/`categorise` answered with `answer_mode=type` — there's no placement, pairing
+   * or assignment to record, just the text typed into each slot. (`fill_in_blanks` keeps its own
+   * kind for both of its modes, since its record already carries exactly this.) */
+  | { kind: 'typed_slots'; answers: string[]; revealed: Set<number> };
 
 /** Grades `draft` against `question`, dispatching to `gradeQuestion`/`gradeTypedQuestion`/
  * `gradeCharacterInputQuestion` and assembling the matching `AnswerRecord` in one call — the one
@@ -899,12 +1000,24 @@ export function gradeDraft(
       }
     };
   }
+  // The three board variants answer through `blankAnswers` instead when they're typed, so this has
+  // to come before each of their own board-shaped branches below.
+  if (isTypedAnswerMode(question) && ['order', 'match', 'categorise'].includes(question.variant)) {
+    return {
+      result: gradeTypedSlotsQuestion(question, draft.blankAnswers, draft.revealed),
+      answer: {
+        kind: 'typed_slots',
+        answers: [...draft.blankAnswers],
+        revealed: new Set(draft.revealed)
+      }
+    };
+  }
   if (question.variant === 'order') {
     return {
       result: gradeOrderQuestion(question, draft.orderPlacement, draft.revealed),
       answer: {
         kind: 'order',
-        placement: draft.orderPlacement.filter((p): p is number => p !== null),
+        placement: [...draft.orderPlacement],
         revealed: new Set(draft.revealed)
       }
     };
@@ -945,11 +1058,86 @@ export function gradeDraft(
   };
 }
 
+/** Inverse of `boxAnswer` — splits an already-assembled answer string back into one character per
+ * box, padding short words and dropping overflow so the result always has exactly `sum(groups)`
+ * entries regardless of what the string actually contains. Only ever needed to REPLAY a recorded
+ * answer (see `draftFromAnswer`); nothing in the live answering path runs this direction. */
+function boxCharsFromAnswer(answer: string, groups: number[]): string[] {
+  const words = answer.split(' ');
+  return groups.flatMap((len, g) =>
+    Array.from({ length: len }, (_, i) => (words[g] ?? '')[i] ?? '')
+  );
+}
+
+/** Rebuilds the `QuestionDraft` that produced `answer` — the inverse of the `AnswerRecord` half of
+ * `gradeDraft`, for every variant. This is what lets the end-of-run Review screen re-render an
+ * already-graded question through the very same `QuestionPlayer` that was used to answer it
+ * (locked, with reveal styling) instead of a second, parallel set of read-only review components
+ * that has to be kept in sync with the real one — which is exactly how every non-choice, non-typed
+ * variant ended up silently unrenderable on that screen.
+ *
+ * `question` is needed only to decide which typed input mode a `'typed'` record's response belongs
+ * in (single field / character boxes / banked guesses), the same three-way split
+ * `typedResponseFromDraft` makes in the other direction. */
+export function draftFromAnswer(question: QuizScriptQuestion, answer: AnswerRecord): QuestionDraft {
+  const draft = blankDraft();
+  draft.revealed = new Set(answer.revealed);
+
+  switch (answer.kind) {
+    case 'choice':
+      draft.selected = new Set(answer.selected);
+      break;
+    case 'typed':
+      if (Array.isArray(answer.response)) {
+        draft.typedGuesses = [...answer.response];
+      } else if (question.settings.typed_input === 'boxes') {
+        draft.boxChars = boxCharsFromAnswer(answer.response, typedBoxGroups(question));
+      } else {
+        draft.typedSingleAnswer = answer.response;
+      }
+      break;
+    case 'character_input':
+      draft.guessedLetters = new Map(answer.guessedLetters);
+      draft.extraPrerevealed = new Set(answer.extraPrerevealed);
+      draft.revealedPositions = new Set(answer.revealedPositions);
+      break;
+    case 'order':
+      draft.orderPlacement = [...answer.placement];
+      break;
+    case 'match':
+      draft.matchPairs = new Map(answer.pairs);
+      break;
+    case 'categorise':
+      draft.categoriseAssignments = new Map(answer.assignments);
+      break;
+    case 'fill_in_blanks':
+    case 'typed_slots':
+      draft.blankAnswers = [...answer.answers];
+      break;
+  }
+
+  return draft;
+}
+
+/** How a graded question reads to the player, for the reveal screen's own banner: full marks,
+ * something-but-not-everything (only reachable with `partial_credit`), or nothing. Deliberately
+ * derived from the score rather than from per-option correctness so one rule covers all seven
+ * variants — including hint costs, which can legitimately drag a fully-correct answer down to
+ * 'partial'. A question whose `max` is 0 (every option weighted `%0%`) reads as 'correct' at
+ * `earned >= max`, since there was never anything to lose. */
+export type AnswerVerdict = 'correct' | 'partial' | 'incorrect';
+
+export function answerVerdict(result: QuestionResult): AnswerVerdict {
+  if (result.earned >= result.max) return 'correct';
+  if (result.earned > 0) return 'partial';
+  return 'incorrect';
+}
+
 /** A question's full achievable points — knowable upfront from the question and its settings
  * alone, regardless of what (if anything) the player has answered yet, since `max` never depends
  * on the response (see `gradeQuestion`/`gradeTypedQuestion`). Grading a blank draft is a cheap way
  * to get it without a separate "just the max" code path to keep in sync with the real one.
- * Exported so a player UI can show a quiz's total possible score (e.g. `show_score`'s persistent
+ * Exported so a player UI can show a quiz's total possible score (e.g. `show_running_score`'s persistent
  * header — see QuizPlayer.svelte) before or independent of any question actually being graded. */
 export function questionMaxPoints(question: QuizScriptQuestion): number {
   return gradeDraft(question, blankDraft()).result.max;
@@ -973,8 +1161,8 @@ export function categoriseBuckets(question: QuizScriptQuestion): string[] {
 }
 
 /** Variants whose display order is ALWAYS shuffled, never authored-order, regardless of a
- * `shuffle` setting — because `shuffle` isn't even offered to them (see quizScript.ts's
- * `SETTING_RULES.shuffle.appliesTo`). `order`'s authored sequence IS the answer, so showing it
+ * `shuffle_options` setting — because `shuffle_options` isn't even offered to them (see quizScript.ts's
+ * `SETTING_RULES.shuffle_options.appliesTo`). `order`'s authored sequence IS the answer, so showing it
  * unshuffled would give the answer away outright; `match`/`categorise`/`fill_in_blanks` don't leak
  * their answer through authored order the same way, but shuffling is still the only sensible
  * default — an unshuffled bank/item list would be a strange, unintentional-looking "hint" of its
@@ -994,16 +1182,16 @@ export interface PlayQuestion {
   targetOrder?: number[];
 }
 
-/** Builds one play session's question list: applies `max_questions` (random subset, when the
+/** Builds one play session's question list: applies `questions_per_run` (random subset, when the
  * bank is larger) and `shuffle_questions` (defaults true) to the quiz-wide order, and each
- * question's own `shuffle` setting (or, for `ALWAYS_SHUFFLED_VARIANTS`, an unconditional shuffle)
+ * question's own `shuffle_options` setting (or, for `ALWAYS_SHUFFLED_VARIANTS`, an unconditional shuffle)
  * to its option order — all resolved once, up front, so the run stays stable across re-renders
  * instead of re-shuffling on every read. */
 export function buildPlayRun(
   questions: QuizScriptQuestion[],
   quizSettings: QuizScriptSettings
 ): PlayQuestion[] {
-  const maxQuestions = settingNumber(quizSettings.max_questions);
+  const maxQuestions = settingNumber(quizSettings.questions_per_run);
   const shuffleQuestions = quizSettings.shuffle_questions !== false;
 
   // Picking a subset is itself already a random choice (something has to decide which ones to
@@ -1014,11 +1202,19 @@ export function buildPlayRun(
       : questions;
   const ordered = shuffleQuestions ? shuffledArray(pool) : pool;
 
-  return ordered.map((question) => {
+  return ordered.map((authored) => {
+    // Quiz-wide defaults are folded into each question's own settings HERE, once, so every
+    // consumer downstream (grading, the boards, the reveal screen, the score header) reads a
+    // single already-merged `settings` object instead of each having to remember to look in two
+    // places — see `resolveQuestionSettings`.
+    const question: QuizScriptQuestion = {
+      ...authored,
+      settings: resolveQuestionSettings(authored, quizSettings)
+    };
     const indices = question.options.map((_, i) => i);
     const alwaysShuffled = ALWAYS_SHUFFLED_VARIANTS.includes(question.variant);
     const optionOrder =
-      alwaysShuffled || settingBoolean(question.settings.shuffle)
+      alwaysShuffled || settingBoolean(question.settings.shuffle_options)
         ? shuffledArray(indices)
         : indices;
 
@@ -1042,7 +1238,7 @@ export interface QuizRunResult {
 }
 
 /** Combines every question's grade into the run's total and applies the quiz-wide win
- * threshold — `points_to_win` if set (an absolute target), else `percentage_points_to_win`
+ * threshold — `points_to_win` if set (an absolute target), else `percent_to_win`
  * (defaults to 75, per QUIZ_SETTING_RULES) against this run's own achievable max. */
 export function gradeRun(
   results: QuestionResult[],
@@ -1056,7 +1252,7 @@ export function gradeRun(
   const won =
     pointsToWin !== undefined
       ? earned >= pointsToWin
-      : percentage >= (settingNumber(quizSettings.percentage_points_to_win) ?? 75);
+      : percentage >= (settingNumber(quizSettings.percent_to_win) ?? 75);
 
   return { earned, max, percentage, won };
 }

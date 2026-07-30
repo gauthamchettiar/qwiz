@@ -74,3 +74,41 @@ test('shows an error instead of silently losing the quiz when storage is full', 
   // about whether the quiz actually persisted.
   await expect(page).toHaveURL('/local/create');
 });
+
+test('a save blocked by a missing title says so and puts the cursor in the title', async ({
+  page
+}) => {
+  const builder = new BuilderPage(page);
+  await builder.gotoCreate();
+
+  // Enough questions that the Save button and the title are not on screen together — which is the
+  // whole problem: the click used to look like it did nothing at all.
+  for (let i = 0; i < 4; i++) {
+    await builder.addQuestion();
+    await builder.fillChoiceQuestion(`Question ${i + 1}`, 'right', 'wrong');
+  }
+
+  await builder.saveButton.click();
+
+  await expect(page.getByRole('alert')).toContainText('Title is required.');
+  await expect(builder.titleInput).toBeFocused();
+});
+
+test("a save blocked by a question's broken code says so instead of dropping the edit", async ({
+  page
+}) => {
+  const builder = new BuilderPage(page);
+  await builder.gotoCreate();
+  await builder.titleInput.fill('Has a broken question');
+  await builder.addQuestion();
+  await builder.fillChoiceQuestion('A fine question', 'right', 'wrong');
+
+  await page.getByRole('button', { name: 'Edit question code' }).click();
+  // An option block that is never closed — the parser reports this, so the draft can't commit.
+  await page.locator('main textarea.font-mono').fill('A fine question\n{\n=right');
+
+  await builder.saveButton.click();
+
+  await expect(page.getByRole('alert')).toContainText("A question's code has an error");
+  await expect(builder.savedFlash).toHaveCount(0);
+});

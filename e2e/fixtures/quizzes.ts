@@ -40,7 +40,7 @@ export function buildQuiz(overrides: Partial<Quiz> = {}): Quiz {
 }
 
 /** A single-question quiz exercising character_input: bracket pre-reveal, the default letter
- * bank/prereveal_mode, and a wrong-guess penalty — shared between character-input.spec.ts and the
+ * bank/letter_reveal, and a wrong-guess penalty — shared between character-input.spec.ts and the
  * accessibility suite. */
 export function buildCharacterInputQuiz(overrides: Partial<Quiz> = {}): Quiz {
   const now = new Date().toISOString();
@@ -62,8 +62,8 @@ export function buildCharacterInputQuiz(overrides: Partial<Quiz> = {}): Quiz {
           '=[P]aris',
           '}',
           ':letter_bank=alphabet',
-          ':prereveal_mode=all',
-          ':penalty=-1'
+          ':letter_reveal=all',
+          ':points_wrong=-1'
         ].join('\n')
       }
     ],

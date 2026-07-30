@@ -6,7 +6,7 @@
  *   description: "..."
  *   category: "..."
  *   tags: [...]
- *   :max_questions=5
+ *   :questions_per_run=5
  *   ---
  *
  *   multiple_choice : What is H2O?
@@ -19,7 +19,7 @@
  *     =correct option
  *     ~wrong option
  *   }
- *   :shuffle=true
+ *   :shuffle_options=true
  *
  * A question's variant can also be declared with its text in one line —
  * `multiple_choice: What is H2O?` — instead of the two-line `variant : multiple_choice` + separate
@@ -31,7 +31,7 @@
  * one. `=`/`~` still mark each line, but a typed question's parser forces every option
  * `correct: true` regardless, so both markers are accepted purely as authoring convenience; `%N%`
  * weights still work per accepted answer exactly as for choice. Matching is controlled by settings
- * (`case_sensitive`, `numeric_tolerance`, `fuzzy_tolerance`, `input_display` — see `SETTING_RULES`)
+ * (`match_case`, `number_tolerance`, `typo_tolerance`, `typed_input` — see `SETTING_RULES`)
  * rather than exact string equality, e.g.:
  *
  *   typed: What is the capital of France?
@@ -39,7 +39,7 @@
  *     =Paris
  *     =paris
  *   }
- *   :fuzzy_tolerance=15
+ *   :typo_tolerance=15
  *
  * A typed option's content must be plain text — an image/video accepted answer is a parse error,
  * since matching is always a text comparison.
@@ -68,7 +68,7 @@
  *
  * Inside the option block, every line is exactly one option, starting with `=` (correct) or `~`
  * (incorrect), optionally ending with an explicit point value — `=Water %4%` — instead of relying
- * on question-level `:point=`/`:penalty=` settings. `multiple_choice` allows any number of `=`
+ * on question-level `:points_correct=`/`:points_wrong=` settings. `multiple_choice` allows any number of `=`
  * lines (one or more); `single_choice` allows at most one. An option's own content can be an image
  * or video the same way question-level media is written
  * — `=![a cat](url)` or `=!<youtube>[intro](url)` — checked against whatever remains after
@@ -77,8 +77,8 @@
  *
  * `:key=value` settings (both here, per-question, and inside the frontmatter block, quiz-wide —
  * see `SETTING_RULES` / `QUIZ_SETTING_RULES`) are restricted to a closed set of known keys; an
- * unrecognized key is a parse error, not a freeform pass-through. `numeric_tolerance` and
- * `fuzzy_tolerance` are additionally mutually exclusive on the same question — a rare example of
+ * unrecognized key is a parse error, not a freeform pass-through. `number_tolerance` and
+ * `typo_tolerance` are additionally mutually exclusive on the same question — a rare example of
  * a cross-setting check, rather than each key being validated purely on its own.
  *
  * `parseQuizScriptQuestion` / `serializeQuizScriptQuestion` and `parseQuizScriptFrontmatter` /
@@ -109,7 +109,7 @@ export interface QuizScriptOption {
   content: QuizScriptOptionContent;
   correct: boolean;
   /** Explicit per-option point value from a trailing `%N%` annotation, e.g. `~Salt %-1%`.
-   * `undefined` when not given — this is NOT auto-filled from a question's `:point`/`:penalty`
+   * `undefined` when not given — this is NOT auto-filled from a question's `:points_correct`/`:points_wrong`
    * settings; reconciling those two mechanisms is a scoring concern left to a later consumer. */
   points?: number;
   /** `character_input` only: character indices into `content.text` (only ever `kind: 'text'` for
@@ -152,7 +152,7 @@ export interface QuizScriptAnalysis {
   content: string;
 }
 
-/** Arbitrary `:key=value` settings attached to a question, e.g. difficulty, shuffle. */
+/** Arbitrary `:key=value` settings attached to a question, e.g. difficulty, shuffle_options. */
 export type QuizScriptSettings = Record<string, string | number | boolean>;
 
 export interface QuizScriptQuestion {
@@ -211,7 +211,7 @@ const VARIANT_HEADER_LINE = new RegExp(`^(${KNOWN_VARIANTS.join('|')})\\s*:\\s*(
 /** The settings-applicability groups a question variant maps to (see `settingsGroupForVariant`) —
  * the bare/default variant collapses to `'multiple_choice'`, its most permissive sibling (any
  * number of correct options); `single_choice` gets its own group precisely because some settings
- * (`min_answers`/`max_answers`/`partial_points`) apply to `multiple_choice` but never make sense on
+ * (`min_answers`/`max_answers`/`partial_credit`) apply to `multiple_choice` but never make sense on
  * `single_choice`, which can only ever have zero or one option selected — there's no "some but not
  * all" or "more than one" for any of those three to mean anything for. `order`/`match`/`categorise`/
  * `fill_in_blanks` each get their own group for the same reason: each has its own shape of "correct
@@ -239,13 +239,13 @@ export interface SettingRule {
    * per-question table) entry always sets it; nothing ever reads it off a `QUIZ_SETTING_RULES`
    * entry. Replaces what used to be two separate typed-only/choice-only exclusion lists —
    * those couldn't express a setting spanning exactly two of these four groups, a real need once
-   * there's more than a binary split (e.g. `option_display` applies to both choice variants but
+   * there's more than a binary split (e.g. `options_layout` applies to both choice variants but
    * neither of the other two; `min_answers` applies to `multiple_choice`+`typed` but not
    * `single_choice`). */
   appliesTo?: readonly SettingsGroup[];
   /** The value a fresh `:key=` line should start out with, for form mode's "pick a key, get a
    * working value" flow (see `settingDefaultValue`) — omitted for settings with no real default
-   * (e.g. `min_answers`, `numeric_tolerance`), where "unset" is itself the meaningful default and
+   * (e.g. `min_answers`, `number_tolerance`), where "unset" is itself the meaningful default and
    * there's nothing sensible to pre-fill. Always matches the "Default: ..." line in `description`
    * below — kept as a separate structured field rather than parsed out of that prose. */
   default?: string | number | boolean;
@@ -258,7 +258,7 @@ export interface SettingRule {
  * neither surface can drift from the other. This is a closed set: a key not listed here is a
  * parse error, not a freeform pass-through (see `validateSettingValue`). */
 export const SETTING_RULES: Record<string, SettingRule> = {
-  point: {
+  points_correct: {
     kind: 'number',
     default: 1,
     appliesTo: [
@@ -274,7 +274,7 @@ export const SETTING_RULES: Record<string, SettingRule> = {
     description:
       "Points awarded for each correct option/pair/placement that doesn't specify its own %N% weight.\n\nAccepted values: any number\nDefault: 1"
   },
-  penalty: {
+  points_wrong: {
     kind: 'number',
     default: 0,
     appliesTo: [
@@ -290,14 +290,14 @@ export const SETTING_RULES: Record<string, SettingRule> = {
     description:
       "Points deducted for each incorrect option/pair/placement that doesn't specify its own %N% weight.\n\nAccepted values: any number\nDefault: 0"
   },
-  partial_points: {
+  partial_credit: {
     kind: 'boolean',
     default: false,
     appliesTo: ['multiple_choice', 'typed', 'order', 'match', 'categorise', 'fill_in_blanks'],
     description:
       'Whether getting some (not all) of a question right earns partial credit instead of requiring an exact match — e.g. for a typed question with 3 accepted answers, matching only 1 of them awards that one\'s points instead of 0. For order/match/categorise/fill_in_blanks, "some but not all" means some but not all items/pairs/buckets/blanks placed correctly.\n\nNot meaningful for single_choice: with at most one correct option, there\'s never a "some but not all" scenario for it to apply to. Only meaningful for a multi-guess typed question (max_answers > 1) — single-input typed matching has no concept of partial either.\n\nAccepted values: true, false\nDefault: false'
   },
-  option_display: {
+  options_layout: {
     kind: 'enum',
     values: ['list', 'grid2x2', 'grid3x3'],
     default: 'list',
@@ -317,7 +317,7 @@ export const SETTING_RULES: Record<string, SettingRule> = {
     description:
       'Maximum number of options/answers the player is allowed to select or give for this question. Not meaningful for single_choice, which can only ever have zero or one selected.\n\nAccepted values: any number\nDefault: none — any number is allowed'
   },
-  shuffle: {
+  shuffle_options: {
     kind: 'boolean',
     default: false,
     appliesTo: ['single_choice', 'multiple_choice'],
@@ -340,28 +340,28 @@ export const SETTING_RULES: Record<string, SettingRule> = {
     description:
       "How difficult this question is, for organizing or filtering later — purely informational, doesn't affect grading or play.\n\nAccepted values: easy, medium, hard\nDefault: none"
   },
-  case_sensitive: {
+  match_case: {
     kind: 'boolean',
     default: false,
-    appliesTo: ['typed', 'fill_in_blanks'],
+    appliesTo: ['typed', 'order', 'match', 'categorise', 'fill_in_blanks'],
     description:
-      "For a typed question (or a fill_in_blanks question with blank_input=type), whether a player's answer must match an accepted answer's exact letter case instead of being compared case-insensitively. Other normalization (whitespace, punctuation, accents) always applies regardless of this setting. Not meaningful for character_input: the player guesses by clicking a bank letter, not typing text, so there's no \"wrong case\" input to compare against — matching there is always case-insensitive. A no-op on fill_in_blanks when blank_input=bank, since picking a bank word is never a case mismatch.\n\nAccepted values: true, false\nDefault: false"
+      "For a typed question (or a fill_in_blanks question with answer_mode=type), whether a player's answer must match an accepted answer's exact letter case instead of being compared case-insensitively. Other normalization (whitespace, punctuation, accents) always applies regardless of this setting. Not meaningful for character_input: the player guesses by clicking a bank letter, not typing text, so there's no \"wrong case\" input to compare against — matching there is always case-insensitive. A no-op on fill_in_blanks when answer_mode=pick, since picking a bank word is never a case mismatch.\n\nAccepted values: true, false\nDefault: false"
   },
-  numeric_tolerance: {
+  number_tolerance: {
     kind: 'number',
-    appliesTo: ['typed', 'fill_in_blanks'],
+    appliesTo: ['typed', 'order', 'match', 'categorise', 'fill_in_blanks'],
     description:
-      'For a typed question (or a fill_in_blanks question with blank_input=type), the allowed absolute difference between a numeric answer and a numeric response (e.g. 0.5 lets "3.5" match "3"). Falls back to normalized text comparison when either side isn\'t a number. Cannot be combined with fuzzy_tolerance on the same question. A no-op on fill_in_blanks when blank_input=bank.\n\nAccepted values: any number\nDefault: none — numeric-tolerance matching is off'
+      'For a typed question (or a fill_in_blanks question with answer_mode=type), the allowed absolute difference between a numeric answer and a numeric response (e.g. 0.5 lets "3.5" match "3"). Falls back to normalized text comparison when either side isn\'t a number. Cannot be combined with typo_tolerance on the same question. A no-op on fill_in_blanks when answer_mode=pick.\n\nAccepted values: any number\nDefault: none — numeric-tolerance matching is off'
   },
-  fuzzy_tolerance: {
+  typo_tolerance: {
     kind: 'number',
-    appliesTo: ['typed', 'fill_in_blanks'],
+    appliesTo: ['typed', 'order', 'match', 'categorise', 'fill_in_blanks'],
     description:
-      "For a typed question (or a fill_in_blanks question with blank_input=type), how many typos a response may have and still match, as a percentage of the accepted answer's length (edit distance). Cannot be combined with numeric_tolerance on the same question. A no-op on fill_in_blanks when blank_input=bank.\n\nAccepted values: a number from 0 to 100\nDefault: none — fuzzy matching is off"
+      "For a typed question (or a fill_in_blanks question with answer_mode=type), how many typos a response may have and still match, as a percentage of the accepted answer's length (edit distance). Cannot be combined with number_tolerance on the same question. A no-op on fill_in_blanks when answer_mode=pick.\n\nAccepted values: a number from 0 to 100\nDefault: none — fuzzy matching is off"
   },
-  input_display: {
+  typed_input: {
     kind: 'enum',
-    values: ['text', 'boxes'],
+    values: ['field', 'boxes'],
     default: 'text',
     appliesTo: ['typed'],
     description:
@@ -381,7 +381,7 @@ export const SETTING_RULES: Record<string, SettingRule> = {
     description:
       'The exact letters offered in the bank — only read when letter_bank=fixed. E.g. "abcdefghijklmnop".\n\nAccepted values: any text\nDefault: none'
   },
-  prereveal_mode: {
+  letter_reveal: {
     kind: 'enum',
     values: ['all', 'sequence', 'random'],
     default: 'all',
@@ -389,20 +389,20 @@ export const SETTING_RULES: Record<string, SettingRule> = {
     description:
       'How a correct letter guess reveals its occurrences in the answer. "all": every occurrence at once (classic Hangman), and that letter\'s bank button disables immediately. "sequence"/"random": one not-yet-revealed occurrence per guess (next-in-order, or a random remaining one) — the bank button stays clickable until every occurrence of that letter is revealed.\n\nAccepted values: all, sequence, random\nDefault: all'
   },
-  prereveal_count: {
+  letters_shown_at_start: {
     kind: 'number',
     default: 0,
     appliesTo: ['character_input'],
     description:
       'Additional random characters (on top of any explicit [x] pre-reveal brackets in the answer) revealed from the start, free of charge.\n\nAccepted values: any number\nDefault: 0'
   },
-  blank_input: {
+  answer_mode: {
     kind: 'enum',
-    values: ['bank', 'type'],
-    default: 'bank',
-    appliesTo: ['fill_in_blanks'],
+    values: ['pick', 'type'],
+    default: 'pick',
+    appliesTo: ['order', 'match', 'categorise', 'fill_in_blanks'],
     description:
-      'How a fill_in_blanks question is answered. "bank": pick words from an on-screen word bank (correct answers plus any ~ distractors) and place them into blanks. "type": type each blank\'s answer directly, matched the same way a typed question\'s response is (case_sensitive/numeric_tolerance/fuzzy_tolerance all apply).\n\nAccepted values: bank, type\nDefault: bank'
+      'How the answer is given, for the four variants that place things rather than select them. "pick": the on-screen board — tap an item then tap its target, or drag it there. "type": no board, just a text field per answer, matched the same way a typed question\'s response is (match_case/number_tolerance/typo_tolerance all apply). What gets typed depends on the variant: for fill_in_blanks each blank\'s word, for order the item belonging at each position, and for match/categorise each item\'s target or bucket.\n\nAccepted values: pick, type\nDefault: pick'
   }
 };
 
@@ -428,11 +428,31 @@ function settingsGroupForVariant(variant: string): SettingsGroup {
  * settings-key suggestion dropdown should offer, so an author isn't offered (and can't
  * accidentally pick) a key that `parseQuestionBlock` would immediately reject for this variant. */
 export function suggestedSettingKeysForVariant(variant: string): string[] {
-  const group = settingsGroupForVariant(variant);
-  return SUGGESTED_SETTING_KEYS.filter((key) =>
-    (SETTING_RULES[key].appliesTo ?? []).includes(group)
-  );
+  return SUGGESTED_SETTING_KEYS.filter((key) => settingAppliesToVariant(key, variant));
 }
+
+/** Whether a per-question setting is meaningful for `variant` — the `appliesTo` check on its own,
+ * exported because setting inheritance (see `resolveQuestionSettings`) needs it per question rather
+ * than as a whole filtered key list. */
+export function settingAppliesToVariant(key: string, variant: string): boolean {
+  const rule = SETTING_RULES[key];
+  if (!rule) return false;
+  return (rule.appliesTo ?? []).includes(settingsGroupForVariant(variant));
+}
+
+/** Per-question settings that may ALSO be written once in the quiz frontmatter, where they act as a
+ * default for every question that doesn't set them itself (see `resolveQuestionSettings`).
+ *
+ * The rule is "does this express a policy for the quiz, or the shape of one specific question": a
+ * scoring weight, a matching tolerance, a display choice or an input mode is the former and is
+ * tedious to repeat on all thirty questions, so all of those inherit. Excluded, deliberately:
+ * `min_answers`/`max_answers`, which are counts tied to one question's own option list and mean
+ * nothing spread across a bank of questions with different numbers of options; and `difficulty`,
+ * which labels an individual question — a quiz-wide difficulty is a property of the quiz, not a
+ * default for its parts, and the app doesn't read it for anything yet either way. */
+export const INHERITABLE_SETTING_KEYS: readonly string[] = SUGGESTED_SETTING_KEYS.filter(
+  (key) => !['min_answers', 'max_answers', 'difficulty'].includes(key)
+);
 
 /** Same idea as `SETTING_RULES`, scoped to the whole quiz instead of one question — written as
  * `:key=value` lines inside the `--- ... ---` frontmatter block (see `parseFrontmatter`), edited
@@ -444,9 +464,9 @@ export const QUIZ_SETTING_RULES: Record<string, SettingRule> = {
   points_to_win: {
     kind: 'number',
     description:
-      'Total points a player must reach to "win" this quiz.\n\nAccepted values: any number\nDefault: none — no win threshold (percentage_points_to_win is used instead)'
+      'Total points a player must reach to "win" this quiz.\n\nAccepted values: any number\nDefault: none — no win threshold (percent_to_win is used instead)'
   },
-  percentage_points_to_win: {
+  percent_to_win: {
     kind: 'number',
     default: 75,
     description:
@@ -458,7 +478,7 @@ export const QUIZ_SETTING_RULES: Record<string, SettingRule> = {
     description:
       "Whether this quiz's questions are shown in a random order each run.\n\nAccepted values: true, false\nDefault: true"
   },
-  max_questions: {
+  questions_per_run: {
     kind: 'number',
     description:
       'Maximum number of questions shown per run, picked from the question bank when it holds more than this.\n\nAccepted values: any number\nDefault: none — every question is shown'
@@ -477,45 +497,80 @@ export const QUIZ_SETTING_RULES: Record<string, SettingRule> = {
     description:
       'When points earned are revealed to the player, independently of reveal_answers (e.g. show a running score without spoiling which options were correct). "after_every_question" shows each question\'s points the moment it\'s submitted — like reveal_answers, this alone is enough to lock that question with no going back. "at_end" only shows the total (and any per-question breakdown) once the quiz is submitted. "never" never shows any point value.\n\nAccepted values: after_every_question, at_end, never\nDefault: after_every_question'
   },
-  show_score: {
+  show_running_score: {
     kind: 'boolean',
     default: true,
     description:
       'Whether a persistent "earned / total" score is shown at the top of the screen throughout the run, updating as questions are answered. The total is always the quiz\'s full achievable points (knowable upfront, regardless of progress); the earned side follows reveal_scores — shown live when reveal_scores=after_every_question, otherwise masked as "? / total" until the quiz is submitted, so this never reveals anything reveal_scores is holding back.\n\nAccepted values: true, false\nDefault: true'
   },
-  show_intermediate_screen: {
+  show_reveal_screen: {
     kind: 'boolean',
     default: true,
     description:
-      'Whether answering a question pauses on its own reveal screen (with a "Next question" button) before moving on, when something is revealed live (reveal_answers or reveal_scores set to after_every_question). Set to false to skip that pause and jump straight to the next question instead — the earned points for that question flash briefly next to the top score (show_score) rather than getting a full screen.\n\nCannot be false when reveal_answers=after_every_question — showing which options were correct needs a real screen, not just a flash; reveal_scores=after_every_question alone is unaffected either way.\n\nAccepted values: true, false\nDefault: true'
+      'Whether answering a question pauses on its own reveal screen (with a "Next question" button) before moving on, when something is revealed live (reveal_answers or reveal_scores set to after_every_question). Set to false to skip that pause and jump straight to the next question instead — the earned points for that question flash briefly next to the top score (show_running_score) rather than getting a full screen.\n\nCannot be false when reveal_answers=after_every_question — showing which options were correct needs a real screen, not just a flash; reveal_scores=after_every_question alone is unaffected either way.\n\nAccepted values: true, false\nDefault: true'
   },
   timer_mode: {
     kind: 'enum',
     values: ['off', 'per_question', 'per_quiz'],
     default: 'off',
     description:
-      'Whether answering is under a time limit, and how it\'s scoped. "off": no timer. "per_question": timer_duration seconds per question, resetting for each one. "per_quiz": one timer_duration-second budget shared across the whole run. Requires timer_duration to be set. "per_question" additionally requires reveal_answers or reveal_scores set to after_every_question — a per-question time limit only makes sense alongside "answering this locks it in immediately", which is exactly what that combination already means.\n\nAccepted values: off, per_question, per_quiz\nDefault: off'
+      'Whether answering is under a time limit, and how it\'s scoped. "off": no timer. "per_question": timer_seconds seconds per question, resetting for each one. "per_quiz": one timer_seconds-second budget shared across the whole run. Requires timer_seconds to be set. "per_question" additionally requires reveal_answers or reveal_scores set to after_every_question — a per-question time limit only makes sense alongside "answering this locks it in immediately", which is exactly what that combination already means.\n\nAccepted values: off, per_question, per_quiz\nDefault: off'
   },
-  timer_duration: {
+  timer_seconds: {
     kind: 'number',
     description:
       'Seconds on the clock — per question (timer_mode=per_question) or for the whole run (timer_mode=per_quiz). Only read when timer_mode isn\'t "off".\n\nAccepted values: any number\nDefault: none'
   },
-  timer_timeout_action: {
+  on_timeout: {
     kind: 'enum',
     values: ['auto_submit', 'lock_zero'],
     default: 'auto_submit',
     description:
       'What happens to a question still being answered when its clock reaches zero (a per_question timer running out, or a per_quiz budget running out while a question is live). "auto_submit": whatever\'s currently selected/typed is submitted and graded as-is, same as clicking Submit. "lock_zero": the question locks with no credit, regardless of any partial selection/input.\n\nAccepted values: auto_submit, lock_zero\nDefault: auto_submit'
   },
-  intermediate_screen_duration: {
+  reveal_screen_seconds: {
     kind: 'number',
     description:
-      'Seconds the post-answer reveal screen waits before automatically advancing to the next question (or to results, on the last one) — a live countdown is shown next to the "Next question"/"See results" button. Unset: no auto-advance, the player clicks through manually. Requires show_intermediate_screen to not be false — there\'s no screen to auto-advance from otherwise.\n\nAccepted values: any number\nDefault: none — no auto-advance'
+      'Seconds the post-answer reveal screen waits before automatically advancing to the next question (or to results, on the last one) — a live countdown is shown next to the "Next question"/"See results" button. Unset: no auto-advance, the player clicks through manually. Requires show_reveal_screen to not be false — there\'s no screen to auto-advance from otherwise.\n\nAccepted values: any number\nDefault: none — no auto-advance'
   }
 };
 
-export const QUIZ_SUGGESTED_SETTING_KEYS = Object.keys(QUIZ_SETTING_RULES);
+/** Everything the quiz frontmatter accepts: the quiz-only settings above, plus every inheritable
+ * per-question setting acting as a default (see `INHERITABLE_SETTING_KEYS`). One table so
+ * `parseFrontmatter`, the builder's key dropdown, value validation and `SettingHelp`'s descriptions
+ * all agree on what's allowed up there — a quiz-wide `:shuffle_options=true` has to validate against
+ * the same rule the per-question key does, or the two could drift into accepting different values
+ * for the same name. */
+export const QUIZ_FRONTMATTER_RULES: Record<string, SettingRule> = {
+  ...QUIZ_SETTING_RULES,
+  ...Object.fromEntries(INHERITABLE_SETTING_KEYS.map((key) => [key, SETTING_RULES[key]]))
+};
+
+export const QUIZ_SUGGESTED_SETTING_KEYS = Object.keys(QUIZ_FRONTMATTER_RULES);
+
+/** A question's effective settings: the quiz-wide defaults it inherits, with its OWN settings
+ * layered on top so anything written on the question always wins.
+ *
+ * Only inheritable keys (see `INHERITABLE_SETTING_KEYS`) are considered, and only when they apply
+ * to this question's variant — so a quiz-wide `:letter_bank=auto` reaches the character_input
+ * questions and is silently irrelevant to the rest, rather than landing on a `typed` question as a
+ * setting that variant would have rejected if authored there directly.
+ *
+ * Resolved once per run, in `buildPlayRun`, so everything downstream (grading, the boards, the
+ * reveal screen) reads one already-merged `settings` object and no consumer has to remember to
+ * check two places. */
+export function resolveQuestionSettings(
+  question: QuizScriptQuestion,
+  quizSettings: QuizScriptSettings
+): QuizScriptSettings {
+  const inherited: QuizScriptSettings = {};
+  for (const [key, value] of Object.entries(quizSettings)) {
+    if (!INHERITABLE_SETTING_KEYS.includes(key)) continue;
+    if (!settingAppliesToVariant(key, question.variant)) continue;
+    inherited[key] = value;
+  }
+  return { ...inherited, ...question.settings };
+}
 
 /** The discrete values a constrained setting's VALUE field should suggest — "easy"/"medium"/
  * "hard" for difficulty, "true"/"false" for a boolean key. Empty for numeric or unknown keys.
@@ -663,7 +718,7 @@ export function coerceSetting(raw: string): string | number | boolean {
 
 /** Applies a known key's stricter rule (see `SETTING_RULES`) on top of the generic `:key=value`
  * typing above — shared by `parseQuestionBlock` (code mode) and the settings form field (form
- * mode), so both surfaces agree on what counts as valid for point/penalty/shuffle/etc. Settings
+ * mode), so both surfaces agree on what counts as valid for points_correct/points_wrong/shuffle_options/etc. Settings
  * are a closed set: a key outside `rules` is an error, not a freeform pass-through. `rules`
  * defaults to the per-question table; pass `QUIZ_SETTING_RULES` to validate a quiz-wide setting
  * instead — same function either way, so the two never drift into disagreeing validation. */
@@ -759,7 +814,7 @@ function parseFrontmatter(
     const settingMatch = SETTING_LINE.exec(raw.trim());
     if (settingMatch) {
       const key = settingMatch[1];
-      const { value, error } = validateSettingValue(key, settingMatch[2], QUIZ_SETTING_RULES);
+      const { value, error } = validateSettingValue(key, settingMatch[2], QUIZ_FRONTMATTER_RULES);
       frontmatter.settings[key] = value;
       if (error) errors.push({ line: i + 1, message: `Setting "${key}" ${error}.` });
       continue;
@@ -789,39 +844,36 @@ function parseFrontmatter(
     }
   }
 
-  // `show_intermediate_screen=false` skips the per-question pause entirely (see
+  // `show_reveal_screen=false` skips the per-question pause entirely (see
   // QuizPlayer.svelte) — fine when only `reveal_scores=after_every_question` is live (a brief
   // score flash is enough), but `reveal_answers=after_every_question` needs a real screen to show
   // which options were actually correct, which a flash can't convey. So the latter always forces
-  // an intermediate screen, regardless of what `show_intermediate_screen` was set to. Checked
+  // an intermediate screen, regardless of what `show_reveal_screen` was set to. Checked
   // against `reveal_answers`'s own default too (unset means "after_every_question" — see
   // QUIZ_SETTING_RULES) since an *effective* after_every_question is what actually matters here,
   // not just an explicitly-written one.
   const revealAnswers = frontmatter.settings.reveal_answers ?? 'after_every_question';
   if (
     revealAnswers === 'after_every_question' &&
-    frontmatter.settings.show_intermediate_screen === false
+    frontmatter.settings.show_reveal_screen === false
   ) {
     errors.push({
       line: 1,
       message:
-        '"show_intermediate_screen" cannot be false when "reveal_answers" is "after_every_question" — revealing which options were correct needs a real screen, not just a flash.'
+        '"show_reveal_screen" cannot be false when "reveal_answers" is "after_every_question" — revealing which options were correct needs a real screen, not just a flash.'
     });
   }
 
-  // `points_to_win` always wins over `percentage_points_to_win` when both are set (see
+  // `points_to_win` always wins over `percent_to_win` when both are set (see
   // gradeRun) — so setting both isn't a conflict grading can't resolve, but it does mean
-  // percentage_points_to_win is silently dead, which an author almost certainly didn't intend.
-  // Same category of "you set two things that can't both take effect" as numeric_tolerance/
-  // fuzzy_tolerance being mutually exclusive on a question, just at the quiz-wide level instead.
-  if (
-    'points_to_win' in frontmatter.settings &&
-    'percentage_points_to_win' in frontmatter.settings
-  ) {
+  // percent_to_win is silently dead, which an author almost certainly didn't intend.
+  // Same category of "you set two things that can't both take effect" as number_tolerance/
+  // typo_tolerance being mutually exclusive on a question, just at the quiz-wide level instead.
+  if ('points_to_win' in frontmatter.settings && 'percent_to_win' in frontmatter.settings) {
     errors.push({
       line: 1,
       message:
-        '"points_to_win" and "percentage_points_to_win" can\'t both be set — "points_to_win" always wins, silently ignoring the other. Remove one.'
+        '"points_to_win" and "percent_to_win" can\'t both be set — "points_to_win" always wins, silently ignoring the other. Remove one.'
     });
   }
 
@@ -829,11 +881,11 @@ function parseFrontmatter(
   const timerMode = frontmatter.settings.timer_mode;
   if (
     (timerMode === 'per_question' || timerMode === 'per_quiz') &&
-    typeof frontmatter.settings.timer_duration !== 'number'
+    typeof frontmatter.settings.timer_seconds !== 'number'
   ) {
     errors.push({
       line: 1,
-      message: `"timer_duration" is required when "timer_mode" is "${timerMode}".`
+      message: `"timer_seconds" is required when "timer_mode" is "${timerMode}".`
     });
   }
 
@@ -858,13 +910,13 @@ function parseFrontmatter(
 
   // No screen to auto-advance from otherwise.
   if (
-    'intermediate_screen_duration' in frontmatter.settings &&
-    frontmatter.settings.show_intermediate_screen === false
+    'reveal_screen_seconds' in frontmatter.settings &&
+    frontmatter.settings.show_reveal_screen === false
   ) {
     errors.push({
       line: 1,
       message:
-        '"intermediate_screen_duration" can\'t be set when "show_intermediate_screen" is false — there\'s no reveal screen to auto-advance from.'
+        '"reveal_screen_seconds" can\'t be set when "show_reveal_screen" is false — there\'s no reveal screen to auto-advance from.'
     });
   }
 
@@ -1197,15 +1249,15 @@ function parseQuestionBlock(block: SourceLine[], errors: QuizScriptError[]): Qui
     });
   }
 
-  // Checked by key *presence*, not truthiness, so e.g. `:numeric_tolerance=0` still counts as
+  // Checked by key *presence*, not truthiness, so e.g. `:number_tolerance=0` still counts as
   // "set". Worded without a leading `Setting "` so QuestionForm.svelte's formErrors (which
   // filters out lines starting with that, since those are already shown inline under their own
   // row) doesn't swallow this whole-question error.
-  if ('numeric_tolerance' in question.settings && 'fuzzy_tolerance' in question.settings) {
+  if ('number_tolerance' in question.settings && 'typo_tolerance' in question.settings) {
     errors.push({
       line: firstLine,
       message:
-        'A question can\'t set both "numeric_tolerance" and "fuzzy_tolerance" — pick one matching strategy.'
+        'A question can\'t set both "number_tolerance" and "typo_tolerance" — pick one matching strategy.'
     });
   }
 
@@ -1213,7 +1265,7 @@ function parseQuestionBlock(block: SourceLine[], errors: QuizScriptError[]): Qui
   // a key set outside its own group(s) is always a mistake, not just a no-op, so it's a parse
   // error rather than something silently ignored. A single pass covers every group uniformly
   // (this used to be two separate typed-only/choice-only checks, which couldn't express a setting
-  // like `case_sensitive` applying to typed AND character_input but not choice). Unrecognized keys
+  // like `match_case` applying to typed AND character_input but not choice). Unrecognized keys
   // aren't checked here — `validateSettingValue` already flagged those separately. Same "no
   // leading `Setting "`" wording rule as the check above, for the same reason.
   {
@@ -1235,7 +1287,7 @@ function parseQuestionBlock(block: SourceLine[], errors: QuizScriptError[]): Qui
   // meaningfully exceed how many options/accepted answers actually exist (e.g. a single accepted
   // answer with `max_answers=2` promises a second guess slot that can never correspond to anything),
   // and a min above a max is simply an unsatisfiable range. Checked purely against declared values
-  // regardless of variant, mirroring how `numeric_tolerance`/`fuzzy_tolerance` above is checked
+  // regardless of variant, mirroring how `number_tolerance`/`typo_tolerance` above is checked
   // without caring which variant it's actually meaningful for.
   const minAnswers = question.settings.min_answers;
   const maxAnswers = question.settings.max_answers;
@@ -1258,7 +1310,7 @@ function parseQuestionBlock(block: SourceLine[], errors: QuizScriptError[]): Qui
     });
   }
 
-  // Without `partial_points`, grading requires an exact match — every correct option (choice) or
+  // Without `partial_credit`, grading requires an exact match — every correct option (choice) or
   // accepted answer (typed, where every option is correct by construction) selected/matched, none
   // missed. If `max_answers` caps selections/guesses below that count, an exact match is no longer
   // just hard, it's impossible — the question can only ever score 0, for every player, regardless
@@ -1266,13 +1318,13 @@ function parseQuestionBlock(block: SourceLine[], errors: QuizScriptError[]): Qui
   // there's an easy, unambiguous fix either way (raise `max_answers`, or opt into partial credit).
   const correctCount = question.options.filter((o) => o.correct).length;
   if (
-    question.settings.partial_points !== true &&
+    question.settings.partial_credit !== true &&
     typeof maxAnswers === 'number' &&
     maxAnswers < correctCount
   ) {
     errors.push({
       line: firstLine,
-      message: `"max_answers" (${maxAnswers}) is less than the number of correct options/accepted answers (${correctCount}), so an exact match is impossible — raise "max_answers" to at least ${correctCount}, or set "partial_points=true" to allow scoring less than all of them.`
+      message: `"max_answers" (${maxAnswers}) is less than the number of correct options/accepted answers (${correctCount}), so an exact match is impossible — raise "max_answers" to at least ${correctCount}, or set "partial_credit=true" to allow scoring less than all of them.`
     });
   }
 

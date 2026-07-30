@@ -1,9 +1,6 @@
 <script lang="ts">
   import { fade } from 'svelte/transition';
   import {
-    CircleCheck,
-    CircleX,
-    Eye,
     ChevronRight,
     ChevronLeft,
     RotateCcw,
@@ -12,29 +9,22 @@
     Timer,
     Lightbulb
   } from '@lucide/svelte';
-  import {
-    parseQuizScriptQuestion,
-    type QuizScriptOption,
-    type QuizScriptQuestion
-  } from '@/lib/utils/quizScript';
+  import { parseQuizScriptQuestion, type QuizScriptQuestion } from '@/lib/utils/quizScript';
   import {
     blankDraft,
     buildPlayRun,
-    choiceOptionsLayoutClass,
+    draftFromAnswer,
     gradeDraft,
     gradeRun,
     isDraftComplete,
-    matchTypedGuesses,
     questionMaxPoints,
     settingNumber,
     settingString,
-    typedSingleAnswerMatches,
     type AnswerRecord,
     type PlayQuestion,
     type QuestionDraft,
     type QuestionResult
   } from '@/lib/utils/grading';
-  import { extractYoutubeId } from '@/lib/utils/youtube';
   import type { Quiz } from '@/lib/schemas/quiz';
   import QuestionPlayer from './QuestionPlayer.svelte';
   import Dialog from './Dialog.svelte';
@@ -43,7 +33,7 @@
   let { quiz }: { quiz: Quiz } = $props();
 
   /** "M:SS" for any of this component's three countdowns — seconds alone would get unreadable
-   * past a minute or two, which a `timer_duration` easily is. */
+   * past a minute or two, which a `timer_seconds` easily is. */
   function formatSeconds(totalSeconds: number): string {
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
@@ -79,25 +69,25 @@
   const showScoresAtEnd = $derived(revealScoresSetting !== 'never');
   const locksAnswerImmediately = $derived(showAnswersLive || showScoresLive);
 
-  // `show_score`: a persistent "earned / total" header visible throughout the run, independent of
+  // `show_running_score`: a persistent "earned / total" header visible throughout the run, independent of
   // reveal_scores — the total is always safe to show (a question's max never depends on how it's
   // answered, see `questionMaxPoints`), but the earned side would leak exactly what reveal_scores
   // is trying to hold back if shown for real outside `after_every_question`, so it's masked as "?"
   // there instead of just hiding the whole header. Defaults true — only an explicit `false` turns
   // it off (same "unset/anything else means on" convention `buildPlayRun` already uses for
   // `shuffle_questions`).
-  const showScoreHeader = $derived(quiz.settings.show_score !== false);
+  const showScoreHeader = $derived(quiz.settings.show_running_score !== false);
   const totalMaxPoints = $derived(
     run.reduce((sum, playQuestion) => sum + questionMaxPoints(playQuestion.question), 0)
   );
   const earnedSoFar = $derived(results.reduce((sum, r) => sum + r.earned, 0));
 
-  // `show_intermediate_screen` (default true; forced true whenever `showAnswersLive`, since a
+  // `show_reveal_screen` (default true; forced true whenever `showAnswersLive`, since a
   // correctness reveal needs a real screen — see the parser's own validation): whether submitting
   // a question pauses on its locked reveal screen or skips straight to the next question. Only
   // ever relevant when `showScoresLive` and NOT `showAnswersLive` — that's the sole combination
   // where a live reveal exists but doesn't require a full screen, just a number.
-  const showIntermediateScreen = $derived(quiz.settings.show_intermediate_screen !== false);
+  const showIntermediateScreen = $derived(quiz.settings.show_reveal_screen !== false);
   const skipIntermediateScreen = $derived(
     showScoresLive && !showAnswersLive && !showIntermediateScreen
   );
@@ -154,7 +144,7 @@
 
   // `<QuestionPlayer>` is keyed on `currentIndex` alone (see the template) and owns its own
   // internal draft state once mounted — it never re-reads its `draft` prop after mount (see its
-  // own doc comment on why). `timer_timeout_action=lock_zero` grades a *different*, blank draft
+  // own doc comment on why). `on_timeout=lock_zero` grades a *different*, blank draft
   // than whatever QuestionPlayer's own internal state actually has selected, so without forcing a
   // remount, its reveal screen would keep showing the player's real (ignored-for-scoring)
   // selection instead of the "nothing, zero credit" this setting is supposed to display. Bumped
@@ -225,16 +215,14 @@
     finished = true;
   }
 
-  // `timer_mode`/`timer_duration`/`timer_timeout_action`/`intermediate_screen_duration` — see
+  // `timer_mode`/`timer_seconds`/`on_timeout`/`reveal_screen_seconds` — see
   // QUIZ_SETTING_RULES. `timer_mode=per_question` is only ever set alongside
   // `locksAnswerImmediately` (enforced at parse time — see quizScript.ts), so the per-question
   // timer effect below never needs to re-check that itself.
   const timerMode = $derived(settingString(quiz.settings.timer_mode, 'off'));
-  const timerDuration = $derived(settingNumber(quiz.settings.timer_duration));
-  const timeoutAction = $derived(settingString(quiz.settings.timer_timeout_action, 'auto_submit'));
-  const intermediateScreenDuration = $derived(
-    settingNumber(quiz.settings.intermediate_screen_duration)
-  );
+  const timerDuration = $derived(settingNumber(quiz.settings.timer_seconds));
+  const timeoutAction = $derived(settingString(quiz.settings.on_timeout, 'auto_submit'));
+  const intermediateScreenDuration = $derived(settingNumber(quiz.settings.reveal_screen_seconds));
 
   /** Grades whatever's currently on screen per `timeoutAction` (the real draft for "auto_submit",
    * a blank one for "lock_zero" — zero credit regardless of any partial selection/input) and locks
@@ -327,7 +315,7 @@
     return () => clearInterval(interval);
   });
 
-  // The post-answer reveal screen's own auto-advance countdown (intermediate_screen_duration) —
+  // The post-answer reveal screen's own auto-advance countdown (reveal_screen_seconds) —
   // only ticks while genuinely showing that screen (`locked`, which is never true when
   // `skipIntermediateScreen` short-circuits straight past it) and calls the same `nextQuestion`
   // the button itself uses once it reaches zero, including on the last question (advancing to
@@ -434,180 +422,19 @@
   });
 </script>
 
-{#snippet optionContent(content: QuizScriptOption['content'])}
-  {#if content.kind === 'text'}
-    <p class="text-sm text-slate-900">{content.text}</p>
-  {:else if content.kind === 'image'}
-    <img
-      src={content.url}
-      alt={content.alt}
-      class="max-h-56 rounded-md border border-slate-200 object-contain"
-    />
-  {:else}
-    {@const videoId = extractYoutubeId(content.url)}
-    {#if videoId}
-      <div class="aspect-video overflow-hidden rounded-md border border-slate-200">
-        <iframe
-          class="h-full w-full"
-          src={`https://www.youtube.com/embed/${videoId}`}
-          title={content.alt || 'Video option'}
-          allowfullscreen
-        ></iframe>
-      </div>
-    {:else}
-      <p class="text-sm text-slate-500">{content.alt || content.url}</p>
-    {/if}
-  {/if}
-{/snippet}
-
-<!-- Always the question's own authored order, in a fixed wrapped-chip layout — `option_display`
-     and `shuffle` don't apply to typed questions (see quizScript.ts's SETTING_RULES appliesTo),
-     so unlike choice's own option rendering, there's no per-question layout or order to honor here. -->
-{#snippet typedAcceptedAnswers(q: QuizScriptQuestion)}
-  <div class="mt-2">
-    <p class="text-xs font-medium text-slate-500">Accepted answers</p>
-    <div class="mt-1 flex flex-wrap gap-1.5">
-      {#each q.options as option, i (i)}
-        {#if option.content.kind === 'text'}
-          <span
-            class="rounded-md border border-green-300 bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700"
-          >
-            {option.content.text}
-          </span>
-        {/if}
-      {/each}
-    </div>
-  </div>
-{/snippet}
-
-{#snippet typedAnswerReview(q: QuizScriptQuestion, response: string | string[])}
-  {#if typeof response === 'string'}
-    {@const matched = typedSingleAnswerMatches(q.options, response, q.settings)}
-    <div
-      class="rounded-md border p-3 {matched !== null
-        ? 'border-green-400 bg-green-50'
-        : 'border-red-400 bg-red-50'}"
-    >
-      <p class="flex items-center gap-1.5 text-sm text-slate-900">
-        {#if matched !== null}<CircleCheck
-            size={14}
-            class="shrink-0 text-green-600"
-          />{:else}<CircleX size={14} class="shrink-0 text-red-500" />{/if}
-        {response.trim() || '(left blank)'}
+<!-- The author's own "why" note for a question, shown once its answer is revealed — identical on
+     the post-answer screen and the end-of-run Review screen, so it lives in one snippet. -->
+{#snippet analysisNote(question: QuizScriptQuestion)}
+  {#if question.analysis}
+    <div class="rounded-md border border-dashed border-indigo-200 bg-indigo-50 p-3">
+      <p class="flex items-center gap-1 text-xs font-medium text-indigo-700">
+        <Lightbulb size={13} />
+        {question.analysis.label || 'Why?'}
+      </p>
+      <p class="mt-0.5 whitespace-pre-wrap text-sm text-slate-900">
+        {question.analysis.content}
       </p>
     </div>
-  {:else}
-    {@const { perGuess } = matchTypedGuesses(q.options, response, q.settings)}
-    <div class="flex flex-wrap gap-1.5">
-      {#each response as guess, i (i)}
-        {@const status = perGuess[i]?.status}
-        <span
-          class="rounded-md border px-2 py-0.5 text-xs font-medium {status === 'matched'
-            ? 'border-green-300 bg-green-50 text-green-700'
-            : status === 'wrong'
-              ? 'border-red-300 bg-red-50 text-red-700'
-              : 'border-slate-300 bg-slate-50 text-slate-500'}"
-        >
-          {guess.trim() || '(blank)'}
-        </span>
-      {/each}
-    </div>
-  {/if}
-  {@render typedAcceptedAnswers(q)}
-{/snippet}
-
-<!-- Review counterpart of QuestionPlayer's `typedLockedNeutral` — the player's own response(s),
-     no correctness marking, no accepted-answer list (reveal_answers=never). -->
-{#snippet typedReviewNeutral(response: string | string[])}
-  <div class="rounded-md border border-slate-200 bg-slate-50 p-3">
-    {#if typeof response === 'string'}
-      <p class="text-sm text-slate-700">{response.trim() || '(left blank)'}</p>
-    {:else}
-      <div class="flex flex-wrap gap-1.5">
-        {#each response as guess, i (i)}
-          <span
-            class="rounded-md border border-slate-300 bg-white px-2 py-0.5 text-xs font-medium text-slate-700"
-          >
-            {guess.trim() || '(blank)'}
-          </span>
-        {/each}
-      </div>
-    {/if}
-  </div>
-{/snippet}
-
-<!-- Read-only recap of one already-graded question: its text/media, every hint (revealed or
-     not), and either every option or the typed answer(s) vs the accepted-answer list — correctness
-     marking and the points line each independently gated on `showAnswersAtEnd`/`showScoresAtEnd`.
-     Used once per question on the end-of-quiz Review screen. -->
-{#snippet questionReview(playQuestion: PlayQuestion, answer: AnswerRecord, result: QuestionResult)}
-  {@const q = playQuestion.question}
-  <p class="whitespace-pre-wrap text-base font-medium text-slate-900">{q.text}</p>
-
-  {#each q.media as media, i (i)}
-    {@render optionContent(media)}
-  {/each}
-
-  {#each q.extras as extra, i (i)}
-    <div class="rounded-md border border-dashed border-slate-300 bg-slate-50 p-3">
-      {#if answer.revealed.has(i)}
-        <p class="flex items-center gap-1 text-xs font-medium text-slate-500">
-          <Eye size={12} />
-          {extra.label || 'Hint'}
-        </p>
-        <p class="mt-1 text-sm text-slate-700">{extra.content}</p>
-      {:else}
-        <p class="flex items-center gap-1.5 text-sm text-slate-500">
-          <Eye size={14} />
-          {extra.label || 'Hint'} (not revealed)
-        </p>
-      {/if}
-    </div>
-  {/each}
-
-  {#if answer.kind === 'typed'}
-    {#if showAnswersAtEnd}
-      {@render typedAnswerReview(q, answer.response)}
-    {:else}
-      {@render typedReviewNeutral(answer.response)}
-    {/if}
-  {:else}
-    <div class={choiceOptionsLayoutClass(q)}>
-      {#each playQuestion.optionOrder as optionIndex (optionIndex)}
-        {@const option = q.options[optionIndex]}
-        <div
-          class="flex items-start gap-2 rounded-md border p-3 {showAnswersAtEnd
-            ? option.correct
-              ? 'border-green-400 bg-green-50'
-              : answer.selected.has(optionIndex)
-                ? 'border-red-400 bg-red-50'
-                : 'border-slate-200'
-            : answer.selected.has(optionIndex)
-              ? 'border-indigo-300 bg-indigo-50'
-              : 'border-slate-200'}"
-        >
-          <div class="min-w-0 flex-1">
-            {@render optionContent(option.content)}
-            {#if answer.selected.has(optionIndex)}
-              <p class="mt-0.5 text-xs font-medium text-slate-500">Your answer</p>
-            {/if}
-          </div>
-          {#if showAnswersAtEnd}
-            {#if option.correct}
-              <CircleCheck size={16} class="mt-1 shrink-0 text-green-600" />
-            {:else if answer.selected.has(optionIndex)}
-              <CircleX size={16} class="mt-1 shrink-0 text-red-500" />
-            {/if}
-          {/if}
-        </div>
-      {/each}
-    </div>
-  {/if}
-
-  {#if showScoresAtEnd}
-    <p class="text-sm font-medium {result.earned > 0 ? 'text-green-700' : 'text-slate-500'}">
-      {result.earned} / {result.max} points
-    </p>
   {/if}
 {/snippet}
 
@@ -630,11 +457,27 @@
           <p class="text-sm font-medium text-slate-500">{summary.earned} / {summary.max} points</p>
         {/if}
       </div>
+      <!-- Each already-graded question is replayed through the very same `<QuestionPlayer>` that
+           answered it — locked, seeded with the recorded answer via `draftFromAnswer` — rather
+           than a parallel read-only renderer. A second renderer is what left every variant
+           except choice/typed unrenderable here: it only ever knew those two answer shapes, so an
+           order/match/categorise/fill_in_blanks/character_input answer reached it as a `selected`
+           set that doesn't exist on those records. -->
       {#each run as playQuestion, i (i)}
-        <div class="space-y-4 rounded-lg border border-slate-200 bg-white p-6">
-          <p class="text-xs font-medium text-slate-500">Question {i + 1} of {run.length}</p>
-          {@render questionReview(playQuestion, answers[i], results[i])}
-        </div>
+        {@const answer = answers[i]}
+        {#if answer}
+          <div class="space-y-4 rounded-lg border border-slate-200 bg-white p-6">
+            <p class="text-xs font-medium text-slate-500">Question {i + 1} of {run.length}</p>
+            <QuestionPlayer
+              question={playQuestion.question}
+              {playQuestion}
+              draft={draftFromAnswer(playQuestion.question, answer)}
+              locked
+              revealAnswers={showAnswersAtEnd}
+              revealScores={showScoresAtEnd}
+            />
+          </div>
+        {/if}
       {/each}
     </div>
   {:else if finished && summary}
@@ -746,16 +589,8 @@
         />
       {/key}
 
-      {#if locksAnswerImmediately && locked && current.question.analysis}
-        <div class="rounded-md border border-dashed border-indigo-200 bg-indigo-50 p-3">
-          <p class="flex items-center gap-1 text-xs font-medium text-indigo-700">
-            <Lightbulb size={13} />
-            {current.question.analysis.label || 'Why?'}
-          </p>
-          <p class="mt-0.5 whitespace-pre-wrap text-sm text-slate-900">
-            {current.question.analysis.content}
-          </p>
-        </div>
+      {#if locksAnswerImmediately && locked}
+        {@render analysisNote(current.question)}
       {/if}
 
       <div class="flex items-center justify-between">

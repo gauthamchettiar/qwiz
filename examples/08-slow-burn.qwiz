@@ -1,0 +1,58 @@
+---
+title: Slow Burn
+description: Nothing is revealed until the very end. Answer at your own pace, move back and forth freely, then submit the lot and find out how you did all at once.
+category: general knowledge
+tags: [deferred-reveal, review, mixed]
+:reveal_answers=at_end
+:reveal_scores=at_end
+:shuffle_questions=false
+:timer_mode=per_quiz
+:timer_seconds=300
+:on_timeout=lock_zero
+:points_to_win=8
+:partial_credit=true
+---
+
+multiple_choice: Which of these are programming languages named after people?
+!<analysis>[Why?](Ada is named for Ada Lovelace and Pascal for Blaise Pascal. Python is named after Monty Python, and Java after coffee.)
+{
+=Ada
+=Pascal
+~Python
+~Java
+}
+:points_correct=2
+
+typed: What word describes a number that reads the same forwards and backwards?
+{
+=palindrome
+}
+:typo_tolerance=25
+:points_correct=2
+
+order: Put these units of length in order, smallest first.
+{
+=Millimetre
+=Centimetre
+=Metre
+=Kilometre
+}
+:points_correct=2
+
+categorise: Sort these into the right column.
+{
+=Copper -> Element
+=Bronze -> Alloy
+=Iron -> Element
+=Steel -> Alloy
+}
+:points_correct=1
+
+fill_in_blanks: A ___ angle is exactly 90 degrees, and an angle over 90 is called ___.
+{
+=right
+=obtuse
+~acute
+~reflex
+}
+:points_correct=2

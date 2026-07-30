@@ -22,7 +22,11 @@ const {
   <head>
     <meta charset="utf-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width" />
+    <!-- `initial-scale=1` deliberately without `maximum-scale`/`user-scalable=no`: pinch-zoom
+         stays available (removing it is a serious axe violation, and e2e/accessibility.spec.ts
+         would fail on it). iOS's auto-zoom-on-focus is addressed in global.css instead, by
+         sizing form controls at 16px on touch screens. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="generator" content={Astro.generator} />
     <meta name="theme-color" content="#4f39f6" />
     <meta name="description" content={description} />

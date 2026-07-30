@@ -1,0 +1,44 @@
+---
+title: Deep Time
+description: Put history in its place — drag the cards into order, or type them out when the board disappears. Getting most of it right still counts for something.
+category: history
+tags: [order, chronology, drag-and-drop]
+:percent_to_win=60
+:reveal_answers=after_every_question
+:reveal_scores=after_every_question
+:partial_credit=true
+---
+
+order: Drag these into the order they happened, earliest first.
+!<reveal>[Which century?](The Great Fire was 1666. Everything else is on the other side of it.) %-1%
+{
+=Construction begins on Stonehenge
+=The eruption that buried Pompeii
+=The Great Fire of London
+=The first powered flight at Kitty Hawk
+=The first Moon landing
+}
+:points_correct=2
+
+order: Smallest to largest. No board this time — type each one in.
+!<analysis>[Why?](answer_mode=type swaps the drag board for one field per position. The items are still listed for reference, since sequencing a set you can't see isn't a question anyone could answer.)
+{
+=Atom
+=Grain of sand
+=Football
+=Blue whale
+=Mount Everest
+}
+:answer_mode=type
+:typo_tolerance=25
+:points_correct=2
+
+order: Rank these by how long they take, shortest first.
+{
+=A single heartbeat
+=Boiling a kettle
+=A game of test cricket
+=One orbit of Mars around the Sun
+}
+:points_correct=3
+:difficulty=hard

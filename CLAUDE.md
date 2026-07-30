@@ -54,8 +54,8 @@ genuinely public (a shareable read-only quiz link, say), revisit both.
 | Validation      | zod                                                                                  | schemas in `src/lib/schemas/`; types derive via `z.infer`                 |
 | Language        | TypeScript, `strict: true`                                                           | `astro/tsconfigs/strict` as base, plus a `@/*` path alias                 |
 | Package manager | pnpm                                                                                 | lockfile committed (`pnpm-lock.yaml`), `--frozen-lockfile` in CI          |
-| E2E tests       | Playwright                                                                           | primary safety net — 144 tests (36 per project) across 4 browser projects |
-| Unit tests      | Vitest                                                                               | pure logic in `src/lib/**` — 185 tests                                    |
+| E2E tests       | Playwright                                                                           | primary safety net — 360 tests (90 per project) across 4 browser projects |
+| Unit tests      | Vitest                                                                               | pure logic in `src/lib/**` — 279 tests                                    |
 | Lint / format   | ESLint (flat config) + Prettier + `prettier-plugin-astro` + `prettier-plugin-svelte` |                                                                           |
 | Deploy          | Cloudflare Pages                                                                     | via GitHub Actions, see §8                                                |
 
@@ -87,10 +87,15 @@ migration.
 
 ```
 .
+├── docs/                        # introduction.md, qwiz-format.md, settings.md,
+│                                # llm-reference.md (the whole format in one file, for a model)
+├── examples/                    # *.qwiz files — the app's "Load a sample" list, loaded via
+│                                # import.meta.glob ?raw; cover every variant and setting
 ├── e2e/                         # Playwright specs
 │   ├── fixtures/                # quizzes.ts — buildQuiz() factory, sample .qwiz source
 │   ├── pages/                   # Page Object Models: HomePage, BuilderPage, PlayPage
-│   ├── utils/                   # storage.ts (seed/reset localStorage), a11y.ts (axe helper)
+│   ├── utils/                   # storage.ts (seed/reset localStorage), a11y.ts (axe helper),
+│   │                            # drag.ts (pointer-drag gesture), hydration.ts (island-ready wait)
 │   └── *.spec.ts
 ├── public/                      # copied verbatim to dist/ root
 │   ├── favicon.svg
@@ -107,7 +112,8 @@ migration.
 │   │   ├── stores/quizzes.ts    # the only file that touches localStorage — list/get/save/delete
 │   │   └── utils/                # quizScript.ts (parser/serializer), grading.ts, shuffle.ts,
 │   │                             # youtube.ts, download.ts, suggestions.ts, sampleQuizzes.ts,
-│   │                             # importQwiz.ts, clickOutside.ts, questionFocus.ts
+│   │                             # importQwiz.ts, clickOutside.ts, dragDrop.ts,
+│   │                             # questionFocus.ts
 │   ├── pages/
 │   │   ├── index.astro          # quiz list
 │   │   ├── 404.astro            # custom not-found page, matches the app's own visual language
@@ -210,6 +216,15 @@ Additional rules:
 
 - No arbitrary values (`w-[437px]`) except genuine one-offs like the code-mode breakout width in
   `QuestionCard.svelte`, which is commented explaining the specific math.
+- **Never layer two conflicting class strings and expect the later one to win.** Which of
+  `bg-indigo-50` and `bg-green-50` applies is decided by their order in the generated stylesheet,
+  not by their order in the `class` attribute — so a "base look, then an override on top" pair
+  silently resolves whichever way Tailwind's palette happens to be ordered. This produced two real
+  bugs: a choice option the player got RIGHT rendered as merely "selected" (indigo won over green),
+  and a correctly-placed `order` slot rendered a green background inside a slate border (slate won
+  over green). Anything with several mutually-exclusive looks picks exactly one via a function
+  returning a single class string — see `choiceOptionTone` in `QuestionPlayer.svelte` and the
+  `slotTone`/`leftTone`/`rightTone`/`itemTone`/`blankTone` helpers in the four boards.
 - Color palette is `slate` (neutral surfaces/text) + `indigo` (the one primary accent) +
   semantic `red`/`green`/`amber` for destructive/correct/warning states. No daisyUI semantic
   tokens (`bg-base-200`) since there's no theme-switching to abstract over.
@@ -316,6 +331,16 @@ and `clickOutside.ts`/`suggestions.ts` (untested but real logic) are the only fi
 don't threaten the aggregate; `download.ts`'s `downloadTextFile` is deliberately excluded from
 unit coverage since it's a browser-side-effect function (Blob/DOM), covered by e2e instead.
 
+`dragDrop.ts` is the one file with an explicit `/* v8 ignore start */` block, wrapping its
+`draggable` action and `buildGhost` for the same reason, but stated in the file since it's large
+enough to have moved the aggregate ~10 points on its own: pointer capture, `elementFromPoint`
+hit-testing and a ghost element in the document are things jsdom doesn't implement, so a unit test
+would only be asserting against mocks of the APIs under test. Its _decisions_ are factored out into
+pure exported helpers (`exceedsDragThreshold`, `findDropZone`, `dragActivation`) which ARE unit
+tested, and the gesture itself is covered in a real browser by `e2e/drag-and-drop.spec.ts`. Reach
+for `v8 ignore` only on that same basis — untestable-by-construction browser plumbing whose logic
+has been extracted out of it — never to get a number up.
+
 ### E2E tests (Playwright) — `e2e/`
 
 The primary contract for user-visible behavior. Config (`playwright.config.ts`):
@@ -365,6 +390,11 @@ The one thing genuinely under test — authoring — is always driven through th
 - Keyboard behavior for anything with real custom keyboard logic (the category/tag
   suggestion-dropdown arrow-key handling in `QuizBuilder.svelte`; Escape out of code mode) — not
   generic Tab-order checks, since there's no custom tab management in this app to verify.
+- Pointer gestures, if any, driven through `page.mouse` rather than Playwright's `dragTo` — see
+  `e2e/utils/drag.ts`'s `dragOnto`, which presses, moves past the drag threshold in steps, and
+  releases, because the app promotes a press into a drag on the first move past that threshold (see
+  `lib/utils/dragDrop.ts`). The tap path for the same board must stay covered alongside it: the two
+  mechanics share one state machine, and a change to either can silently break the other.
 - Mobile viewport: covered automatically by the `mobile` Playwright project running every spec, not
   by separate mobile-only specs.
 - Accessibility: `e2e/accessibility.spec.ts` runs `@axe-core/playwright` on every major screen via
@@ -375,7 +405,18 @@ The one thing genuinely under test — authoring — is always driven through th
 ### Discipline
 
 - **Never** `waitForTimeout`. Use web-first assertions (`await expect(locator).toBeVisible()`).
+- Don't run `pnpm build` (or anything that rebuilds `dist/`) while a Playwright run is in flight.
+  `playwright.config.ts` sets `reuseExistingServer` locally, so a stray `astro preview` from an
+  earlier run gets reused and a concurrent build rewrites `dist/` underneath it — which surfaces as
+  a scatter of unrelated 30s timeouts that vanish on re-run. Kill port 4321 first if in doubt.
 - Tests are independent: every spec's `beforeEach` navigates to `/` and calls `resetStorage`.
+- **Never interact with an island before it hydrates.** `page.goto` resolves on `load`, which is
+  before the island's JS has run, so a keystroke can land on an element with no handlers attached
+  yet — and `fill()` still appears to work, because Playwright sets the value directly. Only
+  handler-dependent interactions (pressing Enter, clicking a button) silently do nothing, which is
+  why this reproduced about 1 run in 12 and only in one spec. The page objects' `goto*` methods all
+  call `waitForHydration` (`e2e/utils/hydration.ts`, which waits for `astro-island[ssr]` to
+  disappear); any new navigation helper must do the same.
 - No real network calls exist in this app to stub — everything is local/synchronous. If a feature
   ever adds a `fetch` (there is none today), stub it via `page.route()` with a fixture, per the
   general Playwright discipline, rather than hitting anything real from CI.

@@ -97,7 +97,7 @@ test('a fill_in_blanks question (type mode) has no serious accessibility violati
           '=cell',
           '~nucleus',
           '}',
-          ':blank_input=type'
+          ':answer_mode=type'
         ].join('\n')
       }
     ]

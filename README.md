@@ -23,6 +23,10 @@ either through the form-based builder or directly in code; both stay in sync.
 - [Introduction](./docs/introduction.md) — core concepts, authoring modes, import/export
 - [`.qwiz` format reference](./docs/qwiz-format.md) — full authoring syntax and scoring rules
 - [Settings reference](./docs/settings.md) — every quiz-wide/per-question setting, validation
+- [Complete `.qwiz` reference for LLMs](./docs/llm-reference.md) — the whole format in one
+  self-contained file, written to be handed to a model that needs to generate `.qwiz` documents
+- [`examples/`](./examples) — nine playable `.qwiz` files covering every variant and setting;
+  loadable in-app from Import → Load a sample
   rules, and how settings behave in combination
 
 ## Development
