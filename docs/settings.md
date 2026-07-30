@@ -42,15 +42,15 @@ Written after (or before) a question's `{ }` option block.
 | `options_layout`         | `list` \| `grid2x2` \| `grid3x3` | single_choice, multiple_choice                                   | `list`     | Option layout — `grid2x2` is a fixed 2-column grid, `grid3x3` is 2 columns on narrow screens and 3 on wider ones |
 | `shuffle_options`        | boolean                          | single_choice, multiple_choice                                   | `false`    | Randomize this question's option order each run                                                                  |
 | `difficulty`             | `easy` \| `medium` \| `hard`     | all variants                                                     | —          | Informational only, doesn't affect grading or play                                                               |
-| `match_case`             | boolean                          | typed, fill_in_blanks (answer_mode=type)                         | `false`    | Require exact letter case                                                                                        |
-| `number_tolerance`       | number                           | typed, fill_in_blanks (answer_mode=type)                         | — (off)    | Allowed absolute numeric difference. Mutually exclusive with `typo_tolerance`                                    |
-| `typo_tolerance`         | number                           | typed, fill_in_blanks (answer_mode=type)                         | — (off)    | Allowed typos as % of answer length (edit distance). Mutually exclusive with `number_tolerance`                  |
+| `match_case`             | boolean                          | typed, order/match/categorise/fill_in_blanks (answer_mode=type)  | `false`    | Require exact letter case                                                                                        |
+| `number_tolerance`       | number                           | typed, order/match/categorise/fill_in_blanks (answer_mode=type)  | — (off)    | Allowed absolute numeric difference. Mutually exclusive with `typo_tolerance`                                    |
+| `typo_tolerance`         | number                           | typed, order/match/categorise/fill_in_blanks (answer_mode=type)  | — (off)    | Allowed typos as % of answer length (edit distance). Mutually exclusive with `number_tolerance`                  |
 | `typed_input`            | `text` \| `boxes`                | typed only                                                       | `text`     | Plain text box vs. one box per character                                                                         |
 | `letter_bank`            | `alphabet` \| `auto` \| `fixed`  | character_input only                                             | `alphabet` | Which letters appear in the bank                                                                                 |
 | `letter_bank_chars`      | text                             | character_input only                                             | —          | Exact letters offered — only read when `letter_bank=fixed`                                                       |
 | `letter_reveal`          | `all` \| `sequence` \| `random`  | character_input only                                             | `all`      | How a correct guess reveals repeated letters                                                                     |
 | `letters_shown_at_start` | number                           | character_input only                                             | `0`        | Extra random characters revealed free at the start                                                               |
-| `answer_mode`            | `pick` \| `type`                 | fill_in_blanks only                                              | `pick`     | Pick words from a bank vs. type each blank directly                                                              |
+| `answer_mode`            | `pick` \| `type`                 | order, match, categorise, fill_in_blanks                         | `pick`     | Use the on-screen board (tap/drag) vs. type each answer directly                                                 |
 
 `single_choice` and `multiple_choice` differ in how many `=` options are allowed and whether they
 render as a radio group or checkboxes (see `qwiz-format.md`'s
@@ -146,3 +146,28 @@ these was actually exercised against the real parser/grading code, not assumed.
   This is a deliberate simplification, not a bug: it keeps the upfront total stable and
   deterministic (the same number every time you look at it) rather than randomly varying per
   session before a single question has even been shown.
+
+---
+
+## Quiz-wide defaults for per-question settings
+
+Every per-question setting above can also be written **once in the quiz frontmatter**, where it
+becomes the default for every question; a question that sets the same key overrides it. The three
+exceptions are `min_answers`, `max_answers` (counts tied to one question's own option list, which
+mean nothing spread across a bank) and `difficulty` (a label on an individual question).
+
+```
+---
+title: Typed Throughout
+:answer_mode=type
+:typo_tolerance=25
+:points_correct=2
+---
+```
+
+An inherited setting only reaches questions whose variant accepts it, so a quiz-wide
+`:letter_bank=auto` applies to the `character_input` questions and is ignored by the rest rather
+than being an error. Resolution happens once when a run is built, so grading, the boards and the
+reveal screens all read one already-merged set of settings.
+
+See [the complete `.qwiz` reference](./llm-reference.md) for the full picture in one file.

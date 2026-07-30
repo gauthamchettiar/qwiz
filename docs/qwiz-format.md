@@ -291,6 +291,10 @@ rejected, which are harmless no-ops, and which are valid but non-obvious) — li
 `letter_bank_chars`, `letter_reveal`, `letters_shown_at_start`). `options_layout` accepts `list`,
 `grid2x2` (a fixed 2-column grid), and `grid3x3` (2 columns on narrow screens, 3 on wider ones).
 
+Any per-question setting except `min_answers`, `max_answers` and `difficulty` can also be set once
+in the quiz frontmatter as a default that individual questions override — see
+[Settings](./settings.md#quiz-wide-defaults-for-per-question-settings).
+
 A setting outside its applicable variant is a parse error, not a silent no-op — e.g. `shuffle_options` on
 a `typed` question, or `letter_bank` on a `multiple_choice` question. `min_answers`, `max_answers`,
 and `partial_credit` are also rejected on `single_choice` — it can only ever have zero or one
