@@ -73,7 +73,7 @@
   const answerText = $derived(
     question.variant === 'character_input' ? characterInputAnswerText(question) : ''
   );
-  // `prereveal_count`'s random extras are resolved per play session, not here, so this shows only
+  // `letters_shown_at_start`'s random extras are resolved per play session, not here, so this shows only
   // the author's explicit `[X]` brackets — the part that's actually a property of the question.
   const prerevealed = $derived(
     question.variant === 'character_input'

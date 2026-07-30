@@ -18,7 +18,7 @@ title: World Capitals
 description: A quick trip around the globe — match each country to its capital city.
 category: geography
 tags: [geography, capitals, easy]
-:max_questions=5
+:questions_per_run=5
 :shuffle_questions=true
 ---
 
@@ -75,7 +75,7 @@ tags: [demo, media, hints]
 
 single_choice: Which of these is the Eiffel Tower?
 !<reveal>[Need a hint?](It's in Paris, France, and made of wrought iron.) %-1%
-:option_display=grid2x2
+:options_layout=grid2x2
 {
 =![Eiffel Tower](https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/La_tour_d%27eiffel_en_journ%C3%A9e_%287_ao%C3%BBt_2023%29.jpg/3840px-La_tour_d%27eiffel_en_journ%C3%A9e_%287_ao%C3%BBt_2023%29.jpg)
 ~![Big Ben](https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/Big_Ben_at_sunset_-_2014-10-27_17-30.jpg/960px-Big_Ben_at_sunset_-_2014-10-27_17-30.jpg)
@@ -103,7 +103,7 @@ tags: [demo, scoring, advanced]
 ---
 
 multiple_choice: Which of these are primary colors? (select all that apply)
-:partial_points=true
+:partial_credit=true
 {
 =Red %3%
 =Green %3%
@@ -114,8 +114,8 @@ multiple_choice: Which of these are primary colors? (select all that apply)
 :difficulty=easy
 
 multiple_choice: Which of these are noble gases?
-:penalty=-1
-:point=5
+:points_wrong=-1
+:points_correct=5
 :max_answers=3
 {
 =Helium
@@ -143,29 +143,29 @@ tags: [demo, typed]
 ---
 
 typed: What is the capital of France? (typo-tolerant — try "Pario")
-:fuzzy_tolerance=20
+:typo_tolerance=20
 {
 =Paris
 =paris
 }
 
 typed: What is the value of pi, to two decimal places?
-:numeric_tolerance=0.01
+:number_tolerance=0.01
 {
 =3.14
 }
 
 typed: Guess the 5-letter fruit that keeps doctors away. (character-box input)
-:input_display=boxes
+:typed_input=boxes
 {
 =apple
 }
 
 typed: Name two of these three fruits that starts with A-B-C. (partial credit for each one you get right)
-:partial_points=true
+:partial_credit=true
 :min_answers=1
 :max_answers=2
-:penalty=-1
+:points_wrong=-1
 {
 =apple
 =banana
@@ -173,7 +173,7 @@ typed: Name two of these three fruits that starts with A-B-C. (partial credit fo
 }
 
 typed: Name these two cities. (multi-guess character-box input)
-:input_display=boxes
+:typed_input=boxes
 :min_answers=2
 :max_answers=2
 {
@@ -184,7 +184,7 @@ typed: Name these two cities. (multi-guess character-box input)
   {
     title: 'Hangman Challenge',
     description:
-      'The character_input variant: guess a word letter-by-letter from an on-screen bank, Hangman-style — pre-revealed characters, a per-wrong-guess penalty, and both prereveal_mode options.',
+      'The character_input variant: guess a word letter-by-letter from an on-screen bank, Hangman-style — pre-revealed characters, a per-wrong-guess penalty, and both letter_reveal options.',
     code: `---
 title: Hangman Challenge
 description: Guess each word one letter at a time. A wrong guess costs a point.
@@ -197,16 +197,16 @@ character_input: Guess the capital of France (one letter pre-revealed)
 =[P]aris
 }
 :letter_bank=alphabet
-:prereveal_mode=all
-:penalty=-1
+:letter_reveal=all
+:points_wrong=-1
 
 character_input: Name a primary color (repeated letters reveal one at a time)
 {
 =yellow
 }
 :letter_bank=auto
-:prereveal_mode=sequence
-:prereveal_count=1
-:penalty=-1`
+:letter_reveal=sequence
+:letters_shown_at_start=1
+:points_wrong=-1`
   }
 ];

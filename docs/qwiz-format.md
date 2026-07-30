@@ -9,7 +9,7 @@ title: World Capitals
 description: A quick trip around the globe.
 category: geography
 tags: [geography, capitals, easy]
-:max_questions=5
+:questions_per_run=5
 :shuffle_questions=true
 ---
 
@@ -24,7 +24,7 @@ typed: What is the capital of Japan?
 {
 =Tokyo
 }
-:fuzzy_tolerance=15
+:typo_tolerance=15
 ```
 
 This is real, importable source — paste it into **Import Qwiz** to try it. More full examples of
@@ -48,9 +48,9 @@ Written as `:key=value` lines inside the frontmatter block. Full reference — e
 and default, and how settings behave in combination — lives in
 [`settings.md`](./settings.md#quiz-wide-settings), kept as the one place this is documented rather
 than a second copy here that could drift. In brief: win threshold (`points_to_win`/
-`percentage_points_to_win`), ordering/sampling (`shuffle_questions`, `max_questions`), reveal
-timing (`reveal_answers`, `reveal_scores`, `show_score`, `show_intermediate_screen`), and time
-limits (`timer_mode`, `timer_duration`, `timer_timeout_action`, `intermediate_screen_duration`).
+`percent_to_win`), ordering/sampling (`shuffle_questions`, `questions_per_run`), reveal
+timing (`reveal_answers`, `reveal_scores`, `show_running_score`, `show_reveal_screen`), and time
+limits (`timer_mode`, `timer_seconds`, `on_timeout`, `reveal_screen_seconds`).
 
 ## Questions
 
@@ -151,7 +151,7 @@ alongside the media lines above the option block; unlike hints, it can't be inte
 `{ }`. At most one per question — a second `!<analysis>[...]` line is a parse error. `label` is
 optional (defaults to "Why?" when shown); `content` is the explanation itself.
 
-Only appears on the per-question intermediate screen (`show_intermediate_screen`, gated the same
+Only appears on the per-question intermediate screen (`show_reveal_screen`, gated the same
 way as live `reveal_answers`/`reveal_scores` — see [below](#quiz-wide-settings)) — it's never
 shown on the end-of-quiz Review screen for quizzes that defer reveal to the end.
 
@@ -237,7 +237,7 @@ fill_in_blanks: The ___ is the powerhouse of the ___.
 =cell
 ~nucleus
 }
-:blank_input=bank
+:answer_mode=pick
 ```
 
 - Blanks are `___` (three underscores) tokens written directly in the question text — the number
@@ -246,11 +246,11 @@ fill_in_blanks: The ___ is the powerhouse of the ___.
 - `~` options don't fill any blank — they're extra distractor words added to the bank, same
   purpose as `letter_bank=auto`'s decoy letters in `character_input`: without them, every bank pick
   would be a guaranteed-right word with no risk to it.
-- `blank_input` (per-question setting, see [below](#per-question-settings)) controls how a blank is
-  filled: `bank` (default) — tap a bank word, then tap a blank to place it (same tap-to-place
+- `answer_mode` (per-question setting, see [below](#per-question-settings)) controls how a blank is
+  filled: `pick` (default) — tap a bank word, then tap a blank to place it (same tap-to-place
   interaction as `order`/`match`/`categorise`), matched by exact text since the player picked it
   verbatim. `type` — a plain inline text field per blank, matched the same way a `typed` question's
-  response is (`case_sensitive`/`numeric_tolerance`/`fuzzy_tolerance` all apply).
+  response is (`match_case`/`number_tolerance`/`typo_tolerance` all apply).
 - Both blank-answer and distractor content must be plain text.
 
 ### Character input
@@ -264,8 +264,8 @@ character_input: Guess the capital of France
 =[P]aris
 }
 :letter_bank=alphabet
-:prereveal_mode=all
-:penalty=-1
+:letter_reveal=all
+:points_wrong=-1
 ```
 
 - **`[X]` pre-reveal brackets**: wrap a character in `[ ]` inside the accepted-answer line to
@@ -285,15 +285,15 @@ Written as `:key=value` lines, before or after the option block. Full reference 
 type/default/applicable variant(s), and how settings behave in combination (which combinations are
 rejected, which are harmless no-ops, and which are valid but non-obvious) — lives in
 [`settings.md`](./settings.md#per-question-settings). In brief: scoring (`point`, `penalty`,
-`partial_points`), selection limits (`min_answers`, `max_answers`), choice-only display
-(`option_display`, `shuffle`), typed matching (`case_sensitive`, `numeric_tolerance`,
-`fuzzy_tolerance`, `input_display`), and character_input's own (`letter_bank`,
-`letter_bank_chars`, `prereveal_mode`, `prereveal_count`). `option_display` accepts `list`,
+`partial_credit`), selection limits (`min_answers`, `max_answers`), choice-only display
+(`options_layout`, `shuffle_options`), typed matching (`match_case`, `number_tolerance`,
+`typo_tolerance`, `typed_input`), and character_input's own (`letter_bank`,
+`letter_bank_chars`, `letter_reveal`, `letters_shown_at_start`). `options_layout` accepts `list`,
 `grid2x2` (a fixed 2-column grid), and `grid3x3` (2 columns on narrow screens, 3 on wider ones).
 
-A setting outside its applicable variant is a parse error, not a silent no-op — e.g. `shuffle` on
+A setting outside its applicable variant is a parse error, not a silent no-op — e.g. `shuffle_options` on
 a `typed` question, or `letter_bank` on a `multiple_choice` question. `min_answers`, `max_answers`,
-and `partial_points` are also rejected on `single_choice` — it can only ever have zero or one
+and `partial_credit` are also rejected on `single_choice` — it can only ever have zero or one
 option selected, so none of the three mean anything for it.
 
 ## Scoring
@@ -301,23 +301,23 @@ option selected, so none of the three mean anything for it.
 - **Effective points** for an option: its own `%N%` weight if given, else the question's
   `point`/`penalty` default for correct/incorrect respectively, else `1` (correct) or `0`
   (incorrect).
-- **Exact match (default, `partial_points=false`)**: all-or-nothing — every correct
+- **Exact match (default, `partial_credit=false`)**: all-or-nothing — every correct
   option/accepted answer must be picked/matched, with nothing extra, or the question scores `0`.
-- **Partial credit (`partial_points=true`)**: each pick/guess is scored independently and summed.
+- **Partial credit (`partial_credit=true`)**: each pick/guess is scored independently and summed.
   Achievable max is capped by `max_answers` when set — e.g. 3 correct options worth 1 point each
   with `max_answers=2` tops out at 2, not 3.
 - **Hints**: a revealed hint's (usually negative) cost is added to the question's earned score;
   its cost only counts toward the achievable max if positive (a hint that can only cost points
   never inflates the max).
 - **Typed matching**: always trimmed, accent-folded, and punctuation-stripped before comparing
-  (unless `numeric_tolerance` applies, checked first against the untouched values so "3.14" isn't
-  corrupted by punctuation-stripping). Case-insensitive unless `case_sensitive=true`.
+  (unless `number_tolerance` applies, checked first against the untouched values so "3.14" isn't
+  corrupted by punctuation-stripping). Case-insensitive unless `match_case=true`.
 - **Character input**: scored per DISTINCT guessable letter, not per occurrence — guessing "e" in
-  a word where it appears three times is one scoring event, regardless of `prereveal_mode`. A
+  a word where it appears three times is one scoring event, regardless of `letter_reveal`. A
   correctly-guessed letter earns `point`; a wrong guess costs `penalty`. Pre-revealed letters
-  (`[X]` brackets or `prereveal_count`) count toward neither earned nor achievable max — they were
+  (`[X]` brackets or `letters_shown_at_start`) count toward neither earned nor achievable max — they were
   free, so they don't inflate either side.
-- **Winning a run**: `points_to_win` (an absolute score) if set, else `percentage_points_to_win`
+- **Winning a run**: `points_to_win` (an absolute score) if set, else `percent_to_win`
   (default `75`) against that run's own achievable max.
 
 ## Escaping
@@ -347,7 +347,7 @@ tags: [demo, scoring]
 ---
 
 multiple_choice: Which of these are primary colors? (select all that apply)
-:partial_points=true
+:partial_credit=true
 {
 =Red %3%
 =Green %3%
@@ -357,7 +357,7 @@ multiple_choice: Which of these are primary colors? (select all that apply)
 :difficulty=easy
 
 typed: What is the capital of France? (typo-tolerant)
-:fuzzy_tolerance=20
+:typo_tolerance=20
 {
 =Paris
 =paris
@@ -380,6 +380,6 @@ character_input: Guess the capital of France (one letter pre-revealed)
 =[P]aris
 }
 :letter_bank=alphabet
-:prereveal_mode=all
-:penalty=-1
+:letter_reveal=all
+:points_wrong=-1
 ```

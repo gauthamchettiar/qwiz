@@ -5,7 +5,9 @@ import {
   parseQuizScriptFrontmatter,
   parseQuizScriptQuestion,
   parseQwizFile,
+  QUIZ_FRONTMATTER_RULES,
   QUIZ_SETTING_RULES,
+  resolveQuestionSettings,
   serializeQuizScript,
   serializeQuizScriptFrontmatter,
   serializeQuizScriptQuestion,
@@ -69,23 +71,23 @@ describe('coerceSetting', () => {
 
 describe('validateSettingValue', () => {
   it('accepts a valid number setting', () => {
-    expect(validateSettingValue('point', '5')).toEqual({ value: 5 });
+    expect(validateSettingValue('points_correct', '5')).toEqual({ value: 5 });
   });
 
   it('rejects a non-numeric value for a number setting', () => {
-    const result = validateSettingValue('point', 'abc');
+    const result = validateSettingValue('points_correct', 'abc');
     expect(result.value).toBe('abc');
     expect(result.error).toMatch(/must be a number/);
   });
 
   it('accepts true/false and yes/no for a boolean setting', () => {
-    expect(validateSettingValue('shuffle', 'true')).toEqual({ value: true });
-    expect(validateSettingValue('shuffle', 'yes')).toEqual({ value: true });
-    expect(validateSettingValue('shuffle', 'no')).toEqual({ value: false });
+    expect(validateSettingValue('shuffle_options', 'true')).toEqual({ value: true });
+    expect(validateSettingValue('shuffle_options', 'yes')).toEqual({ value: true });
+    expect(validateSettingValue('shuffle_options', 'no')).toEqual({ value: false });
   });
 
   it('rejects an invalid boolean value', () => {
-    expect(validateSettingValue('shuffle', 'maybe').error).toMatch(/must be true\/false/);
+    expect(validateSettingValue('shuffle_options', 'maybe').error).toMatch(/must be true\/false/);
   });
 
   it('accepts a valid enum value case-insensitively', () => {
@@ -100,43 +102,43 @@ describe('validateSettingValue', () => {
     expect(validateSettingValue('not_a_real_key', '1').error).toMatch(/not a recognized setting/);
   });
 
-  it('accepts option_display=grid2x2 and grid3x3', () => {
-    expect(validateSettingValue('option_display', 'grid2x2')).toEqual({ value: 'grid2x2' });
-    expect(validateSettingValue('option_display', 'grid3x3')).toEqual({ value: 'grid3x3' });
+  it('accepts options_layout=grid2x2 and grid3x3', () => {
+    expect(validateSettingValue('options_layout', 'grid2x2')).toEqual({ value: 'grid2x2' });
+    expect(validateSettingValue('options_layout', 'grid3x3')).toEqual({ value: 'grid3x3' });
   });
 
-  it('no longer accepts the old option_display=grid value — no backward-compat alias', () => {
-    expect(validateSettingValue('option_display', 'grid').error).toMatch(/must be one of/);
+  it('no longer accepts the old options_layout=grid value — no backward-compat alias', () => {
+    expect(validateSettingValue('options_layout', 'grid').error).toMatch(/must be one of/);
   });
 });
 
 describe('suggestedSettingKeysForVariant / settingValueSuggestions', () => {
   it('excludes typed-only settings for single_choice/multiple_choice questions', () => {
-    expect(suggestedSettingKeysForVariant('single_choice')).not.toContain('case_sensitive');
-    expect(suggestedSettingKeysForVariant('multiple_choice')).not.toContain('case_sensitive');
+    expect(suggestedSettingKeysForVariant('single_choice')).not.toContain('match_case');
+    expect(suggestedSettingKeysForVariant('multiple_choice')).not.toContain('match_case');
   });
 
   it('excludes choice-only settings for a typed question', () => {
-    expect(suggestedSettingKeysForVariant('typed')).not.toContain('shuffle');
+    expect(suggestedSettingKeysForVariant('typed')).not.toContain('shuffle_options');
   });
 
   it('suggests true/false for a boolean key and enum values for an enum key', () => {
-    expect(settingValueSuggestions('shuffle')).toEqual(['true', 'false']);
+    expect(settingValueSuggestions('shuffle_options')).toEqual(['true', 'false']);
     expect(settingValueSuggestions('difficulty')).toEqual(['easy', 'medium', 'hard']);
-    expect(settingValueSuggestions('point')).toEqual([]);
+    expect(settingValueSuggestions('points_correct')).toEqual([]);
   });
 });
 
 describe('settingDefaultValue', () => {
   it('returns the boolean/enum/number default as a string', () => {
-    expect(settingDefaultValue('shuffle')).toBe('false');
-    expect(settingDefaultValue('option_display')).toBe('list');
-    expect(settingDefaultValue('point')).toBe('1');
+    expect(settingDefaultValue('shuffle_options')).toBe('false');
+    expect(settingDefaultValue('options_layout')).toBe('list');
+    expect(settingDefaultValue('points_correct')).toBe('1');
   });
 
   it('returns an empty string for a setting with no real default', () => {
     expect(settingDefaultValue('min_answers')).toBe('');
-    expect(settingDefaultValue('numeric_tolerance')).toBe('');
+    expect(settingDefaultValue('number_tolerance')).toBe('');
   });
 
   it('reads from the quiz-wide table when passed QUIZ_SETTING_RULES', () => {
@@ -228,8 +230,8 @@ describe('parseQuizScriptQuestion', () => {
     expect(errors.some((e) => /no option marked correct/.test(e.message))).toBe(true);
   });
 
-  it('errors when numeric_tolerance and fuzzy_tolerance are both set', () => {
-    const source = ['typed: q', '{', '=a', '}', ':numeric_tolerance=1', ':fuzzy_tolerance=10'].join(
+  it('errors when number_tolerance and typo_tolerance are both set', () => {
+    const source = ['typed: q', '{', '=a', '}', ':number_tolerance=1', ':typo_tolerance=10'].join(
       '\n'
     );
     const { errors } = parseQuizScriptQuestion(source);
@@ -237,20 +239,20 @@ describe('parseQuizScriptQuestion', () => {
   });
 
   it('errors when a typed-only setting is used on a non-typed question', () => {
-    const source = ['Question', '{', '=a', '~b', '}', ':case_sensitive=true'].join('\n');
+    const source = ['Question', '{', '=a', '~b', '}', ':match_case=true'].join('\n');
     const { errors } = parseQuizScriptQuestion(source);
     expect(errors.some((e) => /only applies to typed/.test(e.message))).toBe(true);
   });
 
   it('errors when a choice-only setting is used on a typed question', () => {
-    const source = ['typed: q', '{', '=a', '}', ':shuffle=true'].join('\n');
+    const source = ['typed: q', '{', '=a', '}', ':shuffle_options=true'].join('\n');
     const { errors } = parseQuizScriptQuestion(source);
     expect(
       errors.some((e) => /only applies to single_choice\/multiple_choice/.test(e.message))
     ).toBe(true);
   });
 
-  it('rejects min_answers/max_answers/partial_points on a single_choice question — it can never have "some but not all" or "more than one" selected', () => {
+  it('rejects min_answers/max_answers/partial_credit on a single_choice question — it can never have "some but not all" or "more than one" selected', () => {
     const minSource = ['single_choice: q', '{', '=a', '~b', '}', ':min_answers=1'].join('\n');
     expect(
       parseQuizScriptQuestion(minSource).errors.some((e) =>
@@ -265,7 +267,7 @@ describe('parseQuizScriptQuestion', () => {
       )
     ).toBe(true);
 
-    const partialSource = ['single_choice: q', '{', '=a', '~b', '}', ':partial_points=true'].join(
+    const partialSource = ['single_choice: q', '{', '=a', '~b', '}', ':partial_credit=true'].join(
       '\n'
     );
     expect(
@@ -275,13 +277,13 @@ describe('parseQuizScriptQuestion', () => {
     ).toBe(true);
   });
 
-  it('errors when max_answers is below the number of correct options without partial_points', () => {
+  it('errors when max_answers is below the number of correct options without partial_credit', () => {
     const source = ['Question', '{', '=a', '=b', '~c', '}', ':max_answers=1'].join('\n');
     const { errors } = parseQuizScriptQuestion(source);
     expect(errors.some((e) => /exact match is impossible/.test(e.message))).toBe(true);
   });
 
-  it('allows max_answers below correct-option count when partial_points is set', () => {
+  it('allows max_answers below correct-option count when partial_credit is set', () => {
     const source = [
       'Question',
       '{',
@@ -290,7 +292,7 @@ describe('parseQuizScriptQuestion', () => {
       '~c',
       '}',
       ':max_answers=1',
-      ':partial_points=true'
+      ':partial_credit=true'
     ].join('\n');
     const { errors } = parseQuizScriptQuestion(source);
     expect(errors).toEqual([]);
@@ -531,7 +533,7 @@ describe('character_input parsing', () => {
     expect(parseQuizScriptQuestion(source).errors).toEqual([]);
   });
 
-  it('accepts its own settings (letter_bank, prereveal_mode, prereveal_count, letter_bank_chars)', () => {
+  it('accepts its own settings (letter_bank, letter_reveal, letters_shown_at_start, letter_bank_chars)', () => {
     const source = [
       'character_input: word',
       '{',
@@ -539,16 +541,16 @@ describe('character_input parsing', () => {
       '}',
       ':letter_bank=fixed',
       ':letter_bank_chars=catxyz',
-      ':prereveal_mode=sequence',
-      ':prereveal_count=1'
+      ':letter_reveal=sequence',
+      ':letters_shown_at_start=1'
     ].join('\n');
     const { question, errors } = parseQuizScriptQuestion(source);
     expect(errors).toEqual([]);
     expect(question.settings).toEqual({
       letter_bank: 'fixed',
       letter_bank_chars: 'catxyz',
-      prereveal_mode: 'sequence',
-      prereveal_count: 1
+      letter_reveal: 'sequence',
+      letters_shown_at_start: 1
     });
   });
 
@@ -558,11 +560,11 @@ describe('character_input parsing', () => {
     expect(errors.some((e) => /only applies to character_input/.test(e.message))).toBe(true);
   });
 
-  it('case_sensitive applies to typed only, not character_input — a bank guess has no case to compare', () => {
-    const typedSource = ['typed: q', '{', '=a', '}', ':case_sensitive=true'].join('\n');
+  it('match_case applies to typed only, not character_input — a bank guess has no case to compare', () => {
+    const typedSource = ['typed: q', '{', '=a', '}', ':match_case=true'].join('\n');
     expect(parseQuizScriptQuestion(typedSource).errors).toEqual([]);
 
-    const ciSource = ['character_input: q', '{', '=a', '}', ':case_sensitive=true'].join('\n');
+    const ciSource = ['character_input: q', '{', '=a', '}', ':match_case=true'].join('\n');
     expect(
       parseQuizScriptQuestion(ciSource).errors.some((e) => /only applies to typed/.test(e.message))
     ).toBe(true);
@@ -605,48 +607,40 @@ describe('setting interactions', () => {
     expect(parseQuizScriptQuestion(source).errors).toEqual([]);
   });
 
-  it("points_to_win and percentage_points_to_win can't both be set on the same quiz", () => {
+  it("points_to_win and percent_to_win can't both be set on the same quiz", () => {
     // points_to_win always wins (see gradeRun) — setting both silently drops the percentage one,
-    // which is worth flagging the same way numeric_tolerance/fuzzy_tolerance's conflict is.
-    const source = [
-      '---',
-      'title: T',
-      ':points_to_win=10',
-      ':percentage_points_to_win=90',
-      '---'
-    ].join('\n');
+    // which is worth flagging the same way number_tolerance/typo_tolerance's conflict is.
+    const source = ['---', 'title: T', ':points_to_win=10', ':percent_to_win=90', '---'].join('\n');
     const { errors } = parseQuizScriptFrontmatter(source);
     expect(errors.some((e) => /can't both be set/.test(e.message))).toBe(true);
   });
 
-  it('points_to_win alone, or percentage_points_to_win alone, is fine', () => {
+  it('points_to_win alone, or percent_to_win alone, is fine', () => {
     expect(
       parseQuizScriptFrontmatter(['---', 'title: T', ':points_to_win=10', '---'].join('\n')).errors
     ).toEqual([]);
     expect(
-      parseQuizScriptFrontmatter(
-        ['---', 'title: T', ':percentage_points_to_win=90', '---'].join('\n')
-      ).errors
+      parseQuizScriptFrontmatter(['---', 'title: T', ':percent_to_win=90', '---'].join('\n')).errors
     ).toEqual([]);
   });
 
-  it('timer_mode=per_question or per_quiz requires timer_duration', () => {
+  it('timer_mode=per_question or per_quiz requires timer_seconds', () => {
     for (const mode of ['per_question', 'per_quiz']) {
       const source = ['---', 'title: T', `:timer_mode=${mode}`, '---'].join('\n');
       expect(
         parseQuizScriptFrontmatter(source).errors.some((e) =>
-          /"timer_duration" is required/.test(e.message)
+          /"timer_seconds" is required/.test(e.message)
         )
       ).toBe(true);
     }
   });
 
-  it('timer_mode=per_quiz with timer_duration is fine regardless of reveal_answers/reveal_scores', () => {
+  it('timer_mode=per_quiz with timer_seconds is fine regardless of reveal_answers/reveal_scores', () => {
     const source = [
       '---',
       'title: T',
       ':timer_mode=per_quiz',
-      ':timer_duration=60',
+      ':timer_seconds=60',
       ':reveal_answers=at_end',
       ':reveal_scores=at_end',
       '---'
@@ -659,7 +653,7 @@ describe('setting interactions', () => {
       '---',
       'title: T',
       ':timer_mode=per_question',
-      ':timer_duration=30',
+      ':timer_seconds=30',
       ':reveal_answers=at_end',
       ':reveal_scores=at_end',
       '---'
@@ -672,33 +666,29 @@ describe('setting interactions', () => {
   });
 
   it('timer_mode=per_question is fine when reveal_answers/reveal_scores default to after_every_question', () => {
-    const source = [
-      '---',
-      'title: T',
-      ':timer_mode=per_question',
-      ':timer_duration=30',
-      '---'
-    ].join('\n');
+    const source = ['---', 'title: T', ':timer_mode=per_question', ':timer_seconds=30', '---'].join(
+      '\n'
+    );
     expect(parseQuizScriptFrontmatter(source).errors).toEqual([]);
   });
 
-  it('intermediate_screen_duration requires show_intermediate_screen to not be false', () => {
+  it('reveal_screen_seconds requires show_reveal_screen to not be false', () => {
     const source = [
       '---',
       'title: T',
-      ':intermediate_screen_duration=5',
-      ':show_intermediate_screen=false',
+      ':reveal_screen_seconds=5',
+      ':show_reveal_screen=false',
       '---'
     ].join('\n');
     expect(
       parseQuizScriptFrontmatter(source).errors.some((e) =>
-        /"intermediate_screen_duration" can't be set/.test(e.message)
+        /"reveal_screen_seconds" can't be set/.test(e.message)
       )
     ).toBe(true);
   });
 
-  it('intermediate_screen_duration alone (show_intermediate_screen defaulting true) is fine', () => {
-    const source = ['---', 'title: T', ':intermediate_screen_duration=5', '---'].join('\n');
+  it('reveal_screen_seconds alone (show_reveal_screen defaulting true) is fine', () => {
+    const source = ['---', 'title: T', ':reveal_screen_seconds=5', '---'].join('\n');
     expect(parseQuizScriptFrontmatter(source).errors).toEqual([]);
   });
 });
@@ -719,7 +709,7 @@ describe('serializeQuizScriptQuestion round-trips through parseQuizScriptQuestio
     ],
     [
       'typed with settings',
-      ['typed: Capital of France?', '{', '=Paris', '}', ':fuzzy_tolerance=15'].join('\n')
+      ['typed: Capital of France?', '{', '=Paris', '}', ':typo_tolerance=15'].join('\n')
     ],
     [
       'character_input with bracket pre-reveal and settings',
@@ -729,8 +719,8 @@ describe('serializeQuizScriptQuestion round-trips through parseQuizScriptQuestio
         '=[P]a[r]is',
         '}',
         ':letter_bank=alphabet',
-        ':prereveal_mode=sequence',
-        ':penalty=-1'
+        ':letter_reveal=sequence',
+        ':points_wrong=-1'
       ].join('\n')
     ],
     ['weighted options', ['Pick', '{', '=Four %4%', '~Five %-1%', '}'].join('\n')],
@@ -795,7 +785,7 @@ describe('parseQuizScriptFrontmatter / serializeQuizScriptFrontmatter', () => {
       'description: A quiz about the world',
       'category: geography',
       'tags: [easy, fun]',
-      ':max_questions=5',
+      ':questions_per_run=5',
       '---'
     ].join('\n');
     const { frontmatter, errors } = parseQuizScriptFrontmatter(source);
@@ -805,7 +795,7 @@ describe('parseQuizScriptFrontmatter / serializeQuizScriptFrontmatter', () => {
       description: 'A quiz about the world',
       category: 'geography',
       tags: ['easy', 'fun'],
-      settings: { max_questions: 5 }
+      settings: { questions_per_run: 5 }
     });
   });
 
@@ -814,10 +804,10 @@ describe('parseQuizScriptFrontmatter / serializeQuizScriptFrontmatter', () => {
     expect(errors.some((e) => /must start with/.test(e.message))).toBe(true);
   });
 
-  it('errors when show_intermediate_screen=false conflicts with the default reveal_answers', () => {
-    const source = ['---', 'title: Q', ':show_intermediate_screen=false', '---'].join('\n');
+  it('errors when show_reveal_screen=false conflicts with the default reveal_answers', () => {
+    const source = ['---', 'title: Q', ':show_reveal_screen=false', '---'].join('\n');
     const { errors } = parseQuizScriptFrontmatter(source);
-    expect(errors.some((e) => /show_intermediate_screen/.test(e.message))).toBe(true);
+    expect(errors.some((e) => /show_reveal_screen/.test(e.message))).toBe(true);
   });
 
   it('round-trips through serializeQuizScriptFrontmatter', () => {
@@ -827,7 +817,7 @@ describe('parseQuizScriptFrontmatter / serializeQuizScriptFrontmatter', () => {
       'description: A quiz about the world',
       'category: geography',
       'tags: [easy, fun]',
-      ':max_questions=5',
+      ':questions_per_run=5',
       '---'
     ].join('\n');
     const first = parseQuizScriptFrontmatter(source);
@@ -915,5 +905,81 @@ describe('serializeQuizScript', () => {
         'Q2 body'
       ].join('\n\n')
     );
+  });
+});
+
+describe('resolveQuestionSettings (quiz-wide defaults)', () => {
+  function question(overrides: Partial<QuizScriptQuestion> = {}): QuizScriptQuestion {
+    return {
+      variant: 'multiple_choice',
+      text: 'q',
+      media: [],
+      options: [],
+      extras: [],
+      settings: {},
+      ...overrides
+    };
+  }
+
+  it('inherits a quiz-wide default onto a question that does not set it', () => {
+    const resolved = resolveQuestionSettings(question(), { shuffle_options: true });
+    expect(resolved.shuffle_options).toBe(true);
+  });
+
+  it("the question's own value always wins over the quiz-wide one", () => {
+    const resolved = resolveQuestionSettings(question({ settings: { shuffle_options: false } }), {
+      shuffle_options: true
+    });
+    expect(resolved.shuffle_options).toBe(false);
+  });
+
+  it('ignores quiz-only settings, which are not per-question defaults at all', () => {
+    const resolved = resolveQuestionSettings(question(), {
+      points_to_win: 10,
+      timer_mode: 'per_quiz'
+    });
+    expect(resolved).toEqual({});
+  });
+
+  it('only inherits a setting that applies to this variant', () => {
+    // letter_bank is character_input-only: it reaches that variant and no other, so a quiz can set
+    // it once without it landing on questions that would have rejected it if authored directly.
+    const quizWide = { letter_bank: 'auto' };
+    expect(resolveQuestionSettings(question({ variant: 'character_input' }), quizWide)).toEqual({
+      letter_bank: 'auto'
+    });
+    expect(resolveQuestionSettings(question({ variant: 'typed' }), quizWide)).toEqual({});
+  });
+
+  it('does not inherit the per-question-only counts, which mean nothing quiz-wide', () => {
+    const resolved = resolveQuestionSettings(question(), { min_answers: 2, max_answers: 3 });
+    expect(resolved).toEqual({});
+  });
+
+  it('accepts an inheritable key in the frontmatter, and still rejects a per-question-only one', () => {
+    expect(validateSettingValue('shuffle_options', 'true', QUIZ_FRONTMATTER_RULES)).toEqual({
+      value: true
+    });
+    expect(validateSettingValue('max_answers', '2', QUIZ_FRONTMATTER_RULES).error).toMatch(
+      /not a recognized setting/
+    );
+  });
+
+  it('parses inheritable settings out of a real frontmatter block', () => {
+    const source = [
+      '---',
+      'title: T',
+      ':shuffle_options=true',
+      ':points_correct=3',
+      '---',
+      '',
+      'q',
+      '{',
+      '=a',
+      '}'
+    ].join('\n');
+    const { frontmatter, errors } = parseQwizFile(source);
+    expect(errors).toEqual([]);
+    expect(frontmatter.settings).toEqual({ shuffle_options: true, points_correct: 3 });
   });
 });

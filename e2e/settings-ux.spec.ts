@@ -42,7 +42,7 @@ test('a numeric/string setting (no fixed value set) gets no dropdown, and no def
   await builder.gotoCreate();
 
   await builder.addSettingButton(0).click();
-  await builder.settingKeySelect(0).selectOption('max_questions');
+  await builder.settingKeySelect(0).selectOption('questions_per_run');
 
   const value = builder.settingValueInput(0);
   await expect(value).toHaveValue('');
@@ -84,7 +84,7 @@ test('a long question, its options, settings, and elements never overflow the vi
   // button — always present regardless of row count). No quiz-wide row was added in this test,
   // so the question's is the only settings ROW on the page, at select index 0.
   await builder.addSettingButton(1).click();
-  await builder.settingKeySelect(0).selectOption('option_display');
+  await builder.settingKeySelect(0).selectOption('options_layout');
 
   await page.getByRole('button', { name: 'Add reveal' }).click();
   await page.getByRole('button', { name: 'Add image' }).click();

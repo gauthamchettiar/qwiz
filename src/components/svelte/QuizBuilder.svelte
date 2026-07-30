@@ -6,7 +6,7 @@
   import { deleteQuiz, saveQuiz } from '@/lib/stores/quizzes';
   import { downloadTextFile, slugify } from '@/lib/utils/download';
   import {
-    QUIZ_SETTING_RULES,
+    QUIZ_FRONTMATTER_RULES,
     QUIZ_SUGGESTED_SETTING_KEYS,
     parseQuizScriptFrontmatter,
     parseQuizScriptQuestion,
@@ -56,7 +56,7 @@
     Object.fromEntries(
       settingsList
         .filter((s) => s.key.trim() !== '')
-        .map((s) => [s.key, validateSettingValue(s.key, s.value, QUIZ_SETTING_RULES).value])
+        .map((s) => [s.key, validateSettingValue(s.key, s.value, QUIZ_FRONTMATTER_RULES).value])
     )
   );
   let tagDraft = $state('');
@@ -209,7 +209,7 @@
    * value, but only when the row's value is genuinely still blank. */
   function selectSettingKey(setting: { key: string; value: string }) {
     if (setting.value.trim() === '')
-      setting.value = settingDefaultValue(setting.key, QUIZ_SETTING_RULES);
+      setting.value = settingDefaultValue(setting.key, QUIZ_FRONTMATTER_RULES);
   }
 
   // --- Question editing: view / code / form -------------------------------------------------
@@ -570,7 +570,7 @@
           {#each QUIZ_SUGGESTED_SETTING_KEYS as key (key)}
             <span class="inline-flex items-center gap-0.5">
               {key}
-              <SettingHelp {key} rules={QUIZ_SETTING_RULES} />
+              <SettingHelp {key} rules={QUIZ_FRONTMATTER_RULES} />
             </span>
           {/each}
         </div>
@@ -717,7 +717,7 @@
           {#each QUIZ_SUGGESTED_SETTING_KEYS as key (key)}
             <span class="inline-flex items-center gap-0.5 font-normal text-slate-500">
               {key}
-              <SettingHelp {key} rules={QUIZ_SETTING_RULES} />
+              <SettingHelp {key} rules={QUIZ_FRONTMATTER_RULES} />
             </span>
           {/each}
         </div>
@@ -725,9 +725,9 @@
           {@const usedElsewhere = settingsList
             .filter((s) => s._key !== setting._key)
             .map((s) => s.key)}
-          {@const valueSuggestions = settingValueSuggestions(setting.key, QUIZ_SETTING_RULES)}
+          {@const valueSuggestions = settingValueSuggestions(setting.key, QUIZ_FRONTMATTER_RULES)}
           {@const validation = setting.key.trim()
-            ? validateSettingValue(setting.key, setting.value, QUIZ_SETTING_RULES)
+            ? validateSettingValue(setting.key, setting.value, QUIZ_FRONTMATTER_RULES)
             : null}
           <div class="flex flex-wrap items-center gap-1.5">
             <select
@@ -748,7 +748,7 @@
               class="min-w-[6rem] flex-1"
             />
             {#if setting.key.trim()}
-              <SettingHelp key={setting.key} rules={QUIZ_SETTING_RULES} />
+              <SettingHelp key={setting.key} rules={QUIZ_FRONTMATTER_RULES} />
             {/if}
             <button
               type="button"
@@ -782,6 +782,7 @@
   {#each questions as question (question.id)}
     <QuestionCard
       {question}
+      {quizSettings}
       mode={activeEdit?.kind === 'question' && activeEdit.questionId === question.id
         ? activeEdit.mode
         : 'view'}

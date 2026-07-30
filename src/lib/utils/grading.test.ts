@@ -90,8 +90,8 @@ describe('effectivePoints', () => {
   });
 
   it('falls back to the question-level point/penalty setting', () => {
-    expect(effectivePoints({ correct: true, points: undefined }, { point: 3 })).toBe(3);
-    expect(effectivePoints({ correct: false, points: undefined }, { penalty: -1 })).toBe(-1);
+    expect(effectivePoints({ correct: true, points: undefined }, { points_correct: 3 })).toBe(3);
+    expect(effectivePoints({ correct: false, points: undefined }, { points_wrong: -1 })).toBe(-1);
   });
 
   it('defaults to 1 for a correct option and 0 for an incorrect one', () => {
@@ -110,19 +110,19 @@ describe('gradeQuestion (choice)', () => {
     expect(gradeQuestion(q, new Set(), new Set())).toEqual({ earned: 0, max: 1 });
   });
 
-  it('partial_points mode: each selected option scores independently', () => {
+  it('partial_credit mode: each selected option scores independently', () => {
     const q = makeQuestion({
       options: [textOption('a', true, 2), textOption('b', true, 3), textOption('c', false, -1)],
-      settings: { partial_points: true }
+      settings: { partial_credit: true }
     });
     expect(gradeQuestion(q, new Set([0]), new Set())).toEqual({ earned: 2, max: 5 });
     expect(gradeQuestion(q, new Set([2]), new Set())).toEqual({ earned: -1, max: 5 });
   });
 
-  it('partial_points mode caps the achievable max at max_answers', () => {
+  it('partial_credit mode caps the achievable max at max_answers', () => {
     const q = makeQuestion({
       options: [textOption('a', true, 1), textOption('b', true, 1), textOption('c', true, 1)],
-      settings: { partial_points: true, max_answers: 2 }
+      settings: { partial_credit: true, max_answers: 2 }
     });
     // 3 correct options worth 1 each, but only 2 can ever be selected at once.
     expect(gradeQuestion(q, new Set([0, 1]), new Set())).toEqual({ earned: 2, max: 2 });
@@ -141,23 +141,23 @@ describe('gradeQuestion (choice)', () => {
 });
 
 describe('choiceOptionsLayoutClass', () => {
-  it('defaults to a one-per-row list when option_display is unset', () => {
+  it('defaults to a one-per-row list when options_layout is unset', () => {
     const q = makeQuestion();
     expect(choiceOptionsLayoutClass(q)).toBe('space-y-2');
   });
 
   it('grid2x2 is a fixed 2-column grid', () => {
-    const q = makeQuestion({ settings: { option_display: 'grid2x2' } });
+    const q = makeQuestion({ settings: { options_layout: 'grid2x2' } });
     expect(choiceOptionsLayoutClass(q)).toBe('grid grid-cols-2 gap-2');
   });
 
   it('grid3x3 is 2 columns on narrow screens, 3 on wider ones', () => {
-    const q = makeQuestion({ settings: { option_display: 'grid3x3' } });
+    const q = makeQuestion({ settings: { options_layout: 'grid3x3' } });
     expect(choiceOptionsLayoutClass(q)).toBe('grid grid-cols-2 sm:grid-cols-3 gap-2');
   });
 
-  it('option_display=list is the same as unset', () => {
-    const q = makeQuestion({ settings: { option_display: 'list' } });
+  it('options_layout=list is the same as unset', () => {
+    const q = makeQuestion({ settings: { options_layout: 'list' } });
     expect(choiceOptionsLayoutClass(q)).toBe('space-y-2');
   });
 });
@@ -177,8 +177,8 @@ describe('normalizeTypedAnswer', () => {
     expect(normalizeTypedAnswer('café', settings)).toBe('cafe');
   });
 
-  it('respects case_sensitive', () => {
-    expect(normalizeTypedAnswer('Paris', { case_sensitive: true })).toBe('Paris');
+  it('respects match_case', () => {
+    expect(normalizeTypedAnswer('Paris', { match_case: true })).toBe('Paris');
   });
 });
 
@@ -213,32 +213,30 @@ describe('isTypedMatch', () => {
     expect(isTypedMatch('   ', 'paris', {})).toBe(false);
   });
 
-  it('numeric_tolerance allows an approximate numeric match', () => {
-    expect(isTypedMatch('3.4', '3', { numeric_tolerance: 0.5 })).toBe(true);
-    expect(isTypedMatch('3.6', '3', { numeric_tolerance: 0.5 })).toBe(false);
+  it('number_tolerance allows an approximate numeric match', () => {
+    expect(isTypedMatch('3.4', '3', { number_tolerance: 0.5 })).toBe(true);
+    expect(isTypedMatch('3.6', '3', { number_tolerance: 0.5 })).toBe(false);
   });
 
-  it('numeric_tolerance falls back to text comparison when either side is not numeric', () => {
-    expect(isTypedMatch('three', 'three', { numeric_tolerance: 0.5 })).toBe(true);
+  it('number_tolerance falls back to text comparison when either side is not numeric', () => {
+    expect(isTypedMatch('three', 'three', { number_tolerance: 0.5 })).toBe(true);
   });
 
-  it('fuzzy_tolerance allows a bounded edit distance as a percentage of answer length', () => {
+  it('typo_tolerance allows a bounded edit distance as a percentage of answer length', () => {
     // "pari" vs "paris": edit distance 1, allowed = round(20% * 5) = 1
-    expect(isTypedMatch('pari', 'paris', { fuzzy_tolerance: 20 })).toBe(true);
-    expect(isTypedMatch('pa', 'paris', { fuzzy_tolerance: 20 })).toBe(false);
+    expect(isTypedMatch('pari', 'paris', { typo_tolerance: 20 })).toBe(true);
+    expect(isTypedMatch('pa', 'paris', { typo_tolerance: 20 })).toBe(false);
   });
 
-  it('case_sensitive changes what fuzzy_tolerance actually compares — case differences count as edit distance', () => {
+  it('match_case changes what typo_tolerance actually compares — case differences count as edit distance', () => {
     // "PARIS" vs "Paris": identical case-insensitively (distance 0), but every letter differs in
-    // case once case_sensitive is on (distance 4) — enough to fall outside a 20% tolerance (1).
-    expect(isTypedMatch('PARIS', 'Paris', { fuzzy_tolerance: 20 })).toBe(true);
-    expect(isTypedMatch('PARIS', 'Paris', { case_sensitive: true, fuzzy_tolerance: 20 })).toBe(
-      false
-    );
+    // case once match_case is on (distance 4) — enough to fall outside a 20% tolerance (1).
+    expect(isTypedMatch('PARIS', 'Paris', { typo_tolerance: 20 })).toBe(true);
+    expect(isTypedMatch('PARIS', 'Paris', { match_case: true, typo_tolerance: 20 })).toBe(false);
   });
 
-  it('numeric_tolerance ignores case_sensitive entirely — numbers have no case', () => {
-    expect(isTypedMatch('3', '3', { numeric_tolerance: 0.5, case_sensitive: true })).toBe(true);
+  it('number_tolerance ignores match_case entirely — numbers have no case', () => {
+    expect(isTypedMatch('3', '3', { number_tolerance: 0.5, match_case: true })).toBe(true);
   });
 });
 
@@ -299,7 +297,7 @@ describe('gradeTypedQuestion', () => {
     const q = makeQuestion({
       variant: 'typed',
       options: [textOption('paris', true, 2), textOption('lyon', true, 3)],
-      settings: { max_answers: 2, partial_points: true, penalty: -1 }
+      settings: { max_answers: 2, partial_credit: true, points_wrong: -1 }
     });
     expect(gradeTypedQuestion(q, ['paris', 'nope'], new Set())).toEqual({ earned: 1, max: 5 });
   });
@@ -350,7 +348,7 @@ describe('gradeCharacterInputQuestion', () => {
     const q = makeQuestion({
       variant: 'character_input',
       options: [characterInputOption('cat')],
-      settings: { penalty: -2 }
+      settings: { points_wrong: -2 }
     });
     const draft = {
       ...blankDraft(),
@@ -371,7 +369,7 @@ describe('gradeCharacterInputQuestion', () => {
     expect(gradeCharacterInputQuestion(q, blankDraft()).max).toBe(7);
   });
 
-  it("extraPrerevealed (prereveal_count's resolved picks) also excludes from earned/max", () => {
+  it("extraPrerevealed (letters_shown_at_start's resolved picks) also excludes from earned/max", () => {
     const q = makeQuestion({ variant: 'character_input', options: [characterInputOption('cat')] });
     const draft = { ...blankDraft(), extraPrerevealed: new Set([0]) }; // pre-reveals "c"
     expect(gradeCharacterInputQuestion(q, draft).max).toBe(2); // a, t only
@@ -396,11 +394,11 @@ describe('gradeOrderQuestion', () => {
     expect(gradeOrderQuestion(q, [0, null, null], new Set())).toEqual({ earned: 0, max: 3 });
   });
 
-  it('partial_points: each correctly-placed slot scores independently', () => {
+  it('partial_credit: each correctly-placed slot scores independently', () => {
     const partial = makeQuestion({
       variant: 'order',
       options: q.options,
-      settings: { partial_points: true }
+      settings: { partial_credit: true }
     });
     expect(gradeOrderQuestion(partial, [0, 2, 1], new Set())).toEqual({ earned: 1, max: 3 });
   });
@@ -409,7 +407,7 @@ describe('gradeOrderQuestion', () => {
     const weighted = makeQuestion({
       variant: 'order',
       options: [textOption('First', true, 5), textOption('Second', true)],
-      settings: { point: 2, partial_points: true }
+      settings: { points_correct: 2, partial_credit: true }
     });
     // slot 0 correct (weight 5), slot 1 wrong (point default 2, not earned).
     expect(gradeOrderQuestion(weighted, [0, null], new Set())).toEqual({ earned: 5, max: 7 });
@@ -447,11 +445,11 @@ describe('gradeMatchQuestion', () => {
     expect(gradeMatchQuestion(q, pairs, new Set())).toEqual({ earned: 0, max: 2 });
   });
 
-  it('partial_points: each correct pair scores independently', () => {
+  it('partial_credit: each correct pair scores independently', () => {
     const partial = makeQuestion({
       variant: 'match',
       options: q.options,
-      settings: { partial_points: true }
+      settings: { partial_credit: true }
     });
     const pairs = new Map([
       [0, 0],
@@ -491,11 +489,11 @@ describe('gradeCategoriseQuestion', () => {
     expect(gradeCategoriseQuestion(q, assignments, new Set())).toEqual({ earned: 0, max: 3 }); // exact match fails
   });
 
-  it('partial_points: each correctly-bucketed item scores independently', () => {
+  it('partial_credit: each correctly-bucketed item scores independently', () => {
     const partial = makeQuestion({
       variant: 'categorise',
       options: q.options,
-      settings: { partial_points: true }
+      settings: { partial_credit: true }
     });
     const assignments = new Map([
       [0, 0],
@@ -542,12 +540,12 @@ describe('gradeFillInBlanksQuestion', () => {
     });
   });
 
-  it('partial_points: each correct blank scores independently', () => {
+  it('partial_credit: each correct blank scores independently', () => {
     const partial = makeQuestion({
       variant: 'fill_in_blanks',
       text: q.text,
       options: q.options,
-      settings: { partial_points: true }
+      settings: { partial_credit: true }
     });
     expect(gradeFillInBlanksQuestion(partial, ['mitochondria', ''], new Set())).toEqual({
       earned: 1,
@@ -560,7 +558,7 @@ describe('gradeFillInBlanksQuestion', () => {
       variant: 'fill_in_blanks',
       text: q.text,
       options: q.options,
-      settings: { blank_input: 'type' }
+      settings: { answer_mode: 'type' }
     });
     expect(gradeFillInBlanksQuestion(typedMode, ['  MITOCHONDRIA ', 'Cell'], new Set())).toEqual({
       earned: 2,
@@ -568,12 +566,12 @@ describe('gradeFillInBlanksQuestion', () => {
     });
   });
 
-  it('type mode: fuzzy_tolerance forgives a typo, same as a typed question', () => {
+  it('type mode: typo_tolerance forgives a typo, same as a typed question', () => {
     const fuzzy = makeQuestion({
       variant: 'fill_in_blanks',
       text: q.text,
       options: q.options,
-      settings: { blank_input: 'type', fuzzy_tolerance: 20 }
+      settings: { answer_mode: 'type', typo_tolerance: 20 }
     });
     expect(gradeFillInBlanksQuestion(fuzzy, ['mitochondri', 'cell'], new Set())).toEqual({
       earned: 2,
@@ -645,7 +643,7 @@ describe('characterInputLetterBank', () => {
 });
 
 describe('characterInputRevealPositionsAfterGuess / characterInputLetterFullyRevealed', () => {
-  it('prereveal_mode=all reveals every occurrence at once', () => {
+  it('letter_reveal=all reveals every occurrence at once', () => {
     const q = makeQuestion({
       variant: 'character_input',
       options: [characterInputOption('letter')]
@@ -655,11 +653,11 @@ describe('characterInputRevealPositionsAfterGuess / characterInputLetterFullyRev
     expect(characterInputLetterFullyRevealed(q, revealed, 'e')).toBe(true);
   });
 
-  it('prereveal_mode=sequence reveals one occurrence per guess, in order', () => {
+  it('letter_reveal=sequence reveals one occurrence per guess, in order', () => {
     const q = makeQuestion({
       variant: 'character_input',
       options: [characterInputOption('letter')],
-      settings: { prereveal_mode: 'sequence' }
+      settings: { letter_reveal: 'sequence' }
     });
     const first = characterInputRevealPositionsAfterGuess(q, new Set(), 'e');
     expect(first).toEqual(new Set([1]));
@@ -708,18 +706,18 @@ describe('characterInputPrerevealedPositions', () => {
 });
 
 describe('resolveExtraPrereveal', () => {
-  it('resolves exactly prereveal_count positions, excluding bracket-marked ones', () => {
+  it('resolves exactly letters_shown_at_start positions, excluding bracket-marked ones', () => {
     const q = makeQuestion({
       variant: 'character_input',
       options: [characterInputOption('Paris', [0])],
-      settings: { prereveal_count: 2 }
+      settings: { letters_shown_at_start: 2 }
     });
     const extra = resolveExtraPrereveal(q);
     expect(extra.size).toBe(2);
     expect(extra.has(0)).toBe(false); // already bracket-marked, never re-picked
   });
 
-  it('defaults to nothing when prereveal_count is not set', () => {
+  it('defaults to nothing when letters_shown_at_start is not set', () => {
     const q = makeQuestion({
       variant: 'character_input',
       options: [characterInputOption('Paris')]
@@ -745,7 +743,7 @@ describe('isDraftComplete', () => {
     const q = makeQuestion({
       variant: 'typed',
       options: [textOption('ab', true)],
-      settings: { input_display: 'boxes' }
+      settings: { typed_input: 'boxes' }
     });
     expect(isDraftComplete(q, { ...blankDraft(), boxChars: ['a', ''] })).toBe(false);
     expect(isDraftComplete(q, { ...blankDraft(), boxChars: ['a', 'b'] })).toBe(true);
@@ -786,15 +784,15 @@ describe('gradeDraft / questionMaxPoints', () => {
 });
 
 describe('buildPlayRun', () => {
-  it('preserves every question when max_questions is not set', () => {
+  it('preserves every question when questions_per_run is not set', () => {
     const questions = [makeQuestion(), makeQuestion(), makeQuestion()];
     const run = buildPlayRun(questions, {});
     expect(run).toHaveLength(3);
   });
 
-  it('caps the run at max_questions when the bank is larger', () => {
+  it('caps the run at questions_per_run when the bank is larger', () => {
     const questions = [makeQuestion(), makeQuestion(), makeQuestion(), makeQuestion()];
-    const run = buildPlayRun(questions, { max_questions: 2 });
+    const run = buildPlayRun(questions, { questions_per_run: 2 });
     expect(run).toHaveLength(2);
   });
 
@@ -808,7 +806,7 @@ describe('buildPlayRun', () => {
 });
 
 describe('gradeRun', () => {
-  it('wins by percentage_points_to_win (default 75) when points_to_win is not set', () => {
+  it('wins by percent_to_win (default 75) when points_to_win is not set', () => {
     const settings: QuizScriptSettings = {};
     expect(gradeRun([{ earned: 3, max: 4 }], settings).won).toBe(true); // 75%
     expect(gradeRun([{ earned: 2, max: 4 }], settings).won).toBe(false); // 50%
@@ -868,7 +866,7 @@ describe('draftFromAnswer', () => {
     const q = makeQuestion({
       variant: 'typed',
       options: [textOption('new york', true)],
-      settings: { input_display: 'boxes' }
+      settings: { typed_input: 'boxes' }
     });
     const draft = { ...blankDraft(), boxChars: ['n', 'e', 'w', 'y', 'o', 'r', 'k'] };
     roundTrips(q, draft);
@@ -911,7 +909,7 @@ describe('draftFromAnswer', () => {
     const q = makeQuestion({
       variant: 'order',
       options: [textOption('first', true), textOption('second', true), textOption('third', true)],
-      settings: { partial_points: true }
+      settings: { partial_credit: true }
     });
     // The regression this specifically guards: recording only the non-null entries turned
     // [null, 1, null] into [1], which replays as "option 1 placed in slot 0" — a wrong answer

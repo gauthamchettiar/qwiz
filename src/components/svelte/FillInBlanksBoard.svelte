@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { CircleCheck, CircleX } from '@lucide/svelte';
+  import { CircleCheck, CircleX, GripVertical } from '@lucide/svelte';
   import type { QuizScriptOption } from '@/lib/utils/quizScript';
   import { draggable, type DragState } from '@/lib/utils/dragDrop';
 
   // Presentation-only fill_in_blanks board: the question text split on "___" with an interactive
   // blank widget dropped in at each split point — all fill/pick logic lives in the caller
   // (QuestionPlayer.svelte), same division of responsibility as OrderBoard.svelte/etc. In
-  // `mode="bank"`, blanks are picked-and-placed the same tap-then-tap way as order/match/
+  // `mode="pick"`, blanks are picked-and-placed the same tap-then-tap way as order/match/
   // categorise (or dragged — see lib/utils/dragDrop.ts); in `mode="type"` each blank is a plain
   // inline text input, no bank involved.
   //
@@ -48,7 +48,7 @@
     answerOptions: QuizScriptOption[];
     /** bank mode only: the original option index of the bank word currently picked up. */
     picked: number | null;
-    mode: 'bank' | 'type';
+    mode: 'pick' | 'type';
     locked?: boolean;
     revealAnswers?: boolean;
     onPickBankWord: (optionIndex: number) => void;
@@ -88,7 +88,7 @@
     return 'border-dashed border-slate-300';
   }
 
-  /** Same, for `blank_input=type`'s inline text inputs. */
+  /** Same, for `answer_mode=type`'s inline text inputs. */
   function typedBlankTone(blankIndex: number): string {
     if (locked && revealAnswers) {
       return isBlankCorrect(blankIndex)
@@ -146,7 +146,7 @@
             <!-- The visible face is the word (or "___"), but the accessible NAME is the aria-label
                  above: "underscore underscore underscore, button" tells a screen reader user
                  nothing about which blank they're on or whether it's already answered. Matches how
-                 `blank_input=type` labels its inputs "Blank N". -->
+                 `answer_mode=type` labels its inputs "Blank N". -->
             {blankAnswers[i] || '___'}
             {#if locked && revealAnswers && blankAnswers[i]}
               {#if isBlankCorrect(i)}
@@ -159,7 +159,7 @@
         {/if}{/if}{/each}
   </p>
 
-  {#if mode === 'bank'}
+  {#if mode === 'pick'}
     <!-- Also a drop zone, so a filled blank can be dragged back here to empty it. -->
     <div
       data-drop-group={BLANK_GROUP}
@@ -186,7 +186,7 @@
               onDragChange: (state) => (wordDrag = state),
               onDrop: onDropWord
             }}
-            class="rounded-md border p-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 {picked ===
+            class="inline-flex items-center gap-1.5 rounded-md border p-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 {picked ===
             optionIndex
               ? 'border-indigo-400 bg-indigo-50'
               : 'border-slate-300 bg-white hover:bg-slate-50'} {wordDrag?.id === optionIndex
@@ -196,6 +196,11 @@
             onclick={() => onPickBankWord(optionIndex)}
             aria-pressed={picked === optionIndex}
           >
+            <!-- The same grip the other three boards put on their draggable items. Without it, a
+                 bank word was the only draggable thing in the app that didn't say so. -->
+            {#if !locked && !used}
+              <GripVertical size={13} class="shrink-0 text-slate-400" />
+            {/if}
             {optionText}
           </button>
         {/each}

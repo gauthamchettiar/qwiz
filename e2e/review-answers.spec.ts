@@ -134,7 +134,7 @@ test('a partly-placed order answer keeps its empty slots on the Review screen', 
 }) => {
   // "Reveal at the end" mode, which is the one path that grades a question the player never
   // finished: its final Submit grades every draft as-is rather than gating on completeness the way
-  // a per-question Submit does. partial_points so the one correctly-placed slot still scores.
+  // a per-question Submit does. partial_credit so the one correctly-placed slot still scores.
   const quiz = buildQuiz({
     title: 'Partial order',
     settings: {
@@ -152,7 +152,7 @@ test('a partly-placed order answer keeps its empty slots on the Review screen', 
           '=Second',
           '=Third',
           '}',
-          ':partial_points=true'
+          ':partial_credit=true'
         ].join('\n')
       }
     ]

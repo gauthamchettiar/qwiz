@@ -79,8 +79,8 @@ test('type mode: typed answers are matched with the same tolerances a typed ques
           '=cell',
           '~nucleus',
           '}',
-          ':blank_input=type',
-          ':fuzzy_tolerance=15'
+          ':answer_mode=type',
+          ':typo_tolerance=15'
         ].join('\n')
       }
     ]
@@ -90,7 +90,7 @@ test('type mode: typed answers are matched with the same tolerances a typed ques
   const play = new PlayPage(page);
   await play.goto(quiz.id);
 
-  await page.getByLabel('Blank 1').fill('mitochondri'); // typo, forgiven by fuzzy_tolerance
+  await page.getByLabel('Blank 1').fill('mitochondri'); // typo, forgiven by typo_tolerance
   await page.getByLabel('Blank 2').fill('CELL'); // case, always ignored by default
 
   await play.submitAnswerButton.click();

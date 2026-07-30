@@ -33,7 +33,7 @@
   let { quiz }: { quiz: Quiz } = $props();
 
   /** "M:SS" for any of this component's three countdowns — seconds alone would get unreadable
-   * past a minute or two, which a `timer_duration` easily is. */
+   * past a minute or two, which a `timer_seconds` easily is. */
   function formatSeconds(totalSeconds: number): string {
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
@@ -69,25 +69,25 @@
   const showScoresAtEnd = $derived(revealScoresSetting !== 'never');
   const locksAnswerImmediately = $derived(showAnswersLive || showScoresLive);
 
-  // `show_score`: a persistent "earned / total" header visible throughout the run, independent of
+  // `show_running_score`: a persistent "earned / total" header visible throughout the run, independent of
   // reveal_scores — the total is always safe to show (a question's max never depends on how it's
   // answered, see `questionMaxPoints`), but the earned side would leak exactly what reveal_scores
   // is trying to hold back if shown for real outside `after_every_question`, so it's masked as "?"
   // there instead of just hiding the whole header. Defaults true — only an explicit `false` turns
   // it off (same "unset/anything else means on" convention `buildPlayRun` already uses for
   // `shuffle_questions`).
-  const showScoreHeader = $derived(quiz.settings.show_score !== false);
+  const showScoreHeader = $derived(quiz.settings.show_running_score !== false);
   const totalMaxPoints = $derived(
     run.reduce((sum, playQuestion) => sum + questionMaxPoints(playQuestion.question), 0)
   );
   const earnedSoFar = $derived(results.reduce((sum, r) => sum + r.earned, 0));
 
-  // `show_intermediate_screen` (default true; forced true whenever `showAnswersLive`, since a
+  // `show_reveal_screen` (default true; forced true whenever `showAnswersLive`, since a
   // correctness reveal needs a real screen — see the parser's own validation): whether submitting
   // a question pauses on its locked reveal screen or skips straight to the next question. Only
   // ever relevant when `showScoresLive` and NOT `showAnswersLive` — that's the sole combination
   // where a live reveal exists but doesn't require a full screen, just a number.
-  const showIntermediateScreen = $derived(quiz.settings.show_intermediate_screen !== false);
+  const showIntermediateScreen = $derived(quiz.settings.show_reveal_screen !== false);
   const skipIntermediateScreen = $derived(
     showScoresLive && !showAnswersLive && !showIntermediateScreen
   );
@@ -144,7 +144,7 @@
 
   // `<QuestionPlayer>` is keyed on `currentIndex` alone (see the template) and owns its own
   // internal draft state once mounted — it never re-reads its `draft` prop after mount (see its
-  // own doc comment on why). `timer_timeout_action=lock_zero` grades a *different*, blank draft
+  // own doc comment on why). `on_timeout=lock_zero` grades a *different*, blank draft
   // than whatever QuestionPlayer's own internal state actually has selected, so without forcing a
   // remount, its reveal screen would keep showing the player's real (ignored-for-scoring)
   // selection instead of the "nothing, zero credit" this setting is supposed to display. Bumped
@@ -215,16 +215,14 @@
     finished = true;
   }
 
-  // `timer_mode`/`timer_duration`/`timer_timeout_action`/`intermediate_screen_duration` — see
+  // `timer_mode`/`timer_seconds`/`on_timeout`/`reveal_screen_seconds` — see
   // QUIZ_SETTING_RULES. `timer_mode=per_question` is only ever set alongside
   // `locksAnswerImmediately` (enforced at parse time — see quizScript.ts), so the per-question
   // timer effect below never needs to re-check that itself.
   const timerMode = $derived(settingString(quiz.settings.timer_mode, 'off'));
-  const timerDuration = $derived(settingNumber(quiz.settings.timer_duration));
-  const timeoutAction = $derived(settingString(quiz.settings.timer_timeout_action, 'auto_submit'));
-  const intermediateScreenDuration = $derived(
-    settingNumber(quiz.settings.intermediate_screen_duration)
-  );
+  const timerDuration = $derived(settingNumber(quiz.settings.timer_seconds));
+  const timeoutAction = $derived(settingString(quiz.settings.on_timeout, 'auto_submit'));
+  const intermediateScreenDuration = $derived(settingNumber(quiz.settings.reveal_screen_seconds));
 
   /** Grades whatever's currently on screen per `timeoutAction` (the real draft for "auto_submit",
    * a blank one for "lock_zero" — zero credit regardless of any partial selection/input) and locks
@@ -317,7 +315,7 @@
     return () => clearInterval(interval);
   });
 
-  // The post-answer reveal screen's own auto-advance countdown (intermediate_screen_duration) —
+  // The post-answer reveal screen's own auto-advance countdown (reveal_screen_seconds) —
   // only ticks while genuinely showing that screen (`locked`, which is never true when
   // `skipIntermediateScreen` short-circuits straight past it) and calls the same `nextQuestion`
   // the button itself uses once it reaches zero, including on the last question (advancing to

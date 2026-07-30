@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /** Quiz-wide `:key=value` settings (see `QUIZ_SETTING_RULES` in quizScript.ts) — points_to_win,
- * percentage_points_to_win, shuffle_questions, max_questions. */
+ * percent_to_win, shuffle_questions, questions_per_run. */
 const quizScriptSettingsSchema = z.record(
   z.string(),
   z.union([z.string(), z.number(), z.boolean()])

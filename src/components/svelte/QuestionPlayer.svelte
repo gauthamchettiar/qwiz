@@ -78,7 +78,7 @@
   const isFillInBlanks = $derived(question.variant === 'fill_in_blanks');
   const fillInBlanksAnswers = $derived(isFillInBlanks ? fillInBlanksAnswerOptions(question) : []);
   const fillInBlanksMode = $derived(
-    question.settings.blank_input === 'type' ? 'type' : ('bank' as const)
+    question.settings.answer_mode === 'type' ? 'type' : ('pick' as const)
   );
 
   // Deliberately captured once, not `$derived` — this component expects a fresh mount per
@@ -97,7 +97,7 @@
   let typedGuesses = $state<string[]>([...seed.typedGuesses]);
   let typedGuessDraft = $state(seed.typedGuessDraft);
   let guessedLetters = $state<Map<string, 'correct' | 'wrong'>>(new Map(seed.guessedLetters));
-  // `extraPrerevealed` (prereveal_count's random extra positions) is resolved once here, at
+  // `extraPrerevealed` (letters_shown_at_start's random extra positions) is resolved once here, at
   // mount, exactly like `boxChars`/`runBoxChars()` above — reused from a persisted draft if one
   // exists, otherwise freshly randomized (which `blankDraft()` deliberately can't do itself, since
   // it has no `question` to resolve against — see QuestionDraft's own doc comment). Routed through
@@ -212,7 +212,7 @@
   // renders as checkboxes, since it's still a "pick from a set" question, just capped at one pick.
   const isSingleSelect = $derived(question.variant === 'single_choice');
   const isMultiGuess = $derived(isTyped && maxAnswers !== undefined && maxAnswers > 1);
-  const isBoxes = $derived(isTyped && question.settings.input_display === 'boxes');
+  const isBoxes = $derived(isTyped && question.settings.typed_input === 'boxes');
   const boxGroups = $derived(isBoxes ? typedBoxGroups(question) : []);
   const boxCount = $derived(isBoxes ? typedBoxCount(question) : 0);
 
@@ -230,9 +230,9 @@
   // A bank letter disables once it can't do anything more: guessed wrong (no more tries), or
   // every one of its occurrences is already revealed — which covers two cases with the same
   // check, since `revealedPositions` starts out equal to the pre-reveal set (bracket/
-  // prereveal_count) and only grows from there: a letter that's entirely pre-revealed disables
+  // letters_shown_at_start) and only grows from there: a letter that's entirely pre-revealed disables
   // from the very first render (nothing left for a click to do), and a correctly-guessed letter
-  // disables once prereveal_mode has finished trickling out all its occurrences (immediately for
+  // disables once letter_reveal has finished trickling out all its occurrences (immediately for
   // `all`; only after enough repeat clicks for `sequence`/`random` on a repeating letter).
   const disabledBankLetters = $derived(
     new Set(
@@ -245,7 +245,7 @@
   );
 
   // Auto-focus the answer field the moment this mounts unlocked — the first box in
-  // `input_display=boxes` mode, otherwise the plain text field. A fresh mount per question (see
+  // `typed_input=boxes` mode, otherwise the plain text field. A fresh mount per question (see
   // the component doc comment above) means this firing once on creation is enough; there's no
   // "question changed under an existing instance" case to also handle.
   $effect(() => {
@@ -418,7 +418,7 @@
     picked = null;
   }
 
-  /** fill_in_blanks (blank_input=bank): a blank holds the literal TEXT of the bank word placed in
+  /** fill_in_blanks (answer_mode=pick): a blank holds the literal TEXT of the bank word placed in
    * it, not its option index — that's what grading compares (see `gradeFillInBlanksQuestion`). */
   function fillBlank(blankIndex: number, optionIndex: number) {
     const option = question.options[optionIndex];
@@ -470,7 +470,7 @@
     picked = null;
   }
 
-  // fill_in_blanks (blank_input=type) — a plain per-blank text input, no picking involved.
+  // fill_in_blanks (answer_mode=type) — a plain per-blank text input, no picking involved.
   function setBlankText(blankIndex: number, value: string) {
     if (isLocked) return;
     const next = [...blankAnswers];
@@ -485,7 +485,7 @@
 
   // A bank-letter click. Three cases: a letter already guessed wrong (no more tries, and the
   // button should already be disabled — this is just a defensive no-op); a letter already guessed
-  // correct but not fully revealed yet (`prereveal_mode=sequence`/`random` on a repeating letter) —
+  // correct but not fully revealed yet (`letter_reveal=sequence`/`random` on a repeating letter) —
   // reveals the next occurrence without re-scoring, since it was already counted on the first
   // correct guess; and a fresh guess, which both records correct/wrong in `guessedLetters` and, if
   // correct, reveals via `characterInputRevealPositionsAfterGuess`.
@@ -587,7 +587,7 @@
     typedGuessDraft = '';
     boxChars = runBoxChars();
     guessedLetters = new Map();
-    // A fresh game re-rolls prereveal_count's random picks, same as a real Hangman round starting
+    // A fresh game re-rolls letters_shown_at_start's random picks, same as a real Hangman round starting
     // over — a "Try again" is a new session, not a resumption of the old one.
     extraPrerevealed = runExtraPrereveal();
     revealedPositions = runRevealedPositions();
