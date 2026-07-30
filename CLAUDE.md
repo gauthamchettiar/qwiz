@@ -417,9 +417,15 @@ The one thing genuinely under test — authoring — is always driven through th
   why this reproduced about 1 run in 12 and only in one spec. The page objects' `goto*` methods all
   call `waitForHydration` (`e2e/utils/hydration.ts`, which waits for `astro-island[ssr]` to
   disappear); any new navigation helper must do the same.
-- No real network calls exist in this app to stub — everything is local/synchronous. If a feature
-  ever adds a `fetch` (there is none today), stub it via `page.route()` with a fixture, per the
-  general Playwright discipline, rather than hitting anything real from CI.
+- The app makes exactly one external request: the YouTube iframe a `!<youtube>` media line renders
+  (see `extractYoutubeId`), which the picture-round example uses. **Stub it** —
+  `e2e/utils/network.ts`'s `stubExternalEmbeds` fulfils it with a blank local page, so no spec
+  depends on youtube.com being reachable from CI. Any future `fetch` gets the same treatment via
+  `page.route()`; never hit anything real from CI.
+- A test that asserts "no console errors" must scope that to the app's own origin
+  (`isAppConsoleMessage`). A third-party frame's logging says nothing about this app and isn't ours
+  to fix — Firefox reports YouTube's rejected cross-site cookie as an _error_, which failed CI while
+  the app worked perfectly, and it reproduced on no other browser.
 - Page Object Models in `e2e/pages/` — locators and actions live there, assertions live in specs.
 - When fixing a bug: write the failing test first, then fix it. State in the response which test
   now covers the regression.

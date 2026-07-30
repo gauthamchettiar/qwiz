@@ -3,6 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { parseQwizFile } from '../src/lib/utils/quizScript';
 import type { Quiz } from '../src/lib/schemas/quiz';
 import { PlayPage } from './pages/PlayPage';
+import { isAppConsoleMessage, stubExternalEmbeds } from './utils/network';
 import { resetStorage, seedQuizzes } from './utils/storage';
 
 // The examples in examples/ are the first thing a new author plays, and they're the app's own
@@ -42,11 +43,18 @@ function load(file: string, overrides: Record<string, unknown> = {}): Quiz {
 }
 
 for (const file of files) {
-  test(`${file} renders every question without a page error`, async ({ page }) => {
+  test(`${file} renders every question without a page error`, async ({ page, baseURL }) => {
+    await stubExternalEmbeds(page);
+
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(e.message));
+    // Only the app's own console output counts. A third-party embed logging something says nothing
+    // about this app, and it isn't ours to fix — Firefox reports YouTube's rejected cross-site
+    // cookie as an error, which failed this test in CI while the app was working perfectly.
     page.on('console', (m) => {
-      if (m.type() === 'error') errors.push(`console: ${m.text()}`);
+      if (m.type() !== 'error') return;
+      if (!isAppConsoleMessage(m.location().url, baseURL ?? '')) return;
+      errors.push(`console: ${m.text()}`);
     });
 
     // Deferred reveal + no timer + no subset, so every question can be visited by paging forward.
@@ -118,6 +126,7 @@ test('hangman: guessing letters reveals them and a wrong guess is penalised', as
 });
 
 test('picture round: the weighted near-miss still scores', async ({ page }) => {
+  await stubExternalEmbeds(page);
   const quiz = load('09-picture-round.qwiz');
   await page.goto('/');
   await resetStorage(page);
