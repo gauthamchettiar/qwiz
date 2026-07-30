@@ -20,14 +20,19 @@
     isGuessableChar,
     matchTypedGuesses,
     resolveExtraPrereveal,
+    isTypedAnswerMode,
     settingNumber,
     typedBoxCount,
+    typedSlotCorrectness,
+    typedSlotCount,
+    typedSlotExpectations,
     typedBoxGroups,
     typedSingleAnswerMatches,
     type PlayQuestion,
     type QuestionDraft
   } from '@/lib/utils/grading';
   import AnswerVerdict from './AnswerVerdict.svelte';
+  import TypedSlotsBoard from './TypedSlotsBoard.svelte';
   import CharacterBank from './CharacterBank.svelte';
   import CategoriseBoard from './CategoriseBoard.svelte';
   import FillInBlanksBoard from './FillInBlanksBoard.svelte';
@@ -79,6 +84,12 @@
   const fillInBlanksAnswers = $derived(isFillInBlanks ? fillInBlanksAnswerOptions(question) : []);
   const fillInBlanksMode = $derived(
     question.settings.answer_mode === 'type' ? 'type' : ('pick' as const)
+  );
+  // order/match/categorise answered by typing (`:answer_mode=type`) swap their board for a plain
+  // list of fields — see TypedSlotsBoard. fill_in_blanks keeps its own board either way, since its
+  // typed mode is inline in the sentence rather than a separate list.
+  const isTypedSlots = $derived(
+    isTypedAnswerMode(question) && (isOrder || isMatch || isCategorise)
   );
 
   // Deliberately captured once, not `$derived` — this component expects a fresh mount per
@@ -138,10 +149,10 @@
   // fill_in_blanks only: one entry per blank, sized fresh (all-empty) unless a persisted draft
   // already has the right number — same pattern as `orderPlacement`/`runOrderPlacement` above.
   function runBlankAnswers(): string[] {
-    return new Array(fillInBlanksAnswerOptions(question).length).fill('');
+    return new Array(typedSlotCount(question)).fill('');
   }
   let blankAnswers = $state<string[]>(
-    seed.blankAnswers.length === fillInBlanksAnswerOptions(question).length
+    seed.blankAnswers.length === typedSlotCount(question)
       ? [...seed.blankAnswers]
       : runBlankAnswers()
   );
@@ -174,6 +185,12 @@
     return selected.has(optionIndex)
       ? 'border-indigo-300 bg-indigo-50'
       : 'border-slate-200 hover:bg-slate-50';
+  }
+
+  /** An option's text, for labelling the field that asks about it — falls back to an image/video's
+   * alt text, which is the only words a non-text option has. */
+  function optionLabel(option: QuizScriptQuestion['options'][number]): string {
+    return option.content.kind === 'text' ? option.content.text : option.content.alt;
   }
 
   function currentDraft(): QuestionDraft {
@@ -858,6 +875,31 @@
       disabledLetters={disabledBankLetters}
       locked={isLocked}
       onGuess={guessLetter}
+    />
+  {:else if isTypedSlots}
+    {@const expectations = typedSlotExpectations(question)}
+    {@const correctness = typedSlotCorrectness(question, blankAnswers)}
+    <TypedSlotsBoard
+      slots={isOrder
+        ? question.options.map((_, i) => ({ label: `${i + 1}.`, name: `position ${i + 1}` }))
+        : pq.optionOrder.map((i) => ({
+            content: question.options[i].content,
+            name: optionLabel(question.options[i])
+          }))}
+      answers={isOrder ? blankAnswers : pq.optionOrder.map((i) => blankAnswers[i] ?? '')}
+      caption={isOrder
+        ? 'Type the item that belongs at each position'
+        : isMatch
+          ? 'Type what each item matches with'
+          : 'Type the category each item belongs to'}
+      placeholder={isOrder ? 'Item' : isMatch ? 'Matches with' : 'Category'}
+      reference={isOrder ? pq.optionOrder.map((i) => question.options[i].content) : []}
+      referenceLabel="Items to place, in no particular order"
+      correctness={isOrder ? correctness : pq.optionOrder.map((i) => correctness[i])}
+      expectations={isOrder ? expectations : pq.optionOrder.map((i) => expectations[i])}
+      locked={isLocked}
+      revealAnswers={isLocked && revealAnswers}
+      onType={(slot, value) => setBlankText(isOrder ? slot : pq.optionOrder[slot], value)}
     />
   {:else if isOrder}
     <OrderBoard

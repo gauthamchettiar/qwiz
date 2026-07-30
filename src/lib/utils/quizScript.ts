@@ -343,19 +343,19 @@ export const SETTING_RULES: Record<string, SettingRule> = {
   match_case: {
     kind: 'boolean',
     default: false,
-    appliesTo: ['typed', 'fill_in_blanks'],
+    appliesTo: ['typed', 'order', 'match', 'categorise', 'fill_in_blanks'],
     description:
       "For a typed question (or a fill_in_blanks question with answer_mode=type), whether a player's answer must match an accepted answer's exact letter case instead of being compared case-insensitively. Other normalization (whitespace, punctuation, accents) always applies regardless of this setting. Not meaningful for character_input: the player guesses by clicking a bank letter, not typing text, so there's no \"wrong case\" input to compare against — matching there is always case-insensitive. A no-op on fill_in_blanks when answer_mode=pick, since picking a bank word is never a case mismatch.\n\nAccepted values: true, false\nDefault: false"
   },
   number_tolerance: {
     kind: 'number',
-    appliesTo: ['typed', 'fill_in_blanks'],
+    appliesTo: ['typed', 'order', 'match', 'categorise', 'fill_in_blanks'],
     description:
       'For a typed question (or a fill_in_blanks question with answer_mode=type), the allowed absolute difference between a numeric answer and a numeric response (e.g. 0.5 lets "3.5" match "3"). Falls back to normalized text comparison when either side isn\'t a number. Cannot be combined with typo_tolerance on the same question. A no-op on fill_in_blanks when answer_mode=pick.\n\nAccepted values: any number\nDefault: none — numeric-tolerance matching is off'
   },
   typo_tolerance: {
     kind: 'number',
-    appliesTo: ['typed', 'fill_in_blanks'],
+    appliesTo: ['typed', 'order', 'match', 'categorise', 'fill_in_blanks'],
     description:
       "For a typed question (or a fill_in_blanks question with answer_mode=type), how many typos a response may have and still match, as a percentage of the accepted answer's length (edit distance). Cannot be combined with number_tolerance on the same question. A no-op on fill_in_blanks when answer_mode=pick.\n\nAccepted values: a number from 0 to 100\nDefault: none — fuzzy matching is off"
   },
@@ -400,9 +400,9 @@ export const SETTING_RULES: Record<string, SettingRule> = {
     kind: 'enum',
     values: ['pick', 'type'],
     default: 'pick',
-    appliesTo: ['fill_in_blanks'],
+    appliesTo: ['order', 'match', 'categorise', 'fill_in_blanks'],
     description:
-      'How a fill_in_blanks question is answered. "pick": choose words from an on-screen word bank (correct answers plus any ~ distractors) and place them into blanks. "type": type each blank\'s answer directly, matched the same way a typed question\'s response is (match_case/number_tolerance/typo_tolerance all apply).\n\nAccepted values: pick, type\nDefault: pick'
+      'How the answer is given, for the four variants that place things rather than select them. "pick": the on-screen board — tap an item then tap its target, or drag it there. "type": no board, just a text field per answer, matched the same way a typed question\'s response is (match_case/number_tolerance/typo_tolerance all apply). What gets typed depends on the variant: for fill_in_blanks each blank\'s word, for order the item belonging at each position, and for match/categorise each item\'s target or bucket.\n\nAccepted values: pick, type\nDefault: pick'
   }
 };
 

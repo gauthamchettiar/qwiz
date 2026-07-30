@@ -671,6 +671,86 @@ export function gradeCategoriseQuestion(
   return { earned: optionsEarned + reveal.earned, max: correctSum + reveal.max };
 }
 
+// --- answer_mode=type: typing the answer instead of using a board ---------------------------
+// `order`, `match`, `categorise` and `fill_in_blanks` all place things rather than select them, and
+// all four can instead be answered by typing (`:answer_mode=type`). What gets typed differs per
+// variant, but everything after that — normalization, tolerance, the partial/exact split — is
+// identical, so it lives here once rather than in four grade functions.
+
+/** Whether this question is answered by typing rather than through its board. Only the four
+ * placement variants offer the choice (see `SETTING_RULES.answer_mode.appliesTo`); anything else is
+ * always false, so callers can ask unconditionally. */
+export function isTypedAnswerMode(question: QuizScriptQuestion): boolean {
+  return question.settings.answer_mode === 'type';
+}
+
+/** The expected text for each typed answer slot, in slot order:
+ * - `fill_in_blanks` — each blank's own answer word, left to right.
+ * - `order` — the item belonging at that position, so slot i expects option i (the authored
+ *   sequence IS the answer key).
+ * - `match`/`categorise` — each item's own `.target`: the thing it pairs with, or the bucket it
+ *   belongs in.
+ *
+ * Exported so a board can show the right answer next to a slot the player got wrong without
+ * re-deriving which option a slot corresponds to. */
+export function typedSlotExpectations(question: QuizScriptQuestion): string[] {
+  if (question.variant === 'fill_in_blanks') {
+    return fillInBlanksAnswerOptions(question).map((o) =>
+      o.content.kind === 'text' ? o.content.text : ''
+    );
+  }
+  if (question.variant === 'order') {
+    return question.options.map((o) => (o.content.kind === 'text' ? o.content.text : ''));
+  }
+  return question.options.map((o) => o.target ?? '');
+}
+
+/** How many typed slots this question has — what a draft's `blankAnswers` array is sized to. */
+export function typedSlotCount(question: QuizScriptQuestion): number {
+  return typedSlotExpectations(question).length;
+}
+
+/** Per-slot correctness for a typed answer, using the same matching a `typed` question gets
+ * (`match_case`/`number_tolerance`/`typo_tolerance` all apply). An empty slot is never correct,
+ * even against an empty expectation — leaving it blank isn't answering it. */
+export function typedSlotCorrectness(
+  question: QuizScriptQuestion,
+  answers: readonly string[]
+): boolean[] {
+  return typedSlotExpectations(question).map((expected, i) => {
+    const response = answers[i] ?? '';
+    if (response.trim() === '') return false;
+    return isTypedMatch(response, expected, question.settings);
+  });
+}
+
+/** Grades any of the four placement variants when it's answered by typing. Scoring weights come
+ * from the options the slots correspond to — the correct (`=`) options for `fill_in_blanks`, since
+ * its `~` distractors have no blank of their own, and every option for the other three, where each
+ * option owns exactly one slot. Mirrors the same `partial_credit` split every other grade function
+ * uses. */
+export function gradeTypedSlotsQuestion(
+  question: QuizScriptQuestion,
+  answers: readonly string[],
+  revealed: ReadonlySet<number>
+): QuestionResult {
+  const scoredOptions =
+    question.variant === 'fill_in_blanks' ? fillInBlanksAnswerOptions(question) : question.options;
+  const effective = scoredOptions.map((o) => effectivePoints(o, question.settings));
+  const correctSum = effective.reduce((sum, p) => sum + p, 0);
+  const correct = typedSlotCorrectness(question, answers);
+  const isExact = correct.every(Boolean);
+
+  const optionsEarned = settingBoolean(question.settings.partial_credit)
+    ? effective.reduce((sum, p, i) => sum + (correct[i] ? p : 0), 0)
+    : isExact
+      ? correctSum
+      : 0;
+
+  const reveal = gradeRevealExtras(question.extras, revealed);
+  return { earned: optionsEarned + reveal.earned, max: correctSum + reveal.max };
+}
+
 // --- fill_in_blanks matching and grading -----------------------------------------------------
 // A fill_in_blanks question's `___` tokens in `text` are its blanks, filled left-to-right by this
 // question's correct ("=") options in order — its `~` options are distractor bank words with no
@@ -702,17 +782,20 @@ export function gradeFillInBlanksQuestion(
   answers: readonly string[],
   revealed: ReadonlySet<number>
 ): QuestionResult {
+  if (isTypedAnswerMode(question)) return gradeTypedSlotsQuestion(question, answers, revealed);
+
   const answerOptions = fillInBlanksAnswerOptions(question);
   const effective = answerOptions.map((o) => effectivePoints(o, question.settings));
   const correctSum = effective.reduce((sum, p) => sum + p, 0);
   const partial = settingBoolean(question.settings.partial_credit);
-  const isPick = question.settings.answer_mode !== 'type';
 
+  // Pick mode only: the player chose this word off a button rather than typing it, so there's no
+  // typo or casing for the tolerance settings to forgive — exact text equality is the whole test.
   const correctBlanks = answerOptions.map((option, i) => {
     const response = answers[i] ?? '';
     if (response === '') return false;
     const answerText = option.content.kind === 'text' ? option.content.text : '';
-    return isPick ? response === answerText : isTypedMatch(response, answerText, question.settings);
+    return response === answerText;
   });
   const isExact = correctBlanks.every(Boolean);
 
@@ -834,6 +917,10 @@ function typedResponseFromDraft(
  * partway through a real Hangman round. */
 export function isDraftComplete(question: QuizScriptQuestion, draft: QuestionDraft): boolean {
   if (question.variant === 'character_input') return true;
+  if (isTypedAnswerMode(question)) {
+    const slots = typedSlotCount(question);
+    return draft.blankAnswers.length === slots && draft.blankAnswers.every((a) => a.trim() !== '');
+  }
   if (question.variant === 'order') {
     return (
       draft.orderPlacement.length === question.options.length &&
@@ -850,6 +937,7 @@ export function isDraftComplete(question: QuizScriptQuestion, draft: QuestionDra
       draft.blankAnswers.length === blankCount && draft.blankAnswers.every((a) => a.trim() !== '')
     );
   }
+
   const minAnswers = settingNumber(question.settings.min_answers) ?? 0;
   if (question.variant !== 'typed') return draft.selected.size >= minAnswers;
   const maxAnswers = settingNumber(question.settings.max_answers);
@@ -878,7 +966,11 @@ export type AnswerRecord =
   | { kind: 'order'; placement: (number | null)[]; revealed: Set<number> }
   | { kind: 'match'; pairs: Map<number, number>; revealed: Set<number> }
   | { kind: 'categorise'; assignments: Map<number, number>; revealed: Set<number> }
-  | { kind: 'fill_in_blanks'; answers: string[]; revealed: Set<number> };
+  | { kind: 'fill_in_blanks'; answers: string[]; revealed: Set<number> }
+  /** `order`/`match`/`categorise` answered with `answer_mode=type` — there's no placement, pairing
+   * or assignment to record, just the text typed into each slot. (`fill_in_blanks` keeps its own
+   * kind for both of its modes, since its record already carries exactly this.) */
+  | { kind: 'typed_slots'; answers: string[]; revealed: Set<number> };
 
 /** Grades `draft` against `question`, dispatching to `gradeQuestion`/`gradeTypedQuestion`/
  * `gradeCharacterInputQuestion` and assembling the matching `AnswerRecord` in one call — the one
@@ -904,6 +996,18 @@ export function gradeDraft(
         guessedLetters: new Map(draft.guessedLetters),
         extraPrerevealed: new Set(draft.extraPrerevealed),
         revealedPositions: new Set(draft.revealedPositions),
+        revealed: new Set(draft.revealed)
+      }
+    };
+  }
+  // The three board variants answer through `blankAnswers` instead when they're typed, so this has
+  // to come before each of their own board-shaped branches below.
+  if (isTypedAnswerMode(question) && ['order', 'match', 'categorise'].includes(question.variant)) {
+    return {
+      result: gradeTypedSlotsQuestion(question, draft.blankAnswers, draft.revealed),
+      answer: {
+        kind: 'typed_slots',
+        answers: [...draft.blankAnswers],
         revealed: new Set(draft.revealed)
       }
     };
@@ -1007,6 +1111,7 @@ export function draftFromAnswer(question: QuizScriptQuestion, answer: AnswerReco
       draft.categoriseAssignments = new Map(answer.assignments);
       break;
     case 'fill_in_blanks':
+    case 'typed_slots':
       draft.blankAnswers = [...answer.answers];
       break;
   }

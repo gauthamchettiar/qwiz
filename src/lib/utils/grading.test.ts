@@ -24,7 +24,10 @@ import {
   gradeTypedQuestion,
   categoriseBuckets,
   fillInBlanksCount,
+  gradeTypedSlotsQuestion,
   isDraftComplete,
+  typedSlotCorrectness,
+  typedSlotExpectations,
   isTypedMatch,
   levenshteinDistance,
   matchTypedGuesses,
@@ -967,5 +970,98 @@ describe('draftFromAnswer', () => {
     const draft = { ...blankDraft(), selected: new Set([0]), revealed: new Set([0]) };
     roundTrips(q, draft);
     expect(draftFromAnswer(q, gradeDraft(q, draft).answer).revealed).toEqual(new Set([0]));
+  });
+});
+
+describe('answer_mode=type on order/match/categorise', () => {
+  const typed = { answer_mode: 'type' };
+
+  it('order: each slot expects the item authored at that position', () => {
+    const q = makeQuestion({
+      variant: 'order',
+      options: [textOption('First', true), textOption('Second', true), textOption('Third', true)],
+      settings: typed
+    });
+    expect(typedSlotExpectations(q)).toEqual(['First', 'Second', 'Third']);
+    expect(gradeTypedSlotsQuestion(q, ['First', 'Second', 'Third'], new Set())).toEqual({
+      earned: 3,
+      max: 3
+    });
+    // Exact-match by default: two right and one wrong scores nothing.
+    expect(gradeTypedSlotsQuestion(q, ['First', 'Third', 'Second'], new Set())).toEqual({
+      earned: 0,
+      max: 3
+    });
+  });
+
+  it('match/categorise: each slot expects that item’s own target', () => {
+    const m = makeQuestion({
+      variant: 'match',
+      options: [matchOption('Paris', 'France'), matchOption('Tokyo', 'Japan')],
+      settings: typed
+    });
+    expect(typedSlotExpectations(m)).toEqual(['France', 'Japan']);
+    expect(gradeTypedSlotsQuestion(m, ['France', 'Japan'], new Set())).toEqual({
+      earned: 2,
+      max: 2
+    });
+
+    const c = makeQuestion({
+      variant: 'categorise',
+      options: [matchOption('Fish', 'Water'), matchOption('Lion', 'Land')],
+      settings: typed
+    });
+    expect(gradeTypedSlotsQuestion(c, ['Water', 'Land'], new Set())).toEqual({
+      earned: 2,
+      max: 2
+    });
+  });
+
+  it('uses the same forgiving matching a typed question gets', () => {
+    const q = makeQuestion({
+      variant: 'categorise',
+      options: [matchOption('Fish', 'Water')],
+      settings: { ...typed, typo_tolerance: 40 }
+    });
+    // Case is ignored by default; the typo is inside the tolerance.
+    expect(gradeTypedSlotsQuestion(q, ['watter'], new Set())).toEqual({ earned: 1, max: 1 });
+  });
+
+  it('an empty slot is never correct, and partial_credit scores the rest', () => {
+    const q = makeQuestion({
+      variant: 'match',
+      options: [matchOption('Paris', 'France'), matchOption('Tokyo', 'Japan')],
+      settings: { ...typed, partial_credit: true }
+    });
+    expect(typedSlotCorrectness(q, ['France', '  '])).toEqual([true, false]);
+    expect(gradeTypedSlotsQuestion(q, ['France', '  '], new Set())).toEqual({
+      earned: 1,
+      max: 2
+    });
+  });
+
+  it('gradeDraft routes the typed variants through blankAnswers and records typed_slots', () => {
+    const q = makeQuestion({
+      variant: 'order',
+      options: [textOption('First', true), textOption('Second', true)],
+      settings: typed
+    });
+    const draft = { ...blankDraft(), blankAnswers: ['First', 'Second'] };
+    const { result, answer } = gradeDraft(q, draft);
+    expect(result).toEqual({ earned: 2, max: 2 });
+    expect(answer.kind).toBe('typed_slots');
+    // And it round-trips back for the Review screen, same as every other variant.
+    const replayed = gradeDraft(q, draftFromAnswer(q, answer));
+    expect(replayed.result).toEqual(result);
+  });
+
+  it('is only submittable once every slot has something in it', () => {
+    const q = makeQuestion({
+      variant: 'categorise',
+      options: [matchOption('Fish', 'Water'), matchOption('Lion', 'Land')],
+      settings: typed
+    });
+    expect(isDraftComplete(q, { ...blankDraft(), blankAnswers: ['Water', ''] })).toBe(false);
+    expect(isDraftComplete(q, { ...blankDraft(), blankAnswers: ['Water', 'Land'] })).toBe(true);
   });
 });
