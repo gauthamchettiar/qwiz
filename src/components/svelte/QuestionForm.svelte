@@ -103,7 +103,8 @@
    * The thresholds differ because the rows do: one field needs ~11rem to be usable, which the
    * `@md` (28rem) container leaves it; a row carrying two (alt + url, or item → target) needs
    * roughly twice that, hence `@xl` (36rem). */
-  const ROW_FIELDS = 'flex min-w-0 grow basis-0 items-center gap-1.5 @max-md:order-last @max-md:basis-full';
+  const ROW_FIELDS =
+    'flex min-w-0 grow basis-0 items-center gap-1.5 @max-md:order-last @max-md:basis-full';
   const ROW_FIELDS_WIDE =
     'flex min-w-0 grow basis-0 flex-wrap items-center gap-1.5 @max-xl:order-last @max-xl:basis-full';
   /** The `pts` + remove pair every row ends with, pushed to the right so it stays put whether or

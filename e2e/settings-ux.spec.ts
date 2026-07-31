@@ -72,6 +72,26 @@ test('tapping a setting\'s "?" opens its description — works via click, not ju
   await expect(page.getByText(/Total points a player must reach to "win" this quiz/)).toBeHidden();
 });
 
+test('opening a settings block lists the keys that variant accepts, each one explainable', async ({
+  page
+}) => {
+  const builder = new BuilderPage(page);
+  await builder.gotoCreate();
+  await builder.addQuestion();
+
+  // Collapsed, the legend isn't on screen at all — that was the whole objection to the old
+  // always-visible one.
+  const legendKey = page.getByRole('button', { name: 'shuffle_options', exact: true });
+  await expect(legendKey).toHaveCount(0);
+
+  await builder.openSettings(1);
+  await expect(legendKey).toBeVisible();
+
+  // Each key IS its own help trigger, rather than a label sitting beside a separate "?" button.
+  await legendKey.click();
+  await expect(page.getByRole('note')).toBeVisible();
+});
+
 test('a long question, its options, settings, and elements never overflow the viewport horizontally', async ({
   page
 }) => {
@@ -101,6 +121,34 @@ test('a long question, its options, settings, and elements never overflow the vi
     () => document.documentElement.scrollWidth - window.innerWidth
   );
   expect(overflow).toBeLessThanOrEqual(0);
+});
+
+test('an option row keeps its text field usable, wrapping it below the row when space runs out', async ({
+  page
+}) => {
+  const builder = new BuilderPage(page);
+  await builder.gotoCreate();
+  await builder.addQuestion();
+  await builder.fillChoiceQuestion('Narrow row', 'Correct', 'Wrong');
+
+  const field = builder.optionTextInput(0);
+  const points = page.getByRole('textbox', { name: 'Points' }).first();
+  const fieldBox = await field.boundingBox();
+  const pointsBox = await points.boundingBox();
+  expect(fieldBox).not.toBeNull();
+  expect(pointsBox).not.toBeNull();
+
+  // Whatever the viewport, the field never gets squeezed below a width that shows only a few
+  // characters — the row drops it onto its own line before that happens (see QuestionForm's
+  // ROW_FIELDS). 11rem is the floor those container-query thresholds are set to preserve.
+  expect(fieldBox!.width).toBeGreaterThanOrEqual(176);
+
+  // And when it does wrap, `pts` stays on the line ABOVE it rather than trailing it — that's what
+  // `order-last` on the field group buys, and it's the half of the layout a plain flex-wrap gets
+  // wrong.
+  const wrapped = fieldBox!.y > pointsBox!.y + pointsBox!.height / 2;
+  const sameLine = Math.abs(fieldBox!.y - pointsBox!.y) < pointsBox!.height;
+  expect(wrapped || sameLine).toBe(true);
 });
 
 test("an open setting description never widens the page, whatever it's anchored to", async ({

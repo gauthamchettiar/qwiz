@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { buildFillInBlanksQuiz } from './fixtures/quizzes';
+import { buildFillInBlanksQuiz, buildPictureFillInBlanksQuiz } from './fixtures/quizzes';
 import { BuilderPage } from './pages/BuilderPage';
 import { PlayPage } from './pages/PlayPage';
 import { resetStorage, seedQuizzes } from './utils/storage';
@@ -46,6 +46,64 @@ test('bank mode: picking bank words into blanks wins full credit', async ({ page
   await page.getByRole('button', { name: 'mitochondria', exact: true }).click();
   await page.getByRole('button', { name: /Blank 1/ }).click();
   await page.getByRole('button', { name: 'cell', exact: true }).click();
+  await page.getByRole('button', { name: /Blank 2/ }).click();
+
+  await play.submitAnswerButton.click();
+  await expect(page.getByText('2 / 2 points')).toBeVisible();
+});
+
+test('bank mode: the bank words can be pictures', async ({ page }) => {
+  const quiz = buildPictureFillInBlanksQuiz();
+  await seedQuizzes(page, [quiz]);
+
+  const play = new PlayPage(page);
+  await play.goto(quiz.id);
+
+  // A picture bank word is named by its alt text — the picture is the label, there's no caption.
+  await page.getByRole('button', { name: 'Red swatch', exact: true }).click();
+  await page.getByRole('button', { name: /Blank 1/ }).click();
+  await page.getByRole('button', { name: 'Blue swatch', exact: true }).click();
+  await page.getByRole('button', { name: /Blank 2/ }).click();
+
+  // The placed picture is now inside the blank, in the sentence.
+  await expect(page.getByRole('button', { name: /Blank 1/ }).getByRole('img')).toBeVisible();
+
+  await play.submitAnswerButton.click();
+  await expect(page.getByText('2 / 2 points')).toBeVisible();
+});
+
+test('bank mode: two words spelled the same are used up independently', async ({ page }) => {
+  // A blank records WHICH option was placed rather than the word it showed, so placing one of two
+  // identical buttons must not grey out the other — it used to, because "used" was matched by text.
+  const quiz = buildFillInBlanksQuiz({
+    questions: [
+      {
+        id: 'q1',
+        code: [
+          'fill_blanks: Say it twice: ___ and ___.',
+          '{',
+          '=echo',
+          '=echo',
+          '}',
+          ':partial_credit=true'
+        ].join('\n')
+      }
+    ]
+  });
+  await seedQuizzes(page, [quiz]);
+
+  const play = new PlayPage(page);
+  await play.goto(quiz.id);
+
+  const bankWords = page.getByRole('button', { name: 'echo', exact: true });
+  await expect(bankWords).toHaveCount(2);
+
+  await bankWords.first().click();
+  await page.getByRole('button', { name: /Blank 1/ }).click();
+
+  // The other "echo" is still pickable — and picking it fills the second blank.
+  await expect(bankWords.nth(1)).toBeEnabled();
+  await bankWords.nth(1).click();
   await page.getByRole('button', { name: /Blank 2/ }).click();
 
   await play.submitAnswerButton.click();

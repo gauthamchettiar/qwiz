@@ -1,10 +1,6 @@
 <script lang="ts">
   import { CircleCheck, CircleX, GripVertical } from '@lucide/svelte';
-  import {
-    optionContentKey,
-    optionLabelText,
-    type QuizScriptOption
-  } from '@/lib/utils/quizScript';
+  import { optionContentKey, optionLabelText, type QuizScriptOption } from '@/lib/utils/quizScript';
   import { draggable, type DragState } from '@/lib/utils/dragDrop';
   import OptionContent from './OptionContent.svelte';
 
