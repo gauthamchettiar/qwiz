@@ -99,20 +99,21 @@ test('a question with errors shows a count in view mode that opens code mode', a
   await expect(errorPill).toHaveCount(0);
 });
 
-test('Add image option builds a picture option with no per-row kind control', async ({ page }) => {
+test("switching an option's kind to Image swaps its field for alt + url", async ({ page }) => {
   const builder = new BuilderPage(page);
   await builder.gotoCreate();
   await builder.titleInput.fill('Picture Options');
   await builder.addQuestion();
   await builder.questionTextInput().fill('Which flag is this?');
 
+  // Every option row carries its own kind picker, so a row added as text becomes a picture in
+  // place rather than having to be deleted and re-added.
+  await expect(page.getByRole('button', { name: /Option content type/ })).toHaveCount(2);
   await builder.addOption('Image');
 
-  // The new row asks for alt + url directly — the kind was decided when it was added, so there's
-  // no picker on the row to switch it afterwards.
   await expect(page.getByPlaceholder('alt text')).toHaveCount(1);
   await expect(page.getByPlaceholder('url')).toHaveCount(1);
-  await expect(page.getByRole('button', { name: /Option content type/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Option content type: Image' })).toHaveCount(1);
 
   await page.getByPlaceholder('alt text').fill('A red circle on white');
   await page.getByPlaceholder('url').fill('https://example.com/jp.png');

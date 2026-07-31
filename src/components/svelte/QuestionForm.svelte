@@ -119,6 +119,22 @@
     return usesTargetRows || content.kind !== 'text';
   }
 
+  /** Every row in a list — an option, an accepted answer, an element — is its own tinted card.
+   * As bare controls on the page background they ran together: on a `match_pairs` row that's six
+   * controls with nothing saying where one pair ends and the next begins, and the wrapped layout
+   * on a phone made that worse by putting two lines where there had been one. */
+  const ROW_CARD = '@container flex flex-wrap items-center gap-1.5 rounded-md border p-1.5';
+  const ROW_CARD_RESTING = 'border-slate-200 bg-slate-50/70';
+
+  /** One option row's card colours as a SINGLE mutually-exclusive class string — see
+   * QuestionPlayer's `choiceOptionTone` for why layering a base and an override silently resolves
+   * whichever way Tailwind happened to order the two utilities. */
+  function optionRowTone(index: number): string {
+    if (optionDrag?.id === index) return 'border-indigo-300 bg-indigo-50/50 opacity-40';
+    if (optionDrag?.overZone === index) return 'border-indigo-400 bg-indigo-50';
+    return ROW_CARD_RESTING;
+  }
+
   function blankElement(kind: 'image' | 'video' | 'reveal'): ElementItem {
     return kind === 'reveal'
       ? { _key: crypto.randomUUID(), kind: 'reveal', label: '', content: '', points: '0' }
@@ -190,8 +206,30 @@
   const rowNoun = $derived(usesAnswerRows ? 'accepted answer' : 'option');
   /** Whether an option here can BE a picture or clip rather than describe one — i.e. everything
    * except the variants whose options are compared as text (accepted answers, regex patterns).
-   * Decides whether this list offers one "Add option" button or one per kind. */
+   * Decides whether each row carries a kind picker, and whether adding one offers a choice. */
   const supportsMediaOptions = $derived(!usesAnswerRows && !isPattern);
+
+  /** What this variant's option list IS, as a heading plus the rule that governs it. Split in two
+   * so the long ones read as a label with an explanation rather than one runaway sentence in the
+   * label position — `fill_blanks` in particular was a 60-character "label". */
+  const optionsLabel = $derived.by((): { text: string; hint?: string } => {
+    if (usesAnswerRows) {
+      return {
+        text: 'Accepted answers',
+        hint: isCharacterInput ? 'the one word being guessed' : 'any of these count as correct'
+      };
+    }
+    if (isOrder) return { text: 'Items', hint: 'in the correct order — drag to rearrange' };
+    if (isMatch) return { text: 'Pairs', hint: 'each item and what it matches with' };
+    if (isCategorise) return { text: 'Items', hint: 'and the bucket each belongs in' };
+    if (isFillInBlanks) {
+      return { text: 'Blank answers', hint: 'checked fills a blank, unchecked is a bank decoy' };
+    }
+    if (isPattern) {
+      return { text: 'Patterns', hint: 'checked counts as correct, unchecked marks it wrong' };
+    }
+    return { text: 'Options', hint: isSingleChoice ? 'exactly one is correct' : undefined };
+  });
   const suggestedKeys = $derived(suggestedSettingKeysForVariant(variant));
   let text = $state(untrack(() => question.text));
   let elements: ElementItem[] = $state(
@@ -392,7 +430,20 @@
   }
   // Switching kind is a plain reset to that kind's blank default, same convention as switching a
   // whole question's variant — carrying old field values across kinds (e.g. text -> image's alt)
-  // wouldn't mean anything. Targets only: an option's own kind is fixed when it's added.
+  // wouldn't mean anything.
+  function setOptionKind(optionKey: string, kind: 'text' | 'image' | 'video') {
+    options = options.map((o) =>
+      o._key === optionKey && o.content.kind !== kind
+        ? {
+            ...o,
+            content:
+              kind === 'text' ? { kind: 'text' as const, text: '' } : { kind, alt: '', url: '' }
+          }
+        : o
+    );
+    emit();
+  }
+  /** The same, for the right-hand half of a `match_pairs` row. */
   function setTargetKind(optionKey: string, kind: 'text' | 'image' | 'video') {
     options = options.map((o) =>
       o._key === optionKey && o.target?.kind !== kind
@@ -495,6 +546,19 @@
   }
 </script>
 
+<!-- One heading treatment for every block of the form, so the eye can find the sections rather than
+     reading a flat stack of controls. `hint` carries the per-variant explanation that used to be
+     crammed into the label itself ("Blank answers (checked) and word-bank distractors
+     (unchecked)"), which at that length stopped reading as a label at all. -->
+{#snippet sectionLabel(text: string, hint?: string)}
+  <!-- `{text}` and the hint on separate lines so the space between them survives: Svelte trims
+       leading whitespace inside an element, so a `<span> — …` written inline renders as "Options—". -->
+  <p class="text-xs font-medium text-slate-500">
+    {text}
+    {#if hint}<span class="font-normal text-slate-500">— {hint}</span>{/if}
+  </p>
+{/snippet}
+
 <div class="space-y-5">
   <ErrorList errors={formErrors} />
 
@@ -525,8 +589,11 @@
     </div>
 
     <div class="space-y-1.5">
+      {#if elements.length > 0}
+        {@render sectionLabel('Media & hints', 'shown with the question, before it is answered')}
+      {/if}
       {#each elements as item, index (item._key)}
-        <div class="@container flex flex-wrap items-center gap-1.5">
+        <div class="{ROW_CARD} {ROW_CARD_RESTING}">
           <KindPicker
             kinds={ELEMENT_KINDS}
             value={item.kind}
@@ -616,15 +683,27 @@
     </div>
   </div>
 
-  <!-- One option's content fields, shared by every variant's row: a single text box, or the
-       alt + url pair a picture or clip needs. `optionRefs[index]` lands on whichever of them comes
-       first, so clicking an option in the preview focuses this row wherever the kind moved it. -->
+  <!-- One option's content fields, shared by every variant's row: a kind picker, then either a
+       single text box or the alt + url pair a picture or clip needs. `optionRefs[index]` lands on
+       whichever field comes first, so clicking an option in the preview focuses this row wherever
+       the kind moved it.
+       The picker only appears where a picture would mean something — the variants whose options
+       are compared as text (accepted answers, regex patterns) have `supportsMediaOptions` false,
+       so those rows stay a bare field. -->
   {#snippet contentFields(
     content: QuizScriptOptionContent,
     index: number,
     placeholder: string,
     monospace = false
   )}
+    {#if supportsMediaOptions}
+      <KindPicker
+        kinds={OPTION_KINDS}
+        value={content.kind}
+        label={`${rowNoun[0].toUpperCase()}${rowNoun.slice(1)} content type`}
+        onSelect={(kind) => setOptionKind(options[index]._key, kind)}
+      />
+    {/if}
     {#if content.kind === 'text'}
       <input
         bind:this={optionRefs[index]}
@@ -653,30 +732,13 @@
   {/snippet}
 
   <div class="space-y-1.5">
-    <p class="text-xs font-medium text-slate-500">
-      {usesAnswerRows
-        ? 'Accepted answers'
-        : isOrder
-          ? 'Items, in the correct order'
-          : isMatch
-            ? 'Pairs'
-            : isCategorise
-              ? 'Items and their bucket'
-              : isFillInBlanks
-                ? 'Blank answers (checked) and word-bank distractors (unchecked)'
-                : isPattern
-                  ? 'Regex patterns — checked counts as correct, unchecked marks the answer wrong'
-                  : 'Options'}
-    </p>
+    {@render sectionLabel(optionsLabel.text, optionsLabel.hint)}
     {#each options as option, index (option._key)}
       <div
         bind:this={optionRowEls[index]}
         data-drop-group={OPTION_DROP_GROUP}
         data-drop-zone={index}
-        class="@container flex flex-wrap items-center gap-1.5 rounded-md border transition-colors {optionDrag?.overZone ===
-          index && optionDrag?.id !== index
-          ? 'border-indigo-400 bg-indigo-50'
-          : 'border-transparent'} {optionDrag?.id === index ? 'opacity-40' : ''}"
+        class="{ROW_CARD} transition-colors {optionRowTone(index)}"
       >
         <!-- The reorder handle, ahead of everything else in the row so the drag affordance reads
              before the content it moves. It replaces the pair of up/down chevrons that used to sit
@@ -832,27 +894,17 @@
       </div>
     {/each}
     {#if !isCharacterInput || options.length === 0}
-      {#if supportsMediaOptions}
-        <!-- One 36px trigger instead of three labelled buttons. An option's kind is still settled
-             when it's added rather than switched per row afterwards, but three buttons spent a
-             whole row of a phone's width restating "Add" — and they sat directly under the option
-             list they added to, which made the list's own bottom edge hard to find. -->
-        <KindPicker
-          kinds={OPTION_KINDS}
-          icon={Plus}
-          label={`Add ${rowNoun}`}
-          onSelect={(kind) => addOption(kind)}
-        />
-      {:else}
-        <button
-          type="button"
-          class="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
-          onclick={() => addOption()}
-        >
-          <Plus size={13} />
-          {usesAnswerRows ? 'Add accepted answer' : 'Add option'}
-        </button>
-      {/if}
+      <!-- A plain button now that every row carries its own kind picker: choosing the kind up
+           front as well would be the same decision offered twice, and a row added as the wrong
+           kind is one click from the right one. -->
+      <button
+        type="button"
+        class="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+        onclick={() => addOption()}
+      >
+        <Plus size={13} />
+        Add {rowNoun}
+      </button>
     {/if}
     {#if isCharacterInput && options[0]?.content.kind === 'text' && options[0].content.text}
       {@const answerText = options[0].content.text}

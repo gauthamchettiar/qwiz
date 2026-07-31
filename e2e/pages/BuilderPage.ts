@@ -52,12 +52,16 @@ export class BuilderPage {
     return this.page.getByLabel('Question', { exact: true });
   }
 
-  /** Adds an option of `kind` through the "Add option" menu — an icon trigger plus a menu, so it's
-   * two steps rather than one button per kind. `rowNoun` differs per variant ("Add accepted
-   * answer" on the typed ones), but only the variants offering a kind choice route through here. */
+  /** Adds an option, then switches its kind if it isn't the plain-text default — a new row is
+   * always text, and each row's own kind picker is what changes it. */
   async addOption(kind: 'Text' | 'Image' | 'Video' = 'Text'): Promise<void> {
     await this.page.getByRole('button', { name: 'Add option' }).click();
-    await this.page.getByRole('menuitem', { name: kind, exact: true }).click();
+    if (kind === 'Text') return;
+    await this.page
+      .getByRole('button', { name: /content type/ })
+      .last()
+      .click();
+    await this.page.getByRole('menuitemradio', { name: kind, exact: true }).click();
   }
 
   /** The Nth option row's text input within whichever question card is currently in form mode.
