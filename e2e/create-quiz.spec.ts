@@ -106,10 +106,10 @@ test('Add image option builds a picture option with no per-row kind control', as
   await builder.addQuestion();
   await builder.questionTextInput().fill('Which flag is this?');
 
-  await page.getByRole('button', { name: 'Add image option' }).click();
+  await builder.addOption('Image');
 
-  // The new row asks for alt + url directly — the kind was decided by the button that added it,
-  // so there's no picker on the row to switch it afterwards.
+  // The new row asks for alt + url directly — the kind was decided when it was added, so there's
+  // no picker on the row to switch it afterwards.
   await expect(page.getByPlaceholder('alt text')).toHaveCount(1);
   await expect(page.getByPlaceholder('url')).toHaveCount(1);
   await expect(page.getByRole('button', { name: /Option content type/ })).toHaveCount(0);

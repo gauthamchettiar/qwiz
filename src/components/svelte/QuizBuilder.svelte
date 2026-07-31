@@ -36,7 +36,6 @@
   import Button from './Button.svelte';
   import ErrorList from './ErrorList.svelte';
   import CodeFrame from './CodeFrame.svelte';
-  import SettingHelp from './SettingHelp.svelte';
   import SettingsDocsLink from './SettingsDocsLink.svelte';
   import SettingsLegend from './SettingsLegend.svelte';
   import SuggestionInput from './SuggestionInput.svelte';
@@ -952,14 +951,14 @@
               {@const validation = setting.key.trim()
                 ? validateSettingValue(setting.key, setting.value, QUIZ_FRONTMATTER_RULES)
                 : null}
+              <!-- Same shape as a question's settings row (see QuestionForm): no per-row "?", and
+                   the same 7rem key select. The wider `w-44` this used to have was enough on its
+                   own to push the value field onto a second line on a phone, stranding the remove
+                   "×" beside an otherwise empty row — quiz-wide keys are longer, but not so much
+                   longer that the row should be laid out differently from the question's. -->
               <div class="flex flex-wrap items-center gap-1.5">
-                <span class="flex w-8 shrink-0 justify-center">
-                  {#if setting.key.trim()}
-                    <SettingHelp key={setting.key} rules={QUIZ_FRONTMATTER_RULES} />
-                  {/if}
-                </span>
                 <select
-                  class="w-44 max-w-full shrink-0 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-900 focus:border-slate-400 focus:outline-none"
+                  class="w-28 max-w-full shrink-0 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-900 focus:border-slate-400 focus:outline-none"
                   bind:value={setting.key}
                   onchange={() => selectSettingKey(setting)}
                   aria-label="Setting key"
@@ -985,9 +984,8 @@
                 </button>
               </div>
               {#if validation?.error}
-                <!-- Lines up under the value field: the "?" slot (2rem) and the key select (11rem),
-                   plus the gap after each. -->
-                <p class="break-words text-xs text-red-600 sm:pl-[13.75rem]">{validation.error}</p>
+                <!-- Lines up under the value field: the key select (7rem) plus its gap. -->
+                <p class="break-words text-xs text-red-600 sm:pl-[7.375rem]">{validation.error}</p>
               {/if}
             {/each}
             <button

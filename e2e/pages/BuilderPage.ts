@@ -52,6 +52,14 @@ export class BuilderPage {
     return this.page.getByLabel('Question', { exact: true });
   }
 
+  /** Adds an option of `kind` through the "Add option" menu — an icon trigger plus a menu, so it's
+   * two steps rather than one button per kind. `rowNoun` differs per variant ("Add accepted
+   * answer" on the typed ones), but only the variants offering a kind choice route through here. */
+  async addOption(kind: 'Text' | 'Image' | 'Video' = 'Text'): Promise<void> {
+    await this.page.getByRole('button', { name: 'Add option' }).click();
+    await this.page.getByRole('menuitem', { name: kind, exact: true }).click();
+  }
+
   /** The Nth option row's text input within whichever question card is currently in form mode.
    * `exact`, because an image option's own fields ("alt text", "url") share this list and a
    * substring match on a shorter placeholder could reach them. */
@@ -98,8 +106,8 @@ export class BuilderPage {
    * disclosure's contents are out of the accessibility tree entirely, so they don't occupy an
    * index here: with only a question's settings expanded, that question's button is index 0, not
    * 1. Open what you need via `openSettings` (whose own indices ARE stable, since every toggle is
-   * always rendered) and count from there. The same rule applies to `settingKeySelect`,
-   * `settingValueInput` and `settingHelpButton`. */
+   * always rendered) and count from there. The same rule applies to `settingKeySelect` and
+   * `settingValueInput`. */
   addSettingButton(index: number): Locator {
     return this.page.getByRole('button', { name: 'Add setting' }).nth(index);
   }
@@ -113,7 +121,9 @@ export class BuilderPage {
     return this.page.getByPlaceholder('value').nth(index);
   }
 
-  settingHelpButton(index: number): Locator {
-    return this.page.getByRole('button', { name: 'What does this setting do?' }).nth(index);
+  /** A key in an open settings block's legend — the key name IS the help trigger now, so there's
+   * no separate "?" button per row to reach for. */
+  settingHelpKey(key: string): Locator {
+    return this.page.getByRole('button', { name: key, exact: true });
   }
 }

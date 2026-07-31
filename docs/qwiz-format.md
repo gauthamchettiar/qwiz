@@ -92,6 +92,16 @@ Recognized variants:
 
 Omitting a variant entirely defaults to the same behavior as `pick_many`.
 
+Every variant below is shown as the player actually sees it. The four placement variants
+(`order_items`, `match_pairs`, `group_items`, `fill_blanks`) are pictured mid-answer rather than
+untouched, since what they do only becomes clear once something has been placed.
+
+| `pick_one`                                            | `pick_many`                                             |
+| ----------------------------------------------------- | ------------------------------------------------------- |
+| ![pick_one](./screenshots/variant-pick-one.png)       | ![pick_many](./screenshots/variant-pick-many.png)       |
+| `type_answer`                                         | `type_pattern`                                          |
+| ![type_answer](./screenshots/variant-type-answer.png) | ![type_pattern](./screenshots/variant-type-pattern.png) |
+
 ### Options block
 
 ```
@@ -128,6 +138,10 @@ Omitting a variant entirely defaults to the same behavior as `pick_many`.
 `![...]` and `!<image>[...]` are equivalent — plain image syntax is just a shorter alias. Video has
 no bare-marker alias; it's always `!<youtube>[...]`.
 
+An image renders above the options, at the question's own full width:
+
+![A question with an image](./screenshots/question-media.png)
+
 ### Hints
 
 ```
@@ -138,6 +152,10 @@ A question-level hint: `label` is shown before it's revealed, `content` after, a
 trailing `%N%` is its reveal cost (omit for a free hint). Can be written alongside the media lines
 above the option block, or interspersed among the `=`/`~` lines inside it — either way it's a
 hint for the whole question, never tied to whichever option it's physically next to.
+
+Revealed, with its cost shown before the player commits to it:
+
+![A revealed hint](./screenshots/question-reveal.png)
 
 ### Post-question analysis
 
@@ -156,6 +174,11 @@ optional (defaults to "Why?" when shown); `content` is the explanation itself.
 Only appears on the per-question intermediate screen (`show_reveal_screen`, gated the same
 way as live `reveal_answers`/`reveal_scores` — see [below](#quiz-wide-settings)) — it's never
 shown on the end-of-quiz Review screen for quizzes that defer reveal to the end.
+
+A wrong answer, revealed: the verdict banner, the correct option tinted green against the picked
+one in red, and the analysis underneath.
+
+![A revealed answer with its analysis](./screenshots/answer-reveal.png)
 
 ### `order_items`
 
@@ -181,6 +204,10 @@ order_items: Arrange chronologically
 - Played by tapping an item to pick it up, then tapping a numbered position to place it (or
   tapping a filled position to swap) — works identically via mouse, touch, or keyboard
   (Tab + Enter/Space), with no drag gesture required.
+
+One item placed, the rest still in the pool:
+
+![order_items mid-answer](./screenshots/variant-order-items.png)
 
 ### `match_pairs`
 
@@ -218,6 +245,15 @@ match_pairs: Match the capital to its country
 - Played the same tap-to-pick-then-tap-to-place way as `order_items`: tap a left item, then tap a right
   target to pair them (or tap an already-paired target to steal it for the currently-picked item).
 
+A paired item shows the numbered right-column entry it went to, so a board of several pairs stays
+readable:
+
+![match_pairs mid-answer](./screenshots/variant-match-pairs.png)
+
+With pictures on the left and names on the right — either column can hold either:
+
+![match_pairs with picture items](./screenshots/variant-match-pairs-pictures.png)
+
 ### `group_items`
 
 `group_items` presents a set of items and a set of buckets, and asks the player to sort each item
@@ -243,6 +279,10 @@ group_items: Sort these animals by habitat
   share, which only works for something that reads as one name.
 - Played by tapping an item to pick it up, then tapping a bucket to place it there (or tapping an
   already-placed item to pick it back up).
+
+Each bucket is a tray with a live count, and unplaced items wait in a pool below:
+
+![group_items mid-answer](./screenshots/variant-group-items.png)
 
 ### `fill_blanks`
 
@@ -274,6 +314,10 @@ fill_blanks: The ___ is the powerhouse of the ___.
   the sentence. Under `answer_mode=type` there's no bank to pick from, and a picture blank has to
   be typed as its alt text instead — one with no alt text at all is a parse error there, since
   nothing could ever be typed to match it.
+
+One blank filled from the bank, one still empty. A word that's been placed is greyed out below:
+
+![fill_blanks mid-answer](./screenshots/variant-fill-blanks.png)
 
 ### `type_pattern`
 
@@ -328,6 +372,11 @@ guess_letters: Guess the capital of France
   guess the spaces between words.
 - The bank offers a set of letters controlled by `letter_bank` (see the settings table below); the
   player clicks/taps one to guess it.
+
+Mid-round: `M` was pre-revealed with `[M]`, `E` and `R` were guessed correctly (green), `Z` wasn't
+(red), and every non-letter is shown for free:
+
+![guess_letters mid-round](./screenshots/variant-guess-letters.png)
 
 ### Per-question settings
 

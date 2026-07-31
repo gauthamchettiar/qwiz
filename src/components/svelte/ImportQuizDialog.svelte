@@ -128,7 +128,7 @@
 title: ...
 ---
 
-choice: ..."
+pick_one: ..."
       bind:value={code}></textarea>
 
     <ErrorList {errors} />

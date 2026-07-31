@@ -20,13 +20,13 @@
 </script>
 
 {#if keys.length > 0}
-  <!-- Tight vertical gap because each chip is now close to its own text height (see SettingHelp's
-       `label` form) — the loose `gap-y-1` this used to need was compensating for 32px icon buttons
-       stacked beside 16px of text. -->
-  <div class="flex flex-wrap items-center gap-x-0.5 gap-y-0.5 text-xs text-slate-500">
+  <!-- Tight vertical gap because each key is now barely taller than its own text (see SettingHelp)
+       — the loose `gap-y-1` this used to need was compensating for 32px icon buttons stacked
+       beside 16px of text. -->
+  <div class="flex flex-wrap items-center gap-x-1 gap-y-0.5 text-xs text-slate-500">
     <span class="mr-0.5">Settings:</span>
     {#each keys as key (key)}
-      <SettingHelp {key} label={key} {rules} />
+      <SettingHelp {key} {rules} />
     {/each}
   </div>
 {/if}

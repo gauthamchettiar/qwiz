@@ -107,6 +107,8 @@ migration.
 .
 ├── docs/                        # introduction.md, qwiz-format.md, settings.md,
 │                                # llm-reference.md (the whole format in one file, for a model)
+│   └── screenshots/             # every image the README and docs reference — GENERATED, never
+│                                # hand-captured; see screenshots/ below
 ├── examples/                    # *.qwiz files — the app's "Load a sample" list, loaded via
 │                                # import.meta.glob ?raw; cover every variant and setting
 ├── e2e/                         # Playwright specs
@@ -141,10 +143,13 @@ migration.
 │   │       ├── edit.astro       # QuizEditPage, client:only (reads ?id= at runtime)
 │   │       └── play.astro       # QuizPlayPage, client:only (reads ?id= at runtime)
 │   └── styles/global.css        # Tailwind import + @theme tokens + the app's ~3 lines of custom CSS
+├── screenshots/                 # capture.spec.ts — writes docs/screenshots/*.png. Deliberately
+│                                # OUTSIDE e2e/ so `pnpm test:e2e` never runs it (see §7)
 ├── .github/workflows/ci.yml
 ├── astro.config.mjs
 ├── eslint.config.js
 ├── playwright.config.ts
+├── playwright.screenshots.config.ts
 ├── vitest.config.ts
 └── CLAUDE.md
 ```
@@ -452,6 +457,32 @@ The one thing genuinely under test — authoring — is always driven through th
 - When fixing a bug: write the failing test first, then fix it. State in the response which test
   now covers the regression.
 
+### Documentation screenshots (`screenshots/capture.spec.ts`)
+
+Every image the README and `docs/` reference is **generated**, by `pnpm screenshots`. The three
+that predate this were captured by hand and had silently gone stale — the builder one showed a
+version of the option row that no longer existed, which is exactly the failure mode a generated
+image can't have.
+
+It's a Playwright spec, but deliberately not part of the suite: it lives outside `e2e/` and runs
+under its own `playwright.screenshots.config.ts` (one chromium project, `deviceScaleFactor: 2`,
+a viewport wide enough for code mode's two columns but under the `xl:` breakout). It asserts
+nothing, so running it in CI would only write files nobody reads.
+
+Rules for it:
+
+- **Re-run it after any UI change a documented screen would show, and commit the diff.** A doc
+  screenshot showing a control that no longer exists is worse than no screenshot.
+- Everything random is pinned (`shuffle_questions`/`shuffle_options` off, fixed `createdAt`), so a
+  re-run with no UI change produces a byte-identical image and an empty diff. Keep it that way —
+  an unpinned shuffle would put a spurious binary diff in every commit that touches this.
+- Content reads like a real quiz, not like a fixture. These images are the first thing anyone sees
+  of the app; `e2e-quiz-1` in a README is worse than no README.
+- Prefer an element or region crop over a full-page one, and capture boards **mid-answer** — an
+  untouched `match_pairs` board doesn't show what pairing looks like, which is the whole point.
+- `docs/llm-reference.md` stays text-only by design: it exists to be handed to a model as a single
+  self-contained document, and images are dead weight in that context.
+
 ---
 
 ## 8. CI/CD
@@ -510,6 +541,7 @@ pnpm test:watch        # vitest (watch mode)
 pnpm test:coverage      # vitest run --coverage — enforces the 80% gate, see §7
 pnpm test:e2e           # playwright test
 pnpm test:e2e:ui        # playwright test --ui  (debugging)
+pnpm screenshots        # regenerate docs/screenshots/*.png — see §7
 ```
 
 ---
