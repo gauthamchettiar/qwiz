@@ -25,7 +25,7 @@ test('authoring an order question has no correct checkbox, and item order round-
 
   await builder.optionTextInput(0).fill('First');
   await builder.optionTextInput(1).fill('Second');
-  await page.getByRole('button', { name: 'Add text option' }).click();
+  await builder.addOption();
   await builder.optionTextInput(2).fill('Third');
 
   // Reorder: move the 3rd item ("Third") up twice to become first. The grip that replaced the old

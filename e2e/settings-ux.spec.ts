@@ -52,19 +52,17 @@ test('a numeric/string setting (no fixed value set) gets no dropdown, and no def
   await expect(page.getByRole('listbox')).not.toBeAttached();
 });
 
-test('tapping a setting\'s "?" opens its description — works via click, not just hover', async ({
+test('tapping a setting key opens its description — works via click, not just hover', async ({
   page
 }) => {
   const builder = new BuilderPage(page);
   await builder.gotoCreate();
 
-  // A "?" belongs to a settings ROW now, not to an always-on legend of every key — so there has to
-  // be a row before there's anything to explain. Exercises real click-to-open behavior (this used
-  // to be a `:hover`-only CSS tooltip, unreachable on a touch screen).
+  // The key name in the legend IS the trigger — there's no separate "?" button any more.
+  // Exercises real click-to-open behavior (this used to be a `:hover`-only CSS tooltip,
+  // unreachable on a touch screen).
   await builder.openSettings(0);
-  await builder.addSettingButton(0).click();
-  await builder.settingKeySelect(0).selectOption('points_to_win');
-  await builder.settingHelpButton(0).click();
+  await builder.settingHelpKey('points_to_win').click();
   await expect(page.getByText(/Total points a player must reach to "win" this quiz/)).toBeVisible();
 
   // Clicking elsewhere closes it again.
@@ -112,10 +110,8 @@ test('a long question, its options, settings, and elements never overflow the vi
   await builder.addSettingButton(0).click();
   await builder.settingKeySelect(0).selectOption('options_layout');
 
-  // `exact` because the option list below has its own "Add image" button, whose accessible name
-  // ("Add image option") contains this one — Playwright's default substring match would find both.
-  await page.getByRole('button', { name: 'Add reveal', exact: true }).click();
-  await page.getByRole('button', { name: 'Add image', exact: true }).click();
+  await page.getByRole('button', { name: 'Add reveal' }).click();
+  await page.getByRole('button', { name: 'Add image' }).click();
 
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - window.innerWidth
@@ -139,14 +135,13 @@ test('an option row keeps its text field usable, wrapping it below the row when 
   expect(pointsBox).not.toBeNull();
 
   // Whatever the viewport, the field never gets squeezed below a width that shows only a few
-  // characters — the row drops it onto its own line before that happens (see QuestionForm's
-  // ROW_FIELDS). 11rem is the floor those container-query thresholds are set to preserve.
+  // characters — the row sheds its trailing controls onto a second line before that happens (see
+  // QuestionForm's ROW_TRAILING). 11rem is the floor those thresholds are set to preserve.
   expect(fieldBox!.width).toBeGreaterThanOrEqual(176);
 
-  // And when it does wrap, `pts` stays on the line ABOVE it rather than trailing it — that's what
-  // `order-last` on the field group buys, and it's the half of the layout a plain flex-wrap gets
-  // wrong.
-  const wrapped = fieldBox!.y > pointsBox!.y + pointsBox!.height / 2;
+  // When the row does wrap it's `pts` that drops BELOW the field, not the other way round: the
+  // field leads the row, so the first line is never left holding a grip, a checkbox and a gap.
+  const wrapped = pointsBox!.y > fieldBox!.y + fieldBox!.height / 2;
   const sameLine = Math.abs(fieldBox!.y - pointsBox!.y) < pointsBox!.height;
   expect(wrapped || sameLine).toBe(true);
 });
@@ -157,14 +152,12 @@ test("an open setting description never widens the page, whatever it's anchored 
   const builder = new BuilderPage(page);
   await builder.gotoCreate();
 
-  // A row's "?" sits to the right of the card's own padding, and an absolutely-positioned,
+  // A legend key sits close to the card's own right padding, and an absolutely-positioned,
   // trigger-centred panel would hang off the right edge of the document from there — which widens
-  // the scrollable area and makes mobile browsers zoom the whole page out to fit it.
+  // the scrollable area and makes mobile browsers zoom the whole page out to fit it. The last key
+  // in the legend is the one furthest right, so it's the worst case.
   await builder.openSettings(0);
-  await builder.addSettingButton(0).click();
-  await builder.settingKeySelect(0).selectOption('reveal_answers');
-  const helpButtons = page.getByRole('button', { name: 'What does this setting do?' });
-  await helpButtons.last().click();
+  await builder.settingHelpKey('typo_tolerance').click();
   await expect(page.getByRole('note')).toBeVisible();
 
   const overflow = await page.evaluate(

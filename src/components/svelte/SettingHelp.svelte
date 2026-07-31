@@ -1,21 +1,18 @@
 <script lang="ts">
-  import { CircleQuestionMark, X } from '@lucide/svelte';
+  import { X } from '@lucide/svelte';
   import { clickOutside } from '@/lib/utils/clickOutside';
   import { SETTING_RULES, type SettingRule } from '@/lib/utils/quizScript';
 
-  // `rules` defaults to the per-question table; pass `QUIZ_SETTING_RULES` for a quiz-wide key.
+  // The trigger IS the key's own name, carrying a dotted underline — the long-standing convention
+  // for "there's a definition behind this word", and the reason no "?" icon is needed beside it.
+  // Two icons per key (one in the legend, one leading every settings row) was both visual noise and
+  // an alignment problem: a 32px icon button next to 16px of text made every wrapped line of the
+  // legend more than twice as tall as the text in it, and the quiz card's twenty-odd keys turned
+  // that into a wall.
   //
-  // `label` switches the trigger from a bare "?" to the key's own name followed by a small "?".
-  // A settings ROW already says which key it holds (in its <select>), so there the icon alone is
-  // the whole control; a legend of keys does not, and pairing each name with a separate 32px icon
-  // button made every wrapped line of that legend more than twice as tall as its text. Naming the
-  // trigger collapses the two into one control, and a wide chip is a comfortable target even at
-  // 24px tall.
-  let {
-    key,
-    label,
-    rules = SETTING_RULES
-  }: { key: string; label?: string; rules?: Record<string, SettingRule> } = $props();
+  // `rules` defaults to the per-question table; pass `QUIZ_SETTING_RULES` for a quiz-wide key.
+  let { key, rules = SETTING_RULES }: { key: string; rules?: Record<string, SettingRule> } =
+    $props();
 
   // Settings are a closed set (see SETTING_RULES / QUIZ_SETTING_RULES) — every key this is ever
   // called with is known.
@@ -122,26 +119,21 @@
 </script>
 
 <span class="inline-flex" use:clickOutside={close}>
+  <!-- `decoration-dotted underline-offset-4` rather than a bottom border, so the underline breaks
+       with the word if a long key wraps, and clears the descenders in keys like `typo_tolerance`.
+       The target is the key name's own box: short vertically, but keys are wide, so it's a
+       comfortable tap even at this height. -->
   <button
     bind:this={triggerEl}
     type="button"
-    class={label
-      ? 'flex cursor-help items-center gap-1 rounded px-1.5 py-1 font-mono text-slate-500 hover:bg-slate-100 hover:text-slate-700'
-      : 'cursor-help rounded p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700'}
-    aria-label={label ? undefined : 'What does this setting do?'}
+    class="cursor-help rounded px-1 py-0.5 font-mono text-slate-500 underline decoration-slate-400 decoration-dotted underline-offset-4 hover:bg-slate-100 hover:text-slate-700 {open
+      ? 'bg-slate-100 text-slate-700'
+      : ''}"
     aria-expanded={open}
     aria-controls={panelId}
     onclick={toggle}
   >
-    <!-- Icon-only form: 16px in a p-2 box, a 32px target. The old 12px bare icon was a ~12px one,
-         well under any usable touch size, sitting immediately beside the row's remove "×" — two
-         adjacent tiny targets where one is destructive. The labelled form gets its target size
-         from the key name's own width instead, so the icon can shrink to match the text. -->
-    {#if label}
-      {label}<CircleQuestionMark size={12} class="shrink-0" />
-    {:else}
-      <CircleQuestionMark size={16} />
-    {/if}
+    {key}
   </button>
   {#if open}
     <div

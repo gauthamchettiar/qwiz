@@ -23,7 +23,7 @@ test('authoring a match question has item/target pairs and no correct checkbox',
 
   await page.getByPlaceholder('Item').nth(0).fill('Paris');
   await page.getByPlaceholder('Matches with').nth(0).fill('France');
-  await page.getByRole('button', { name: 'Add text option' }).click();
+  await builder.addOption();
   await page.getByPlaceholder('Item').nth(1).fill('Tokyo');
   await page.getByPlaceholder('Matches with').nth(1).fill('Japan');
 

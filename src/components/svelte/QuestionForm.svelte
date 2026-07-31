@@ -27,7 +27,6 @@
   import type { FocusTarget } from '@/lib/utils/questionFocus';
   import SuggestionInput from './SuggestionInput.svelte';
   import ErrorList from './ErrorList.svelte';
-  import SettingHelp from './SettingHelp.svelte';
   import SettingsDocsLink from './SettingsDocsLink.svelte';
   import SettingsLegend from './SettingsLegend.svelte';
   import KindPicker from './KindPicker.svelte';
@@ -58,11 +57,11 @@
   // The choices each KindPicker offers — see that component for why these are an icon dropdown
   // rather than a native <select> or a row of visible buttons.
   //
-  // OPTION_KINDS drives exactly one control now: a `match_pairs` row's TARGET side. An option's own
-  // content kind is chosen when it's added instead (see the Add text/image/video buttons below),
-  // which is both fewer controls in the row and one fewer thing that can change under the author
-  // after the fact. A target has no add-time moment of its own to inherit a kind from — it's the
-  // other half of a row that already exists — so it keeps the picker.
+  // OPTION_KINDS drives two: the "Add option" menu at the end of the list, and a `match_pairs`
+  // row's TARGET side. An option's own content kind is settled when it's added rather than
+  // switched per row afterwards — one fewer control in every row, and one fewer thing that can
+  // change under the author after the fact. A target has no add-time moment of its own to inherit
+  // a kind from (it's the other half of a row that already exists), so it keeps a picker.
   const OPTION_KINDS = [
     { value: 'text', label: 'Text', icon: Type },
     { value: 'image', label: 'Image', icon: Image },
@@ -85,31 +84,40 @@
    * 36px hit area. */
   const ROW_CHECK_SLOT = `${ROW_CONTROL} w-6 flex items-center justify-center`;
 
-  /** The content fields of one row, grouped so that when the row runs out of width they wrap
-   * together onto a second line instead of each being squeezed to nothing in place. The row's fixed
-   * chrome (grip, checkbox, `pts`, remove) is ~13rem, so on a phone a single field was down to
-   * around 7rem — a text box showing four or five characters at a time.
+  /** A row's content fields, grouped so they stay together rather than each being squeezed to
+   * nothing in place. The row's fixed chrome (grip, checkbox, `pts`, remove) is ~13rem, so on a
+   * phone a single field was down to around 7rem — a text box showing four or five characters.
    *
-   * `order-last` is what keeps `pts` and the remove button on the FIRST line rather than trailing
-   * the wrapped fields: flex breaks lines in order-modified document order, so ordering the group
-   * last is the only way to have it wrap below controls that come after it in the markup. Paired
-   * with `basis-full` (not `w-full`) because flex-basis is what line-breaking actually measures.
+   * When a row runs out of width it's the TRAILING controls that drop to a second line, not the
+   * fields (`ROW_TRAILING` below). Wrapping the fields instead — which is what this did first —
+   * left a first line holding a grip, a checkbox and then nothing but whitespace before `pts`,
+   * and nothing tying that stray `pts` to the field underneath it. Leading with the content is
+   * both denser and unambiguous about what belongs to what.
    *
    * `grow basis-0` rather than `flex-1`: those mean the same thing, but `flex-1` sets the `flex`
    * shorthand while the container query overrides `flex-basis`, and which of two different
    * properties wins is decided by stylesheet order (see CLAUDE.md §5). Same property both times,
-   * and Tailwind always sorts a variant after its unprefixed form, so this resolves the one way.
+   * and Tailwind always sorts a variant after its unprefixed form, so this resolves the one way. */
+  const ROW_FIELDS = 'flex min-w-0 grow basis-0 items-center gap-1.5';
+  const ROW_FIELDS_WIDE = 'flex min-w-0 grow basis-0 flex-wrap items-center gap-1.5';
+  /** The `pts` + remove pair every row ends with, right-aligned whether it's sharing the row or
+   * has dropped below it.
    *
-   * The thresholds differ because the rows do: one field needs ~11rem to be usable, which the
-   * `@md` (28rem) container leaves it; a row carrying two (alt + url, or item → target) needs
-   * roughly twice that, hence `@xl` (36rem). */
-  const ROW_FIELDS =
-    'flex min-w-0 grow basis-0 items-center gap-1.5 @max-md:order-last @max-md:basis-full';
-  const ROW_FIELDS_WIDE =
-    'flex min-w-0 grow basis-0 flex-wrap items-center gap-1.5 @max-xl:order-last @max-xl:basis-full';
-  /** The `pts` + remove pair every row ends with, pushed to the right so it stays put whether or
-   * not the fields above have wrapped away from it. */
-  const ROW_TRAILING = 'ml-auto flex shrink-0 items-center gap-1.5';
+   * The two thresholds match the two field groups above, since what's left for the fields is what
+   * decides when to wrap: one field needs ~11rem to be usable, which an `@md` (28rem) row leaves
+   * it; a row carrying two (alt + url, or item → target) needs roughly twice that, hence `@xl`
+   * (36rem). `basis-full` rather than `w-full` because flex-basis is what line-breaking measures. */
+  const ROW_TRAILING = 'ml-auto flex shrink-0 items-center justify-end gap-1.5 @max-md:basis-full';
+  const ROW_TRAILING_WIDE =
+    'ml-auto flex shrink-0 items-center justify-end gap-1.5 @max-xl:basis-full';
+
+  /** Whether one option row carries two or more fields — a media option's alt + url, or a
+   * match/group row's item → target. Its field group and its trailing controls have to agree on
+   * that, or the two would wrap at different widths and briefly leave the row in a shape neither
+   * was designed for. */
+  function isWideRow(content: QuizScriptOptionContent): boolean {
+    return usesTargetRows || content.kind !== 'text';
+  }
 
   function blankElement(kind: 'image' | 'video' | 'reveal'): ElementItem {
     return kind === 'reveal'
@@ -558,7 +566,7 @@
               />
             </div>
           {/if}
-          <div class={ROW_TRAILING}>
+          <div class={ROW_TRAILING_WIDE}>
             {#if item.kind === 'reveal'}
               <input
                 type="text"
@@ -764,7 +772,7 @@
               aria-label="Correct"
             />
           </span>
-          <div class={option.content.kind === 'text' ? ROW_FIELDS : ROW_FIELDS_WIDE}>
+          <div class={isWideRow(option.content) ? ROW_FIELDS_WIDE : ROW_FIELDS}>
             {@render contentFields(
               option.content,
               index,
@@ -798,11 +806,11 @@
               />
             </span>
           {/if}
-          <div class={option.content.kind === 'text' ? ROW_FIELDS : ROW_FIELDS_WIDE}>
+          <div class={isWideRow(option.content) ? ROW_FIELDS_WIDE : ROW_FIELDS}>
             {@render contentFields(option.content, index, 'Option text')}
           </div>
         {/if}
-        <div class={ROW_TRAILING}>
+        <div class={isWideRow(option.content) ? ROW_TRAILING_WIDE : ROW_TRAILING}>
           <input
             type="text"
             inputmode="decimal"
@@ -825,37 +833,16 @@
     {/each}
     {#if !isCharacterInput || options.length === 0}
       {#if supportsMediaOptions}
-        <!-- One button per kind, mirroring the element row above, so an option's kind is settled
-             the moment it exists instead of being switched per row afterwards. The aria-labels
-             are longer than the visible text on purpose: "Add image" alone would be ambiguous
-             against the question-element button of the same name (and WCAG 2.5.3 is satisfied
-             either way, since the visible text is contained in the accessible name). -->
-        <div class="flex flex-wrap gap-1.5">
-          <button
-            type="button"
-            class="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
-            aria-label={`Add text ${rowNoun}`}
-            onclick={() => addOption('text')}
-          >
-            <Type size={13} /> Add text
-          </button>
-          <button
-            type="button"
-            class="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
-            aria-label={`Add image ${rowNoun}`}
-            onclick={() => addOption('image')}
-          >
-            <Image size={13} /> Add image
-          </button>
-          <button
-            type="button"
-            class="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
-            aria-label={`Add video ${rowNoun}`}
-            onclick={() => addOption('video')}
-          >
-            <VideoIcon size={13} /> Add video
-          </button>
-        </div>
+        <!-- One 36px trigger instead of three labelled buttons. An option's kind is still settled
+             when it's added rather than switched per row afterwards, but three buttons spent a
+             whole row of a phone's width restating "Add" — and they sat directly under the option
+             list they added to, which made the list's own bottom edge hard to find. -->
+        <KindPicker
+          kinds={OPTION_KINDS}
+          icon={Plus}
+          label={`Add ${rowNoun}`}
+          onSelect={(kind) => addOption(kind)}
+        />
       {:else}
         <button
           type="button"
@@ -972,16 +959,11 @@
         {@const validation = setting.key.trim()
           ? validateSettingValue(setting.key, setting.value)
           : null}
+        <!-- No per-row "?": every key is explained by the legend directly above, where the key
+             name itself is the trigger. Two explanation affordances for one closed set of keys was
+             one too many, and dropping it gives the value field back 2rem — which is most of what
+             made these rows wrap on a phone. -->
         <div class="flex flex-wrap items-center gap-1.5">
-          <!-- "?" leads the row rather than trailing the value field: it explains the whole row,
-               and on a phone the trailing position put it between the value and the remove "×",
-               two controls with very different consequences. The fixed-width slot keeps the row
-               from shifting sideways the moment a key is picked. -->
-          <span class="flex w-8 shrink-0 justify-center">
-            {#if setting.key.trim()}
-              <SettingHelp key={setting.key} />
-            {/if}
-          </span>
           <select
             class="w-28 shrink-0 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-900 focus:border-slate-400 focus:outline-none"
             bind:value={setting.key}
@@ -1010,9 +992,9 @@
           </button>
         </div>
         {#if validation?.error}
-          <!-- Indented to line up under the value field the message is about: the "?" slot (2rem)
-               plus its gap, the key select (7rem) plus its gap. -->
-          <p class="break-words text-xs text-red-600 sm:pl-[9.75rem]">{validation.error}</p>
+          <!-- Indented to line up under the value field the message is about: the key select
+               (7rem) plus its gap. -->
+          <p class="break-words text-xs text-red-600 sm:pl-[7.375rem]">{validation.error}</p>
         {/if}
       {/each}
       <button

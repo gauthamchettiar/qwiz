@@ -24,7 +24,7 @@ test('authoring a fill_blanks question keeps the correct checkbox, unlike order/
   await page.getByPlaceholder('Blank answer').nth(0).fill('mitochondria');
   await page.getByRole('checkbox', { name: 'Correct' }).nth(1).check();
   await page.getByPlaceholder('Blank answer').nth(1).fill('cell');
-  await page.getByRole('button', { name: 'Add text option' }).click();
+  await builder.addOption();
   // The 3rd row starts unchecked (a distractor) — leave it that way.
   await page.getByPlaceholder('Distractor word').fill('nucleus');
 

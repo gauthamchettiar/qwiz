@@ -17,9 +17,9 @@ export default defineConfig({
     // Wide enough for the builder's two-column code mode (`md:` = 768px) but under `xl:` (1280px),
     // where a code-mode card deliberately breaks out to 150% width and would spill out of a crop.
     viewport: { width: 1152, height: 900 },
-    // Documentation screenshots get read, not just glanced at — at 1x the 12px labels in a settings
-    // row are genuinely hard to make out once GitHub scales the image down.
-    deviceScaleFactor: 2
+    // 1x keeps the whole set to a few hundred KB. 2x reads better for the small labels in a
+    // settings row, but tripled the repo weight for images GitHub renders at ~880px wide anyway.
+    deviceScaleFactor: 1
   },
   webServer: {
     command: 'pnpm build && pnpm preview',

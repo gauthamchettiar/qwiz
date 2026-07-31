@@ -19,17 +19,27 @@
     kinds,
     value,
     label,
+    icon,
     onSelect
   }: {
     kinds: readonly { value: T; label: string; icon: Component }[];
-    value: T;
-    /** Names what's being chosen, for the trigger's accessible name — "Option content type". */
+    /** The kind currently chosen, in `select` mode. Omit for `action` mode, where the menu performs
+     * a one-off action (adding a row) rather than reporting a standing choice. */
+    value?: T;
+    /** Names what's being chosen, for the trigger's accessible name — "Option content type", or
+     * "Add option" for an action menu. */
     label: string;
+    /** Set to switch the trigger from "the current kind's icon" to a fixed one — which is what
+     * makes this an ACTION menu: there's no current value to display, so the items become
+     * `menuitem` (a thing to do) rather than `menuitemradio` (a thing that's selected). */
+    icon?: Component;
     onSelect: (value: T) => void;
   } = $props();
 
   let open = $state(false);
+  const isAction = $derived(icon !== undefined);
   const current = $derived(kinds.find((k) => k.value === value) ?? kinds[0]);
+  const TriggerIcon = $derived(icon ?? current.icon);
   const menuId = $props.id();
 
   function choose(next: T) {
@@ -45,13 +55,10 @@
     aria-haspopup="menu"
     aria-expanded={open}
     aria-controls={menuId}
-    aria-label={`${label}: ${current.label}`}
+    aria-label={isAction ? label : `${label}: ${current.label}`}
     onclick={() => (open = !open)}
   >
-    {#if current.icon}
-      {@const Icon = current.icon}
-      <Icon size={16} class="shrink-0" />
-    {/if}
+    <TriggerIcon size={16} class="shrink-0" />
     <ChevronDown size={10} class="-mr-1 shrink-0 text-slate-400" />
   </button>
 
@@ -74,9 +81,10 @@
         {@const Icon = kind.icon}
         <button
           type="button"
-          role="menuitemradio"
-          aria-checked={kind.value === value}
-          class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm {kind.value === value
+          role={isAction ? 'menuitem' : 'menuitemradio'}
+          aria-checked={isAction ? undefined : kind.value === value}
+          class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm {!isAction &&
+          kind.value === value
             ? 'bg-slate-100 font-medium text-slate-900'
             : 'text-slate-600 hover:bg-slate-50'}"
           onclick={() => choose(kind.value)}

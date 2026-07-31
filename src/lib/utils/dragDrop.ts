@@ -157,9 +157,6 @@ export function draggable(node: HTMLElement, params: DraggableParams) {
     ghost = buildGhost(current.ghostFrom ?? node);
     moveGhost(x, y);
     document.body.appendChild(ghost);
-    // Only now, once the gesture is definitely a drag: setting this up front would make the item
-    // an un-scrollable dead zone on a touch screen even for someone just swiping past it.
-    node.style.touchAction = 'none';
     // The node's own `user-select: none` (see below) stops a selection STARTING on it, but a drag
     // that travels over other text can still extend one that the browser decides to begin
     // elsewhere mid-gesture. Suppressing it document-wide for the duration is the only thing that
@@ -175,7 +172,6 @@ export function draggable(node: HTMLElement, params: DraggableParams) {
     }
     ghost?.remove();
     ghost = null;
-    node.style.touchAction = '';
     document.body.style.userSelect = '';
     const zone = overZone;
     const wasDragging = dragging;
@@ -264,18 +260,33 @@ export function draggable(node: HTMLElement, params: DraggableParams) {
     e.stopPropagation();
   }
 
-  // A long press is how a touch drag starts (see TOUCH_HOLD_MS) — and it's also how both mobile
-  // browsers start a text selection. Theirs fires around 500ms, well after this one has already
-  // begun, so the selection highlight, handles and magnifier come up on top of a drag in flight.
-  // Neither `touch-action: none` nor pointer capture suppresses any of that; `user-select` is what
-  // does, and `-webkit-touch-callout` is what stops iOS additionally offering its copy/share menu
-  // for the same press. Set once here rather than at drag start, because the browser decides
-  // whether a press is selecting text at the moment it goes down — by the time we know it's a drag
-  // it's already too late to opt out. Nothing this is used on holds text worth selecting: every
-  // one is a button, or a grip handle beside one.
+  /** `touch-action: none` is what stops the browser claiming a touch gesture as a page scroll, and
+   * it has to be in place BEFORE the finger lands: the value is latched when the touch begins, so
+   * setting it once a drag is underway — which is what this used to do — changes nothing about the
+   * gesture already in flight. That's why touch dragging never worked at all. The browser started
+   * panning on the first movement, fired `pointercancel`, and the drag was torn down before it
+   * could begin; the page just scrolled.
+   *
+   * The cost is real and was the reason it was deferred: a touch starting on a draggable item no
+   * longer scrolls the page. It's confined to the items themselves — every board has surrounding
+   * space that still scrolls normally, the items are small, and this is the same tradeoff dnd-kit
+   * and SortableJS make for the same reason. A locked board opts back out, since nothing there is
+   * draggable and it's often the longest thing on screen (the end-of-run review).
+   *
+   * A long press is also how both mobile browsers start a text selection. Theirs fires around
+   * 500ms, well after `TOUCH_HOLD_MS` has already begun a drag, so the selection highlight,
+   * handles and magnifier come up on top of one in flight. `touch-action` doesn't suppress that;
+   * `user-select` does, and `-webkit-touch-callout` is what stops iOS additionally offering its
+   * copy/share menu for the same press. Nothing this is used on holds text worth selecting: every
+   * one is a button, or a grip handle beside one. */
+  function applyTouchPolicy() {
+    node.style.touchAction = current.disabled ? '' : 'none';
+  }
+
   node.style.userSelect = 'none';
   node.style.setProperty('-webkit-user-select', 'none');
   node.style.setProperty('-webkit-touch-callout', 'none');
+  applyTouchPolicy();
 
   node.addEventListener('pointerdown', onPointerDown);
   node.addEventListener('click', onClickCapture, true);
@@ -283,6 +294,7 @@ export function draggable(node: HTMLElement, params: DraggableParams) {
   return {
     update(next: DraggableParams) {
       current = next;
+      applyTouchPolicy();
       if (next.disabled && (dragging || activePointer !== null)) endDrag(false);
     },
     destroy() {

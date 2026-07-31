@@ -205,3 +205,34 @@ test('fill_blanks: dragging bank words into blanks, and dragging one back out', 
   await play.submitAnswerButton.click();
   await expect(page.getByText('2 / 2 points')).toBeVisible();
 });
+
+test("a draggable item opts out of the browser's own touch gestures, so a drag isn't a scroll", async ({
+  page
+}) => {
+  // The regression this covers is subtle and total: `touch-action` is latched when a touch BEGINS,
+  // so setting it once a drag was already underway — which is what this used to do — changed
+  // nothing about the gesture in flight. The browser started panning on the first movement, fired
+  // `pointercancel`, and the drag was torn down before it could start. Touch dragging never worked
+  // at all; the page just scrolled.
+  //
+  // Asserted as a style rather than by driving a real touch drag: Playwright's `page.mouse` always
+  // reports `pointerType: 'mouse'`, which takes the movement-threshold path and never exercises
+  // touch at all, and a synthetic touch PointerEvent bypasses the very browser behaviour at issue.
+  // The computed style is the thing that was actually wrong.
+  const quiz = buildOrderQuiz();
+  await seedQuizzes(page, [quiz]);
+
+  const play = new PlayPage(page);
+  await play.goto(quiz.id);
+
+  await expect(page.getByRole('button', { name: 'First', exact: true })).toHaveCSS(
+    'touch-action',
+    'none'
+  );
+
+  // The matching opt-out on a LOCKED board (nothing there is draggable, and it's often the longest
+  // thing on screen, so it must not become an un-scrollable strip) isn't asserted here: locking
+  // renames every item, so there's no stable locator to follow across the transition, and reaching
+  // for one would test the naming rather than the touch policy. It's `applyTouchPolicy` in
+  // dragDrop.ts, driven by the same `disabled` flag every board already passes.
+});
