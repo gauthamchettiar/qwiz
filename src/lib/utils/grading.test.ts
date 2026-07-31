@@ -651,7 +651,11 @@ describe('categoriseBuckets', () => {
     const q = makeQuestion({
       variant: 'group_items',
       options: [
-        { content: { kind: 'image', alt: 'A trout', url: 'trout.png' }, correct: true, target: text('Water') },
+        {
+          content: { kind: 'image', alt: 'A trout', url: 'trout.png' },
+          correct: true,
+          target: text('Water')
+        },
         { content: { kind: 'text', text: 'Lion' }, correct: true, target: text('Land') }
       ]
     });

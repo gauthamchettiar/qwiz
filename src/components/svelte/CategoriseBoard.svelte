@@ -65,7 +65,9 @@
 
   function isCorrect(optionIndex: number): boolean {
     const bucketIndex = assignments.get(optionIndex);
-    return bucketIndex !== undefined && buckets[bucketIndex] === optionTargetText(options[optionIndex]);
+    return (
+      bucketIndex !== undefined && buckets[bucketIndex] === optionTargetText(options[optionIndex])
+    );
   }
 
   function itemsIn(bucketIndex: number): number[] {

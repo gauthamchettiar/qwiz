@@ -1605,7 +1605,8 @@ function escapeIfNeeded(text: string, context: 'line' | 'option'): string {
  * never to a `-> target`, where a leading `=` is just a character. Escaping there would break the
  * round trip outright: `-> \=France` parses back as the literal text `\=France`. */
 function formatOptionContent(content: QuizScriptOptionContent, escape = true): string {
-  if (content.kind === 'text') return escape ? escapeIfNeeded(content.text, 'option') : content.text;
+  if (content.kind === 'text')
+    return escape ? escapeIfNeeded(content.text, 'option') : content.text;
   if (content.kind === 'image') return `![${content.alt}](${content.url})`;
   return `!<youtube>[${content.alt}](${content.url})`;
 }
