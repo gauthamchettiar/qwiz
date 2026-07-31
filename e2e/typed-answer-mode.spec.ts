@@ -16,7 +16,7 @@ test('order with answer_mode=type: fields instead of a board, graded on the type
       {
         id: 'q1',
         code: [
-          'order: Put these in order',
+          'order_items: Put these in order',
           '{',
           '=First',
           '=Second',
@@ -55,7 +55,7 @@ test('match with answer_mode=type: type each target, with typos forgiven per typ
       {
         id: 'q1',
         code: [
-          'match: Match the capitals',
+          'match_pairs: Match the capitals',
           '{',
           '=Paris -> France',
           '=Tokyo -> Japan',
@@ -82,7 +82,7 @@ test('match with answer_mode=type: type each target, with typos forgiven per typ
   await expect(page.getByText('2 / 2 points')).toBeVisible();
 });
 
-test('categorise with answer_mode=type shows the accepted answer for a slot got wrong', async ({
+test('group_items with answer_mode=type shows the accepted answer for a slot got wrong', async ({
   page
 }) => {
   const quiz = buildQuiz({
@@ -90,7 +90,7 @@ test('categorise with answer_mode=type shows the accepted answer for a slot got 
       {
         id: 'q1',
         code: [
-          'categorise: Sort the animals',
+          'group_items: Sort the animals',
           '{',
           '=Fish -> Water',
           '=Lion -> Land',
@@ -122,13 +122,13 @@ test('a quiz-wide answer_mode=type applies to every placement question in the qu
     questions: [
       {
         id: 'q1',
-        code: ['match: Match the capitals', '{', '=Paris -> France', '}'].join('\n')
+        code: ['match_pairs: Match the capitals', '{', '=Paris -> France', '}'].join('\n')
       },
       {
         id: 'q2',
         // The question's own setting always wins over the quiz-wide default.
         code: [
-          'categorise: Sort the animals',
+          'group_items: Sort the animals',
           '{',
           '=Fish -> Water',
           '}',

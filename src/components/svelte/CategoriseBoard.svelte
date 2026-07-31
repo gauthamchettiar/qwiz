@@ -1,10 +1,10 @@
 <script lang="ts">
   import { CircleCheck, CircleX, GripVertical, Inbox } from '@lucide/svelte';
-  import type { QuizScriptOption } from '@/lib/utils/quizScript';
+  import { optionTargetText, type QuizScriptOption } from '@/lib/utils/quizScript';
   import { draggable, type DragState } from '@/lib/utils/dragDrop';
   import OptionContent from './OptionContent.svelte';
 
-  // Presentation-only categorise board: one TRAY per bucket (each holding any number of items,
+  // Presentation-only group_items board: one TRAY per bucket (each holding any number of items,
   // unlike match's 1-to-1 pairing) plus a pool of not-yet-assigned items — all assignment logic
   // lives in the caller (QuestionPlayer.svelte), same division of responsibility as
   // OrderBoard.svelte/MatchBoard.svelte.
@@ -52,7 +52,7 @@
     onDrop: (optionIndex: number, zone: number) => void;
   } = $props();
 
-  const DROP_GROUP = 'categorise';
+  const DROP_GROUP = 'group_items';
   const SOURCE_ZONE = -1;
 
   const poolIndices = $derived(itemOrder.filter((i) => !assignments.has(i)));
@@ -60,9 +60,12 @@
   let drag = $state<DragState | null>(null);
   const placing = $derived(picked !== null || drag !== null);
 
+  /** Locked AND revealing — gates both the green/red tinting and the answer key beside it. */
+  const showing = $derived(locked && revealAnswers);
+
   function isCorrect(optionIndex: number): boolean {
     const bucketIndex = assignments.get(optionIndex);
-    return bucketIndex !== undefined && buckets[bucketIndex] === options[optionIndex].target;
+    return bucketIndex !== undefined && buckets[bucketIndex] === optionTargetText(options[optionIndex]);
   }
 
   function itemsIn(bucketIndex: number): number[] {
@@ -75,7 +78,7 @@
    * QuestionPlayer's `choiceOptionTone` for why a "base plus reveal override" pair of class strings
    * silently resolves the wrong way. */
   function itemTone(optionIndex: number): string {
-    if (locked && revealAnswers) {
+    if (showing) {
       return isCorrect(optionIndex) ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50';
     }
     return 'border-slate-300 bg-white hover:bg-slate-50';
@@ -135,26 +138,38 @@
             : 'border-slate-300'}"
         >
           {#each itemsHere as optionIndex (optionIndex)}
-            <button
-              type="button"
-              use:draggable={dragParams(optionIndex)}
-              class="flex items-center gap-1 rounded-md border p-1.5 text-left text-sm transition-colors disabled:cursor-not-allowed {itemTone(
-                optionIndex
-              )} {drag?.id === optionIndex ? 'opacity-40' : ''}"
-              disabled={locked}
-              onclick={() => onPickItemBackUp(optionIndex)}
-            >
-              <div class="flex items-center gap-1.5">
-                <OptionContent content={options[optionIndex].content} />
-                {#if locked && revealAnswers}
-                  {#if isCorrect(optionIndex)}
-                    <CircleCheck size={14} class="shrink-0 text-green-600" />
-                  {:else}
-                    <CircleX size={14} class="shrink-0 text-red-500" />
+            <!-- Chip and its answer key stack as ONE flex item of the well, so a revealed answer
+                 travels with the chip it corrects instead of wrapping onto its own row. -->
+            <div class="flex flex-col gap-0.5">
+              <button
+                type="button"
+                use:draggable={dragParams(optionIndex)}
+                class="flex items-center gap-1 rounded-md border p-1.5 text-left text-sm transition-colors disabled:cursor-not-allowed {itemTone(
+                  optionIndex
+                )} {drag?.id === optionIndex ? 'opacity-40' : ''}"
+                disabled={locked}
+                onclick={() => onPickItemBackUp(optionIndex)}
+              >
+                <div class="flex items-center gap-1.5">
+                  <OptionContent content={options[optionIndex].content} />
+                  {#if showing}
+                    {#if isCorrect(optionIndex)}
+                      <CircleCheck size={14} class="shrink-0 text-green-600" />
+                    {:else}
+                      <CircleX size={14} class="shrink-0 text-red-500" />
+                    {/if}
                   {/if}
-                {/if}
-              </div>
-            </button>
+                </div>
+              </button>
+              <!-- Outside the button: text inside one becomes part of its accessible name. -->
+              {#if showing && !isCorrect(optionIndex)}
+                <p class="px-0.5 text-xs text-slate-500">
+                  Answer: <span class="font-medium text-green-700"
+                    >{optionTargetText(options[optionIndex])}</span
+                  >
+                </p>
+              {/if}
+            </div>
           {/each}
           {#if picked !== null && !locked}
             <button
@@ -199,24 +214,36 @@
       </p>
       <div class="flex flex-wrap gap-1.5">
         {#each poolIndices as optionIndex (optionIndex)}
-          <button
-            type="button"
-            use:draggable={dragParams(optionIndex)}
-            class="flex items-center gap-1.5 rounded-md border p-2 text-left transition-colors disabled:cursor-not-allowed {picked ===
-            optionIndex
-              ? 'border-indigo-400 bg-indigo-50'
-              : 'border-slate-300 bg-white hover:bg-slate-50'} {drag?.id === optionIndex
-              ? 'opacity-40'
-              : ''}"
-            disabled={locked}
-            onclick={() => onPickItem(optionIndex)}
-            aria-pressed={picked === optionIndex}
-          >
-            {#if !locked}
-              <GripVertical size={14} class="shrink-0 text-slate-400" />
+          <div class="flex flex-col gap-0.5">
+            <button
+              type="button"
+              use:draggable={dragParams(optionIndex)}
+              class="flex items-center gap-1.5 rounded-md border p-2 text-left transition-colors disabled:cursor-not-allowed {picked ===
+              optionIndex
+                ? 'border-indigo-400 bg-indigo-50'
+                : 'border-slate-300 bg-white hover:bg-slate-50'} {drag?.id === optionIndex
+                ? 'opacity-40'
+                : ''}"
+              disabled={locked}
+              onclick={() => onPickItem(optionIndex)}
+              aria-pressed={picked === optionIndex}
+            >
+              {#if !locked}
+                <GripVertical size={14} class="shrink-0 text-slate-400" />
+              {/if}
+              <OptionContent content={options[optionIndex].content} />
+            </button>
+            <!-- An item still sitting in the pool was never assigned anywhere, so no bucket above
+                 can reveal where it belonged — without this it's the one item a review screen says
+                 nothing about at all. -->
+            {#if showing}
+              <p class="px-0.5 text-xs text-slate-500">
+                Answer: <span class="font-medium text-green-700"
+                  >{optionTargetText(options[optionIndex])}</span
+                >
+              </p>
             {/if}
-            <OptionContent content={options[optionIndex].content} />
-          </button>
+          </div>
         {/each}
       </div>
     </div>

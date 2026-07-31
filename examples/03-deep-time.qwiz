@@ -9,7 +9,7 @@ tags: [order, chronology, drag-and-drop]
 :partial_credit=true
 ---
 
-order: Drag these into the order they happened, earliest first.
+order_items: Drag these into the order they happened, earliest first.
 !<reveal>[Which century?](The Great Fire was 1666. Everything else is on the other side of it.) %-1%
 {
 =Construction begins on Stonehenge
@@ -20,7 +20,7 @@ order: Drag these into the order they happened, earliest first.
 }
 :points_correct=2
 
-order: Smallest to largest. No board this time — type each one in.
+order_items: Smallest to largest. No board this time — type each one in.
 !<analysis>[Why?](answer_mode=type swaps the drag board for one field per position. The items are still listed for reference, since sequencing a set you can't see isn't a question anyone could answer.)
 {
 =Atom
@@ -33,7 +33,7 @@ order: Smallest to largest. No board this time — type each one in.
 :typo_tolerance=25
 :points_correct=2
 
-order: Rank these by how long they take, shortest first.
+order_items: Rank these by how long they take, shortest first.
 {
 =A single heartbeat
 =Boiling a kettle

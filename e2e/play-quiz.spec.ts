@@ -76,7 +76,7 @@ test('shows post-question analysis on the intermediate screen, but not on the en
       },
       {
         id: 'q2',
-        code: ['typed: What is the capital of Italy?', '{', '=Rome', '}'].join('\n')
+        code: ['type_answer: What is the capital of Italy?', '{', '=Rome', '}'].join('\n')
       }
     ]
   });

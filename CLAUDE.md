@@ -40,24 +40,42 @@ primitive rather than converting the project to SSR.
 there's no shared content anywhere for indexing to be useful. If the app ever grows something
 genuinely public (a shareable read-only quiz link, say), revisit both.
 
+### The nine question variants
+
+The format's variant keywords are all `verb_object`, so the set reads as one vocabulary and no name
+collides with an ordinary identifier (the old `order`/`match` were unsearchable against
+`optionOrder`/`matchTypedGuesses`):
+
+`pick_one` · `pick_many` · `type_answer` · `type_pattern` · `guess_letters` · `order_items` ·
+`match_pairs` · `group_items` · `fill_blanks`
+
+Renamed from `single_choice`/`multiple_choice`/`typed`/`character_input`/`order`/`match`/
+`categorise`/`fill_in_blanks` **with no backward-compatibility aliases**, by explicit decision — a
+quiz saved under the old keywords reports `Unknown variant` and has to be re-authored. Don't add an
+alias map without asking; the clean break is the point.
+
+`type_pattern` is the one variant whose `=`/`~` markers are both load-bearing (`=` patterns define
+correct, `~` patterns mark a response explicitly wrong). Every other typed variant forces every
+option `correct: true` at parse time.
+
 ---
 
 ## 2. Stack
 
-| Concern         | Choice                                                                               | Notes                                                                     |
-| --------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
-| Framework       | Astro 7                                                                              | static output, islands architecture                                       |
-| Interactive UI  | Svelte 5 (runes)                                                                     | `$state`, `$derived`, `$effect`, `$props` — no legacy stores API          |
-| Styling         | Tailwind CSS v4 (`@tailwindcss/vite`)                                                | no `tailwind.config.js`; theme lives in CSS via `@theme`                  |
-| Components      | Hand-rolled Tailwind, no component library                                           | see §5 — daisyUI/Bits UI were evaluated and deliberately not adopted      |
-| Icons           | `@lucide/svelte`                                                                     |                                                                           |
-| Validation      | zod                                                                                  | schemas in `src/lib/schemas/`; types derive via `z.infer`                 |
-| Language        | TypeScript, `strict: true`                                                           | `astro/tsconfigs/strict` as base, plus a `@/*` path alias                 |
-| Package manager | pnpm                                                                                 | lockfile committed (`pnpm-lock.yaml`), `--frozen-lockfile` in CI          |
-| E2E tests       | Playwright                                                                           | primary safety net — 360 tests (90 per project) across 4 browser projects |
-| Unit tests      | Vitest                                                                               | pure logic in `src/lib/**` — 279 tests                                    |
-| Lint / format   | ESLint (flat config) + Prettier + `prettier-plugin-astro` + `prettier-plugin-svelte` |                                                                           |
-| Deploy          | Cloudflare Pages                                                                     | via GitHub Actions, see §8                                                |
+| Concern         | Choice                                                                               | Notes                                                                      |
+| --------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| Framework       | Astro 7                                                                              | static output, islands architecture                                        |
+| Interactive UI  | Svelte 5 (runes)                                                                     | `$state`, `$derived`, `$effect`, `$props` — no legacy stores API           |
+| Styling         | Tailwind CSS v4 (`@tailwindcss/vite`)                                                | no `tailwind.config.js`; theme lives in CSS via `@theme`                   |
+| Components      | Hand-rolled Tailwind, no component library                                           | see §5 — daisyUI/Bits UI were evaluated and deliberately not adopted       |
+| Icons           | `@lucide/svelte`                                                                     |                                                                            |
+| Validation      | zod                                                                                  | schemas in `src/lib/schemas/`; types derive via `z.infer`                  |
+| Language        | TypeScript, `strict: true`                                                           | `astro/tsconfigs/strict` as base, plus a `@/*` path alias                  |
+| Package manager | pnpm                                                                                 | lockfile committed (`pnpm-lock.yaml`), `--frozen-lockfile` in CI           |
+| E2E tests       | Playwright                                                                           | primary safety net — 424 tests (106 per project) across 4 browser projects |
+| Unit tests      | Vitest                                                                               | pure logic in `src/lib/**` — 328 tests                                     |
+| Lint / format   | ESLint (flat config) + Prettier + `prettier-plugin-astro` + `prettier-plugin-svelte` |                                                                            |
+| Deploy          | Cloudflare Pages                                                                     | via GitHub Actions, see §8                                                 |
 
 Version numbers drift. Before pinning anything, check the installed version in `package.json` and
 the actual API in `node_modules`, not memory.
@@ -112,6 +130,7 @@ migration.
 │   │   ├── stores/quizzes.ts    # the only file that touches localStorage — list/get/save/delete
 │   │   └── utils/                # quizScript.ts (parser/serializer), grading.ts, shuffle.ts,
 │   │                             # youtube.ts, download.ts, suggestions.ts, sampleQuizzes.ts,
+│   │                             # numericInput.ts,
 │   │                             # importQwiz.ts, clickOutside.ts, dragDrop.ts,
 │   │                             # questionFocus.ts
 │   ├── pages/
@@ -305,7 +324,10 @@ matching the one embed the app ever renders (`extractYoutubeId` in `lib/utils/yo
 
 Pure logic only: `grading.test.ts`, `quizScript.test.ts` (including parse → serialize → parse
 round-trips for every question/frontmatter shape, and every validation error path),
-`shuffle.test.ts`, `youtube.test.ts`, `download.test.ts`, `importQwiz.test.ts`, and
+`shuffle.test.ts`, `youtube.test.ts`, `download.test.ts`, `importQwiz.test.ts`,
+`numericInput.test.ts`, `settingsDoc.test.ts` (keeps `docs/settings.md`'s tables honest against
+`SETTING_RULES`/`QUIZ_SETTING_RULES` — keys, accepted values, defaults and inheritance, in both
+directions; the same idea as `llmReference.test.ts`), and
 `stores/quizzes.test.ts` (the one file that needs `// @vitest-environment jsdom` for a real
 `localStorage`, since everything else runs in plain `node`).
 

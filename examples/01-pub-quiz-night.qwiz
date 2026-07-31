@@ -11,7 +11,7 @@ tags: [trivia, scoring, hints]
 :shuffle_options=true
 ---
 
-single_choice: A "murmuration" is a collective noun for a large group of which animal?
+pick_one: A "murmuration" is a collective noun for a large group of which animal?
 !<reveal>[Nudge me](They do it at dusk, over piers and reed beds, in shapes that look like smoke.) %-1%
 {
 =Starlings
@@ -21,7 +21,7 @@ single_choice: A "murmuration" is a collective noun for a large group of which a
 }
 :points_correct=2
 
-multiple_choice: Which of these countries have a coastline on the Mediterranean Sea?
+pick_many: Which of these countries have a coastline on the Mediterranean Sea?
 !<analysis>[Why?](Slovenia's coast is only about 46 km long — the shortest on the Mediterranean of any country that has one — which is why it's so often missed.)
 {
 =Slovenia
@@ -35,7 +35,7 @@ multiple_choice: Which of these countries have a coastline on the Mediterranean 
 :points_wrong=-2
 :options_layout=grid2x2
 
-single_choice: Which of these films did NOT win the Academy Award for Best Picture?
+pick_one: Which of these films did NOT win the Academy Award for Best Picture?
 {
 =The Shawshank Redemption
 ~Casablanca
@@ -45,7 +45,7 @@ single_choice: Which of these films did NOT win the Academy Award for Best Pictu
 :points_correct=2
 :difficulty=medium
 
-multiple_choice: Pick the two elements that are liquid at room temperature.
+pick_many: Pick the two elements that are liquid at room temperature.
 {
 =Mercury
 =Bromine
@@ -58,7 +58,7 @@ multiple_choice: Pick the two elements that are liquid at room temperature.
 :points_correct=3
 :difficulty=hard
 
-single_choice: In the standard 88-key piano, how many keys are black?
+pick_one: In the standard 88-key piano, how many keys are black?
 !<reveal>[Nudge me](Five per octave, and there are a bit over seven octaves.) %-1%
 {
 =36

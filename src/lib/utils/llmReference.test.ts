@@ -58,14 +58,15 @@ describe('docs/llm-reference.md examples', () => {
   it('documents every variant the parser accepts', () => {
     const source = readFileSync(REFERENCE, 'utf8');
     for (const variant of [
-      'single_choice',
-      'multiple_choice',
-      'typed',
-      'character_input',
-      'order',
-      'match',
-      'categorise',
-      'fill_in_blanks'
+      'pick_one',
+      'pick_many',
+      'type_answer',
+      'type_pattern',
+      'guess_letters',
+      'order_items',
+      'match_pairs',
+      'group_items',
+      'fill_blanks'
     ]) {
       expect(source, `${variant} is missing from the reference`).toContain(`### \`${variant}\``);
     }

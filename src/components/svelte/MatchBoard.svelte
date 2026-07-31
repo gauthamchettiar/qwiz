@@ -1,6 +1,6 @@
 <script lang="ts">
   import { ArrowRight, CircleCheck, CircleX, GripVertical } from '@lucide/svelte';
-  import type { QuizScriptOption } from '@/lib/utils/quizScript';
+  import { optionTargetText, type QuizScriptOption } from '@/lib/utils/quizScript';
   import { draggable, type DragState } from '@/lib/utils/dragDrop';
   import OptionContent from './OptionContent.svelte';
 
@@ -44,10 +44,13 @@
     onDrop: (leftIndex: number, rightIndex: number) => void;
   } = $props();
 
-  const DROP_GROUP = 'match';
+  const DROP_GROUP = 'match_pairs';
 
   let drag = $state<DragState | null>(null);
   const placing = $derived(picked !== null || drag !== null);
+
+  /** Locked AND revealing — gates both the green/red tinting and the answer key beside it. */
+  const showing = $derived(locked && revealAnswers);
 
   function isCorrect(index: number): boolean {
     return pairs.get(index) === index;
@@ -58,7 +61,7 @@
    * silently resolves the wrong way. */
   function leftTone(leftIndex: number): string {
     const paired = pairs.has(leftIndex);
-    if (locked && revealAnswers && paired) {
+    if (showing && paired) {
       return isCorrect(leftIndex) ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50';
     }
     if (picked === leftIndex) return 'border-indigo-400 bg-indigo-50';
@@ -68,7 +71,7 @@
 
   function rightTone(rightIndex: number): string {
     const used = [...pairs.values()].includes(rightIndex);
-    if (locked && revealAnswers && used) {
+    if (showing && used) {
       return isCorrect(rightIndex) ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50';
     }
     if (drag?.overZone === rightIndex) {
@@ -107,7 +110,7 @@
       <div>
         {#if paired}
           <span id={`${instanceId}-pair-${leftIndex}`} class="sr-only">
-            Matched with {options[pairs.get(leftIndex)!].target}
+            Matched with {optionTargetText(options[pairs.get(leftIndex)!])}
           </span>
         {/if}
         <button
@@ -142,7 +145,7 @@
                 <ArrowRight size={12} />{position}
               </span>
             {/if}
-            {#if locked && revealAnswers && paired}
+            {#if showing && paired}
               {#if isCorrect(leftIndex)}
                 <CircleCheck size={16} class="shrink-0 text-green-600" />
               {:else}
@@ -151,12 +154,30 @@
             {/if}
           </div>
         </button>
+        <!-- The answer key, outside the button for the same reason the pairing description above
+             is: text inside a button becomes part of its accessible name. Covers the unpaired case
+             too — an item the player never got to is exactly the one they most need told. -->
+        {#if showing && !isCorrect(leftIndex)}
+          {@const target = options[leftIndex].target}
+          <!-- A picture target is shown as the picture, since naming it by alt text alone would
+               make the answer key the one place on this board that doesn't look like the column
+               it's pointing at. -->
+          <div class="mt-1 flex items-center gap-1 text-xs text-slate-500">
+            Answer:
+            {#if target && target.kind !== 'text'}
+              <span class="inline-block max-w-32"><OptionContent content={target} /></span>
+            {:else}
+              <span class="font-medium text-green-700">{optionTargetText(options[leftIndex])}</span>
+            {/if}
+          </div>
+        {/if}
       </div>
     {/each}
   </div>
   <div class="space-y-1.5">
     {#each rightOrder as rightIndex, position (rightIndex)}
       {@const used = [...pairs.values()].includes(rightIndex)}
+      {@const target = options[rightIndex].target}
       <button
         type="button"
         data-drop-group={DROP_GROUP}
@@ -166,7 +187,15 @@
         )}"
         disabled={locked}
         onclick={() => onClickRight(rightIndex)}
+        aria-label={optionTargetText(options[rightIndex]) === ''
+          ? `Match target ${position + 1}`
+          : undefined}
       >
+        <!-- The position badge is aria-hidden, so the button's accessible name is the target's own
+             words — its text, or a picture's alt. Only when there are none (a picture with no alt)
+             does an aria-label step in: without it the control would have no name at all, and
+             naming it unconditionally would rewrite the name every existing text target already
+             has. -->
         <span
           aria-hidden="true"
           class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-semibold {used
@@ -175,7 +204,9 @@
         >
           {position + 1}
         </span>
-        <span class="min-w-0 flex-1">{options[rightIndex].target}</span>
+        <span class="min-w-0 flex-1">
+          {#if target}<OptionContent content={target} />{/if}
+        </span>
       </button>
     {/each}
   </div>

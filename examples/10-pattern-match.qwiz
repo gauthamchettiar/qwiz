@@ -1,0 +1,34 @@
+---
+title: Pattern Match
+description: Answers graded by regular expression, so one pattern covers a whole family of correct responses.
+category: formats
+tags: [regex, typing]
+:reveal_answers=after_every_question
+:points_correct=2
+---
+
+type_pattern: Give any year in the 1990s.
+{
+=199[0-9]
+~19[0-8][0-9]
+}
+
+type_pattern: Write a UK postcode-shaped string, e.g. SW1A 1AA.
+{
+=[A-Z]{1,2}[0-9][A-Z0-9]? ?[0-9][A-Z]{2}
+}
+:match_case=true
+
+type_pattern: What is the chemical formula for water?
+!<reveal>[Need a nudge?](Two hydrogens, one oxygen.) %-1%
+{
+=H2O
+=H₂O
+~HO2 %-1%
+}
+
+type_pattern: Give a decimal number between 0 and 1.
+{
+=0\.[0-9]+
+~[01]
+}

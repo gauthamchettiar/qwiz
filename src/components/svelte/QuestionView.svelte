@@ -10,11 +10,18 @@
     ListOrdered,
     RectangleEllipsis,
     SquareCheck,
+    Regex,
     Type,
     Video,
     WholeWord
   } from '@lucide/svelte';
-  import type { QuizScriptOption, QuizScriptQuestion } from '@/lib/utils/quizScript';
+  import {
+    optionLabelText,
+    optionTargetText,
+    type QuizScriptOption,
+    type QuizScriptOptionContent,
+    type QuizScriptQuestion
+  } from '@/lib/utils/quizScript';
   import type { FocusTarget } from '@/lib/utils/questionFocus';
   import {
     categoriseBuckets,
@@ -30,9 +37,9 @@
   // different shape, and this renders that shape rather than one generic option list.
   //
   // The point is scanning: a builder page is a stack of these, and previously every variant rendered
-  // as the same flat list of options with a green tick beside each "correct" one. On `order` that was
+  // as the same flat list of options with a green tick beside each "correct" one. On `order_items` that was
   // actively misleading (every item is correct — the SEQUENCE is the answer), and on
-  // `match`/`categorise` it hid the pairing entirely. Each preview below now mirrors the structure
+  // `match_pairs`/`group_items` it hid the pairing entirely. Each preview below now mirrors the structure
   // the player will actually see, so the variant is legible from the shape alone, without reading the
   // label. Nothing here is decorative: numbering appears only where order carries meaning, arrows
   // only where something maps to something else.
@@ -46,37 +53,38 @@
   const optionsContainerClass = $derived(choiceOptionsLayoutClass(question));
 
   /** Plain-language name plus an icon whose form echoes the answer's shape — a numbered list for
-   * `order`, a grid for `categorise`, and so on. Named for what the author does, not for the
+   * `order_items`, a grid for `group_items`, and so on. Named for what the author does, not for the
    * variant keyword, which is already visible in code mode. */
   const VARIANT_LABELS: Record<string, { label: string; icon: Component }> = {
-    single_choice: { label: 'Pick one', icon: CircleDot },
-    multiple_choice: { label: 'Pick several', icon: SquareCheck },
-    typed: { label: 'Type the answer', icon: Type },
-    character_input: { label: 'Guess the letters', icon: WholeWord },
-    order: { label: 'Put in order', icon: ListOrdered },
-    match: { label: 'Match pairs', icon: ArrowRight },
-    categorise: { label: 'Sort into buckets', icon: LayoutGrid },
-    // Not `Type` again: `typed` already uses it, and two variants sharing an icon defeats the point
+    pick_one: { label: 'Pick one', icon: CircleDot },
+    pick_many: { label: 'Pick several', icon: SquareCheck },
+    type_answer: { label: 'Type the answer', icon: Type },
+    type_pattern: { label: 'Match a pattern', icon: Regex },
+    guess_letters: { label: 'Guess the letters', icon: WholeWord },
+    order_items: { label: 'Put in order', icon: ListOrdered },
+    match_pairs: { label: 'Match pairs', icon: ArrowRight },
+    group_items: { label: 'Sort into buckets', icon: LayoutGrid },
+    // Not `Type` again: `type_answer` already uses it, and two variants sharing an icon defeats the point
     // of having one. A gap in a line of text is what this variant actually looks like.
-    fill_in_blanks: { label: 'Fill the blanks', icon: RectangleEllipsis }
+    fill_blanks: { label: 'Fill the blanks', icon: RectangleEllipsis }
   };
   const variantMeta = $derived(VARIANT_LABELS[question.variant]);
 
-  /** Option indices paired with their options, so a preview can regroup or reorder them (categorise
-   * groups by bucket, fill_in_blanks splits answers from distractors) and still ask the form editor
+  /** Option indices paired with their options, so a preview can regroup or reorder them (group_items
+   * groups by bucket, fill_blanks splits answers from distractors) and still ask the form editor
    * to focus the right ORIGINAL option. */
   const indexedOptions = $derived(question.options.map((option, index) => ({ option, index })));
-  const buckets = $derived(question.variant === 'categorise' ? categoriseBuckets(question) : []);
+  const buckets = $derived(question.variant === 'group_items' ? categoriseBuckets(question) : []);
   const blankAnswers = $derived(indexedOptions.filter(({ option }) => option.correct));
   const blankDistractors = $derived(indexedOptions.filter(({ option }) => !option.correct));
 
   const answerText = $derived(
-    question.variant === 'character_input' ? characterInputAnswerText(question) : ''
+    question.variant === 'guess_letters' ? characterInputAnswerText(question) : ''
   );
   // `letters_shown_at_start`'s random extras are resolved per play session, not here, so this shows only
   // the author's explicit `[X]` brackets — the part that's actually a property of the question.
   const prerevealed = $derived(
-    question.variant === 'character_input'
+    question.variant === 'guess_letters'
       ? characterInputPrerevealedPositions(question, new Set())
       : new Set<number>()
   );
@@ -84,10 +92,6 @@
   function pointsLabel(option: QuizScriptOption): string {
     if (option.points === undefined) return option.correct ? 'Correct' : 'Incorrect';
     return `${option.points >= 0 ? '+' : ''}${option.points} pts`;
-  }
-
-  function optionText(option: QuizScriptOption): string {
-    return option.content.kind === 'text' ? option.content.text : option.content.alt || '';
   }
 </script>
 
@@ -136,12 +140,14 @@
   {/if}
 {/snippet}
 
-<!-- One option's content, for the previews that just need "what does this item say". -->
-{#snippet optionBody(option: QuizScriptOption)}
-  {#if option.content.kind === 'text'}
-    <p class="text-sm text-slate-900">{option.content.text}</p>
+<!-- One piece of option content, for the previews that just need "what does this item say". Takes
+     the content rather than the whole option so a `match_pairs` target — same shape, opposite side
+     of the row — renders through it too. -->
+{#snippet contentBody(content: QuizScriptOptionContent)}
+  {#if content.kind === 'text'}
+    <p class="text-sm text-slate-900">{content.text}</p>
   {:else}
-    {@render mediaBlock(option.content, 'option')}
+    {@render mediaBlock(content, 'option')}
   {/if}
 {/snippet}
 
@@ -154,7 +160,7 @@
 {/snippet}
 
 <!-- A caption naming what the rows beneath it are, since "the answer" means something different per
-     variant — an authored sequence, a set of pairs, a partition. Without it, `order`'s numbered list
+     variant — an authored sequence, a set of pairs, a partition. Without it, `order_items`'s numbered list
      is indistinguishable from a list that merely happens to be numbered. -->
 {#snippet answerKeyLabel(text: string)}
   <p class="text-xs font-medium uppercase tracking-wide text-slate-500">{text}</p>
@@ -171,9 +177,9 @@
     </span>
   {/if}
 
-  <!-- fill_in_blanks renders its own text (with the answers inlined), so the plain text row would
+  <!-- fill_blanks renders its own text (with the answers inlined), so the plain text row would
        be a duplicate of it. -->
-  {#if question.variant !== 'fill_in_blanks' && (question.text || question.media.length === 0)}
+  {#if question.variant !== 'fill_blanks' && (question.text || question.media.length === 0)}
     {#snippet textRow()}
       <p class="whitespace-pre-wrap text-slate-900">{question.text || 'Untitled question'}</p>
     {/snippet}
@@ -211,7 +217,7 @@
     )}
   {/each}
 
-  {#if question.variant === 'order'}
+  {#if question.variant === 'order_items'}
     <!-- Numbered because the number IS the answer: this is the authored sequence a player has to
          reproduce, not a list that happens to be enumerated. -->
     <div class="space-y-1.5">
@@ -224,7 +230,7 @@
             >
               {index + 1}
             </span>
-            <div class="min-w-0 flex-1">{@render optionBody(option)}</div>
+            <div class="min-w-0 flex-1">{@render contentBody(option.content)}</div>
             {@render weightBadge(option)}
           </div>
         {/snippet}
@@ -235,15 +241,17 @@
         )}
       {/each}
     </div>
-  {:else if question.variant === 'match'}
+  {:else if question.variant === 'match_pairs'}
     <div class="space-y-1.5">
       {@render answerKeyLabel('Correct pairs')}
       {#each indexedOptions as { option, index } (index)}
         {#snippet matchRow()}
           <div class="flex items-center gap-2">
-            <div class="min-w-0 flex-1">{@render optionBody(option)}</div>
+            <div class="min-w-0 flex-1">{@render contentBody(option.content)}</div>
             <ArrowRight size={14} class="shrink-0 text-indigo-500" />
-            <p class="min-w-0 flex-1 text-sm font-medium text-slate-900">{option.target}</p>
+            <div class="min-w-0 flex-1">
+              {#if option.target}{@render contentBody(option.target)}{/if}
+            </div>
             {@render weightBadge(option)}
           </div>
         {/snippet}
@@ -254,7 +262,7 @@
         )}
       {/each}
     </div>
-  {:else if question.variant === 'categorise'}
+  {:else if question.variant === 'group_items'}
     <!-- Grouped by bucket rather than listed flat, because the grouping is the answer — and it shows
          at a glance when a bucket has only one item, which usually means a typo in a target. -->
     <div class="space-y-2">
@@ -273,10 +281,10 @@
               {bucket}
             </p>
             <div class="space-y-1">
-              {#each indexedOptions.filter(({ option }) => option.target === bucket) as { option, index } (index)}
+              {#each indexedOptions.filter(({ option }) => optionTargetText(option) === bucket) as { option, index } (index)}
                 {#snippet categoriseItem()}
                   <div class="flex items-center gap-2">
-                    <div class="min-w-0 flex-1">{@render optionBody(option)}</div>
+                    <div class="min-w-0 flex-1">{@render contentBody(option.content)}</div>
                     {@render weightBadge(option)}
                   </div>
                 {/snippet}
@@ -291,7 +299,7 @@
         {/each}
       </div>
     </div>
-  {:else if question.variant === 'fill_in_blanks'}
+  {:else if question.variant === 'fill_blanks'}
     <!-- The sentence with its answers filled in, which is the only way to see whether they read
          correctly in place — an author checking a cloze question is checking the whole sentence, not
          a detached list of words. -->
@@ -305,7 +313,7 @@
              the answer without taking it out of the line. The segments already carry whatever
              spacing the author wrote. -->
         <!-- prettier-ignore -->
-        <p class="whitespace-pre-wrap text-slate-900">{#each segments as segment, i (i)}{segment}{#if i < segments.length - 1}{@const answer = blankAnswers[i]}<span class="border-b-2 border-green-500 font-semibold text-green-800">{answer ? optionText(answer.option) : '___'}</span>{/if}{/each}</p>
+        <p class="whitespace-pre-wrap text-slate-900">{#each segments as segment, i (i)}{segment}{#if i < segments.length - 1}{@const answer = blankAnswers[i]}<span class="border-b-2 border-green-500 font-semibold text-green-800">{answer ? optionLabelText(answer.option) : '___'}</span>{/if}{/each}</p>
       {/snippet}
       {@render focusableRow('rounded-md p-2', () => onFocus?.({ field: 'text' }), blanksText)}
 
@@ -315,7 +323,7 @@
           <div class="flex flex-wrap gap-1.5">
             {#each blankDistractors as { option, index } (index)}
               {#snippet distractorChip()}
-                <span class="text-xs font-medium text-slate-600">{optionText(option)}</span>
+                <span class="text-xs font-medium text-slate-600">{optionLabelText(option)}</span>
               {/snippet}
               {@render focusableRow(
                 'rounded-md border border-slate-300 bg-white px-2 py-1',
@@ -327,7 +335,7 @@
         </div>
       {/if}
     </div>
-  {:else if question.variant === 'character_input'}
+  {:else if question.variant === 'guess_letters'}
     <!-- One box per character, the way the player sees it, with the author's `[X]` pre-reveals
          already shown as revealed — that's the difference between "guess a 5-letter word" and
          "guess a 5-letter word starting with P", and it's not visible any other way outside code
@@ -364,7 +372,35 @@
         characterRow
       )}
     </div>
-  {:else if question.variant === 'typed'}
+  {:else if question.variant === 'type_pattern'}
+    <!-- The patterns themselves ARE the answer key, and unlike every other variant both markers
+         carry meaning — a `~` pattern is an authored "this response is wrong", not a distractor.
+         Rendered monospace, since a regex read in a proportional face is genuinely harder to
+         check. -->
+    <div class="space-y-1.5">
+      {@render answerKeyLabel('Patterns')}
+      {#each indexedOptions as { option, index } (index)}
+        {#snippet patternRow()}
+          <div class="flex items-start gap-2">
+            {#if option.correct}
+              <CircleCheck size={14} class="mt-0.5 shrink-0 text-green-600" />
+            {:else}
+              <CircleX size={14} class="mt-0.5 shrink-0 text-red-500" />
+            {/if}
+            <code class="min-w-0 flex-1 break-all font-mono text-sm text-slate-900"
+              >{optionLabelText(option)}</code
+            >
+            {@render weightBadge(option)}
+          </div>
+        {/snippet}
+        {@render focusableRow(
+          `rounded-md border p-2.5 ${option.correct ? 'border-green-300' : 'border-red-300'}`,
+          () => onFocus?.({ field: 'option', index }),
+          patternRow
+        )}
+      {/each}
+    </div>
+  {:else if question.variant === 'type_answer'}
     <div class="space-y-1.5">
       {@render answerKeyLabel(
         question.options.length === 1 ? 'Accepted answer' : 'Accepted answers'
@@ -390,7 +426,7 @@
       </div>
     </div>
   {:else}
-    <!-- single_choice / multiple_choice / the bare default: the one case where the player really does
+    <!-- pick_one / pick_many / the bare default: the one case where the player really does
          see a flat list, so the preview is one too. The leading glyph mirrors the control they'll
          get — a radio for pick-one, a checkbox for pick-several. -->
     <div class={optionsContainerClass}>
@@ -400,13 +436,13 @@
             <!-- Says which control the player gets, and nothing else — correctness is already
                  carried by the dashed green border and the verdict line below, so tinting this
                  green as well would be the same fact stated three times. -->
-            {#if question.variant === 'single_choice'}
+            {#if question.variant === 'pick_one'}
               <CircleDot size={15} class="mt-0.5 shrink-0 text-slate-400" />
             {:else}
               <SquareCheck size={15} class="mt-0.5 shrink-0 text-slate-400" />
             {/if}
             <div class="min-w-0 flex-1">
-              {@render optionBody(option)}
+              {@render contentBody(option.content)}
               {#if option.correct}
                 <span
                   class="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-green-700"

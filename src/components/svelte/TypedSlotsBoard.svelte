@@ -4,7 +4,7 @@
   import OptionContent from './OptionContent.svelte';
 
   // Presentation-only board for `answer_mode=type`: one labelled text field per answer slot, used
-  // by order/match/categorise instead of their drag-and-tap boards. All grading logic (which slot
+  // by order/match/group_items instead of their drag-and-tap boards. All grading logic (which slot
   // expects what, and whether a response matches) lives in the caller — same division of
   // responsibility as OrderBoard/MatchBoard/CategoriseBoard.
   //
@@ -26,7 +26,7 @@
   }: {
     /** One per answer slot: a short leading label (a position number, say) and/or the item this
      * slot is asking about, plus `name` — what this slot is FOR, in words, used as the field's
-     * accessible name. "Answer 1" would be ambiguous: match/categorise display their items in a
+     * accessible name. "Answer 1" would be ambiguous: match/group_items display their items in a
      * shuffled order, so the first field on screen isn't the first authored option. */
     slots: { label?: string; content?: QuizScriptOptionContent; name: string }[];
     /** The player's current text per slot. */
@@ -34,9 +34,9 @@
     /** What the fields are collectively asking for, e.g. "Type each item's category". */
     caption: string;
     placeholder: string;
-    /** Items shown for reference above the fields, without giving the answer away — `order` needs
+    /** Items shown for reference above the fields, without giving the answer away — `order_items` needs
      * this (it asks the player to sequence a known set, so the set has to be visible somewhere),
-     * while match/categorise deliberately show nothing, since the targets ARE the answer. */
+     * while match/group_items deliberately show nothing, since the targets ARE the answer. */
     reference?: QuizScriptOptionContent[];
     referenceLabel?: string;
     /** Per-slot correctness — only meaningful once `locked` and revealing. */

@@ -1,7 +1,18 @@
 <script lang="ts">
   import { tick, untrack } from 'svelte';
   import { fade } from 'svelte/transition';
-  import { Check, Code, Download, FolderOpen, Play, Plus, Tag as TagIcon, X } from '@lucide/svelte';
+  import {
+    Check,
+    ChevronDown,
+    ChevronRight,
+    Code,
+    Download,
+    FolderOpen,
+    Play,
+    Plus,
+    Tag as TagIcon,
+    X
+  } from '@lucide/svelte';
   import { categorySuggestions, tagSuggestions } from '@/lib/utils/suggestions';
   import { deleteQuiz, saveQuiz } from '@/lib/stores/quizzes';
   import { downloadTextFile, slugify } from '@/lib/utils/download';
@@ -10,6 +21,7 @@
     QUIZ_SUGGESTED_SETTING_KEYS,
     parseQuizScriptFrontmatter,
     parseQuizScriptQuestion,
+    parseQwizFile,
     serializeQuizScript,
     serializeQuizScriptFrontmatter,
     serializeQuizScriptQuestion,
@@ -25,6 +37,8 @@
   import ErrorList from './ErrorList.svelte';
   import CodeFrame from './CodeFrame.svelte';
   import SettingHelp from './SettingHelp.svelte';
+  import SettingsDocsLink from './SettingsDocsLink.svelte';
+  import SettingsLegend from './SettingsLegend.svelte';
   import SuggestionInput from './SuggestionInput.svelte';
   import QuestionCard from './QuestionCard.svelte';
   import ConfirmDeleteButton from './ConfirmDeleteButton.svelte';
@@ -52,6 +66,9 @@
       }))
     )
   );
+  // Same disclosure as QuestionForm's — collapsed until asked for, but never over settings the
+  // quiz already has. Matters more here: the quiz card offers sixteen keys to a question's eight.
+  let settingsOpen = $state(untrack(() => settingsList.length > 0));
   const quizSettings = $derived(
     Object.fromEntries(
       settingsList
@@ -99,10 +116,13 @@
   let tagHighlight = $state(-1);
   let categoryDropdownEl: HTMLDivElement | undefined = $state();
   let tagDropdownEl: HTMLDivElement | undefined = $state();
-  // One stable id per mount for each combobox/listbox aria-controls relationship below.
+  // One stable id per mount for each aria-controls relationship below. `$props.id()` may only be
+  // called ONCE per component, so every id this component needs is suffixed off this single call
+  // rather than each one asking for its own.
   const instanceId = $props.id();
   const categoryListboxId = `${instanceId}-category-listbox`;
   const tagListboxId = `${instanceId}-tag-listbox`;
+  const settingsPanelId = `${instanceId}-settings`;
 
   const categoryDropdownOptions = $derived(
     categoryPool.filter((c) => c.includes(category.trim().toLowerCase()))
@@ -271,6 +291,77 @@
     return true;
   }
 
+  // --- Whole-file code mode -----------------------------------------------------------------
+  // Deliberately NOT another `ActiveEdit` kind: that state machine is about which ONE card on the
+  // page is open, and everything reading it (Page nav between cards, per-card view/code/form
+  // rendering, the blocking-question error scroll) assumes the rest of the page is still there to
+  // move around. This mode replaces the entire page body with one document, so it's a separate
+  // flag that the card machinery simply never sees.
+  //
+  // `null` = not in whole-file mode. The draft is the same `.qwiz` text Download writes and
+  // Import reads, so this is the third surface on the exact same format rather than a fourth
+  // representation of a quiz.
+  let fileDraft = $state<string | null>(null);
+  let fileTextareaEl: HTMLTextAreaElement | undefined = $state();
+  const fileDraftErrors = $derived(fileDraft === null ? [] : parseQwizFile(fileDraft).errors);
+
+  $effect(() => {
+    if (fileDraft !== null) fileTextareaEl?.focus();
+  });
+
+  function enterFileCode() {
+    // Toggle-to-close on re-click, matching both the metadata and per-question code buttons.
+    if (fileDraft !== null) {
+      applyFileDraft();
+      return;
+    }
+    // A tag half-typed in the tag field, or a card still open in code mode, is state the document
+    // has to include — otherwise it silently vanishes the moment the document is applied back.
+    addTag();
+    if (!commitActiveDraft()) return;
+    activeEdit = null;
+    fileDraft = serializeQuizScript(
+      currentFrontmatter(),
+      questions.map((q) => q.code)
+    );
+  }
+
+  /** Parses the whole-document draft back into the builder's own state, leaving it open (with its
+   * errors showing) if it doesn't parse — same save-if-valid contract as `commitActiveDraft`.
+   *
+   * Question ids are reused positionally rather than regenerated: an author who edits question 3
+   * in the document hasn't replaced questions 1, 2 and 4, and handing those new ids on every apply
+   * would churn identity for questions nothing touched. Ids are internal to this browser's storage
+   * and absent from the `.qwiz` format itself, so position is the only correspondence there is. */
+  function applyFileDraft(): boolean {
+    if (fileDraft === null) return true;
+    const { frontmatter, questionCodes, errors: draftErrors } = parseQwizFile(fileDraft);
+    if (draftErrors.length > 0) return false;
+
+    title = frontmatter.title;
+    description = frontmatter.description;
+    category = frontmatter.category;
+    tags = frontmatter.tags;
+    settingsList = Object.entries(frontmatter.settings).map(([key, value]) => ({
+      key,
+      value: String(value),
+      _key: crypto.randomUUID()
+    }));
+    settingsOpen = settingsList.length > 0;
+    questions = questionCodes.map((code, i) => ({
+      id: questions[i]?.id ?? crypto.randomUUID(),
+      code
+    }));
+    fileDraft = null;
+    return true;
+  }
+
+  /** Leaves whole-file mode without applying anything — the escape hatch for a document edited
+   * into a state that can't parse (or that the author simply changed their mind about). */
+  function discardFileDraft() {
+    fileDraft = null;
+  }
+
   function enterMetaCode() {
     // Same close-toggle-on-reclick semantics as a question's <> button (see enterCode below).
     if (activeEdit?.kind === 'meta') {
@@ -314,11 +405,11 @@
     );
   }
 
-  // "single_choice: " (empty text) rather than a truly bare default: entering form mode right
+  // "pick_one: " (empty text) rather than a truly bare default: entering form mode right
   // after needs `question.variant` to already be one of SELECTABLE_VARIANTS in QuestionForm, or
-  // the variant <select> lands on a value with no matching <option>. single_choice is the default
+  // the variant <select> lands on a value with no matching <option>. pick_one is the default
   // since most authored questions have exactly one correct option.
-  const BLANK_QUESTION_CODE = 'single_choice: \n{\n=\n~\n}';
+  const BLANK_QUESTION_CODE = 'pick_one: \n{\n=\n~\n}';
 
   async function addQuestion() {
     if (!commitActiveDraft()) return;
@@ -405,6 +496,16 @@
 
   $effect(() => {
     function onKey(e: KeyboardEvent) {
+      // Whole-file mode owns the whole page while it's open, so it answers these first — and only
+      // the two that mean anything to it: there are no cards to Page between, and Escape leaving
+      // silently would discard a document rather than one card's draft.
+      if (fileDraft !== null) {
+        if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+          e.preventDefault();
+          applyFileDraft();
+        }
+        return;
+      }
       const inCodeMode =
         activeEdit?.kind === 'meta' ||
         (activeEdit?.kind === 'question' && activeEdit.mode === 'code');
@@ -479,6 +580,17 @@
     addTag();
     blockingQuestionId = null;
 
+    // Same contract as the per-card drafts below, one level up: saving while the whole document is
+    // open has to save the document, and must refuse rather than write the pre-edit quiz behind
+    // the author's back if it doesn't parse.
+    if (!applyFileDraft()) {
+      errors = [
+        "The .qwiz document has an error, so it wasn't saved. Fix it, or discard the edit to go back."
+      ];
+      focusFirstError();
+      return null;
+    }
+
     // A code draft that doesn't parse used to be silently left uncommitted while the save went
     // ahead — so the edit on screen simply wasn't in the saved quiz, with nothing said about it.
     if (!commitActiveDraft()) {
@@ -540,10 +652,11 @@
     saveFlashTimeout = setTimeout(() => (saveState = 'idle'), 1500);
   }
 
-  // Only reachable when `initial` is set (see the Play button below) — always saves first, so
-  // playing reflects whatever's currently in the builder rather than whatever was last saved.
+  // Always saves first, so playing reflects whatever's currently in the builder rather than
+  // whatever was last saved. On /local/create that save is also what MINTS the quiz — there's no
+  // id to play until something exists in the store — so Play there creates the quiz as a side
+  // effect, exactly as Save already does before it redirects to /local/edit.
   function playNow() {
-    if (!initial) return;
     const quiz = buildAndSaveQuiz();
     if (!quiz) return;
     window.location.href = `/local/play?id=${quiz.id}`;
@@ -552,6 +665,12 @@
   // Downloads whatever's currently in the builder, valid or not — unlike Save, this never writes
   // to the quiz library, so there's nothing to protect by blocking on the title-required check.
   function downloadQwiz() {
+    // In whole-file mode the draft on screen already IS the document — download exactly that,
+    // valid or not, rather than re-serializing the pre-edit state behind it.
+    if (fileDraft !== null) {
+      downloadTextFile(`${slugify(title)}.qwiz`, fileDraft);
+      return;
+    }
     addTag();
     commitActiveDraft();
     const doc = serializeQuizScript(
@@ -576,7 +695,24 @@
 <div class="space-y-6">
   <div class="flex items-center justify-between gap-3">
     <h1 class="text-2xl font-bold text-slate-900">{heading}</h1>
-    {#if initial}
+    <div class="flex shrink-0 items-center gap-2">
+      <!-- The whole-document editor, alongside Play rather than on a card: unlike the metadata
+           card's own <> button (which edits just that card's frontmatter) this one is about the
+           entire quiz, so it belongs to the page, not to any one block on it. -->
+      <button
+        type="button"
+        class="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium {fileDraft !==
+        null
+          ? 'border-slate-300 bg-slate-100 text-slate-900'
+          : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'}"
+        aria-pressed={fileDraft !== null}
+        onclick={enterFileCode}
+      >
+        <Code size={15} /> Code
+      </button>
+      <!-- Not gated on `initial`: Play saves first either way (see `playNow`), so it works on a
+           brand-new quiz too. Hiding it on /local/create left that page showing only the Code
+           button in this slot, which read as Code having replaced Play rather than joined it. -->
       <button
         type="button"
         class="flex items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700"
@@ -584,287 +720,328 @@
       >
         <Play size={15} /> Play
       </button>
-    {/if}
+    </div>
   </div>
 
   <div bind:this={errorListEl}>
     <ErrorList {errors} />
   </div>
 
-  <div class="relative space-y-5 rounded-lg border border-slate-200 bg-white p-6">
-    <!-- Same `lg:`-gated absolute/in-flow switch as QuestionCard.svelte's button strip — see its
+  {#if fileDraft !== null}
+    <!-- Replaces the metadata card, every question card and Add question for as long as it's open:
+         the document IS all of those, and leaving them on screen would mean two editable copies of
+         the same quiz, only one of which is being typed into. -->
+    <div class="space-y-3 rounded-lg border border-slate-200 bg-white p-6">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <p class="text-xs font-medium text-slate-500">
+          The whole quiz as <span class="font-mono">.qwiz</span> source — the details block and every
+          question. Same format as Download and Import.
+        </p>
+        <div class="flex shrink-0 items-center gap-2">
+          <Button onclick={discardFileDraft}>Discard</Button>
+          <Button variant="primary" onclick={applyFileDraft}>Apply</Button>
+        </div>
+      </div>
+      <textarea
+        bind:this={fileTextareaEl}
+        class="w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+        rows={Math.min(40, Math.max(12, fileDraft.split('\n').length))}
+        value={fileDraft}
+        aria-label="Quiz .qwiz source"
+        oninput={(e) => (fileDraft = e.currentTarget.value)}></textarea>
+      <ErrorList errors={fileDraftErrors} />
+    </div>
+  {:else}
+    <div class="relative space-y-5 rounded-lg border border-slate-200 bg-white p-6">
+      <!-- Same `lg:`-gated absolute/in-flow switch as QuestionCard.svelte's button strip — see its
          comment for why: Base.astro's page container leaves no margin outside this card below
          `lg:` (1024px), so the button would otherwise be pushed off-screen on mobile. -->
-    <button
-      type="button"
-      class="mb-3 rounded-md border border-slate-200 bg-white p-1.5 hover:bg-slate-50 lg:absolute lg:right-full lg:top-0 lg:mb-0 lg:mr-2 {activeEdit?.kind ===
-      'meta'
-        ? 'bg-slate-100 text-slate-900'
-        : 'text-slate-400'}"
-      onclick={enterMetaCode}
-      aria-label="Edit quiz code"
-      title="Edit quiz code"
-    >
-      <Code size={15} />
-    </button>
+      <button
+        type="button"
+        class="mb-3 rounded-md border border-slate-200 bg-white p-1.5 hover:bg-slate-50 lg:absolute lg:right-full lg:top-0 lg:mb-0 lg:mr-2 {activeEdit?.kind ===
+        'meta'
+          ? 'bg-slate-100 text-slate-900'
+          : 'text-slate-400'}"
+        onclick={enterMetaCode}
+        aria-label="Edit quiz code"
+        title="Edit quiz code"
+      >
+        <Code size={15} />
+      </button>
 
-    {#if activeEdit?.kind === 'meta'}
-      <div class="space-y-2">
-        <textarea
-          bind:this={metaTextareaEl}
-          class="w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
-          rows={Math.min(16, Math.max(6, activeDraft.split('\n').length))}
-          value={activeDraft}
-          oninput={(e) => (activeDraft = e.currentTarget.value)}></textarea>
-        <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-slate-500">
-          <span>Settings:</span>
-          {#each QUIZ_SUGGESTED_SETTING_KEYS as key (key)}
-            <span class="inline-flex items-center gap-0.5">
-              {key}
-              <SettingHelp {key} rules={QUIZ_FRONTMATTER_RULES} />
-            </span>
+      {#if activeEdit?.kind === 'meta'}
+        <div class="space-y-2">
+          <textarea
+            bind:this={metaTextareaEl}
+            class="w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+            rows={Math.min(16, Math.max(6, activeDraft.split('\n').length))}
+            value={activeDraft}
+            oninput={(e) => (activeDraft = e.currentTarget.value)}></textarea>
+          <SettingsLegend keys={QUIZ_SUGGESTED_SETTING_KEYS} rules={QUIZ_FRONTMATTER_RULES} />
+          {#each metaDraftErrors as error, index (index)}
+            <CodeFrame {error} source={activeDraft} />
           {/each}
         </div>
-        {#each metaDraftErrors as error, index (index)}
-          <CodeFrame {error} source={activeDraft} />
-        {/each}
-      </div>
-    {:else}
-      <div class="-mx-1 space-y-1">
-        <input
-          bind:this={titleEl}
-          type="text"
-          class="w-full rounded-md px-1 py-1 text-2xl font-bold text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-200 {titleInvalid
-            ? 'border border-red-300 ring-1 ring-red-100'
-            : 'border-0 bg-transparent'}"
-          placeholder="Untitled quiz"
-          aria-label="Title"
-          bind:value={title}
-        />
-        <textarea
-          class="w-full resize-none rounded-md border-0 bg-transparent px-1 py-1 text-sm text-slate-500 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-200"
-          rows="2"
-          placeholder="Add a description…"
-          aria-label="Description"
-          bind:value={description}></textarea>
-        <!-- Category and tags share the metadata row treatment: a muted leading icon (the only
+      {:else}
+        <div class="-mx-1 space-y-1">
+          <input
+            bind:this={titleEl}
+            type="text"
+            class="w-full rounded-md px-1 py-1 text-2xl font-bold text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-200 {titleInvalid
+              ? 'border border-red-300 ring-1 ring-red-100'
+              : 'border-0 bg-transparent'}"
+            placeholder="Untitled quiz"
+            aria-label="Title"
+            bind:value={title}
+          />
+          <textarea
+            class="w-full resize-none rounded-md border-0 bg-transparent px-1 py-1 text-sm text-slate-500 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-200"
+            rows="2"
+            placeholder="Add a description…"
+            aria-label="Description"
+            bind:value={description}></textarea>
+          <!-- Category and tags share the metadata row treatment: a muted leading icon (the only
            thing distinguishing them, since neither carries a visible label) and a borderless
            input that sits flush with the title/description above. -->
-        <div class="flex items-center gap-1.5 px-1">
-          <FolderOpen size={13} class="shrink-0 text-slate-400" />
-          <!-- Free text with suggestions: they're a convenience, not a constraint, so authors can
+          <div class="flex items-center gap-1.5 px-1">
+            <FolderOpen size={13} class="shrink-0 text-slate-400" />
+            <!-- Free text with suggestions: they're a convenience, not a constraint, so authors can
              group quizzes under anything they like. -->
-          <div class="relative min-w-[8rem] flex-1">
-            <input
-              id="category"
-              type="text"
-              class="w-full border-0 bg-transparent px-1 py-0.5 text-xs text-slate-600 placeholder:text-slate-300 focus:outline-none"
-              placeholder="Add a category…"
-              aria-label="Category"
-              autocomplete="off"
-              role="combobox"
-              aria-expanded={showCategoryDropdown && categoryDropdownOptions.length > 0}
-              aria-controls={categoryListboxId}
-              bind:value={category}
-              onfocus={() => (showCategoryDropdown = true)}
-              onblur={() => (showCategoryDropdown = false)}
-              onkeydown={onCategoryKeydown}
-            />
-            {#if showCategoryDropdown && categoryDropdownOptions.length > 0}
-              <div
-                bind:this={categoryDropdownEl}
-                id={categoryListboxId}
-                role="listbox"
-                class="absolute inset-x-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-md border border-slate-200 bg-white py-1 shadow-md"
+            <div class="relative min-w-[8rem] flex-1">
+              <input
+                id="category"
+                type="text"
+                class="w-full border-0 bg-transparent px-1 py-0.5 text-xs text-slate-600 placeholder:text-slate-300 focus:outline-none"
+                placeholder="Add a category…"
+                aria-label="Category"
+                autocomplete="off"
+                role="combobox"
+                aria-expanded={showCategoryDropdown && categoryDropdownOptions.length > 0}
+                aria-controls={categoryListboxId}
+                bind:value={category}
+                onfocus={() => (showCategoryDropdown = true)}
+                onblur={() => (showCategoryDropdown = false)}
+                onkeydown={onCategoryKeydown}
+              />
+              {#if showCategoryDropdown && categoryDropdownOptions.length > 0}
+                <div
+                  bind:this={categoryDropdownEl}
+                  id={categoryListboxId}
+                  role="listbox"
+                  class="absolute inset-x-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-md border border-slate-200 bg-white py-1 shadow-md"
+                >
+                  {#each categoryDropdownOptions as option, i (option)}
+                    <button
+                      type="button"
+                      tabindex="-1"
+                      role="option"
+                      aria-selected={i === categoryHighlight}
+                      class="block w-full truncate px-3 py-1.5 text-left text-xs {i ===
+                      categoryHighlight
+                        ? 'bg-slate-100 text-slate-900'
+                        : 'text-slate-600 hover:bg-slate-50'}"
+                      onmousedown={(e) => e.preventDefault()}
+                      onclick={() => selectCategory(option)}
+                    >
+                      {option}
+                    </button>
+                  {/each}
+                </div>
+              {/if}
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-1.5 px-1">
+            <TagIcon size={13} class="shrink-0 text-slate-400" />
+            {#each tags as tag (tag)}
+              <span
+                class="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600"
               >
-                {#each categoryDropdownOptions as option, i (option)}
-                  <button
-                    type="button"
-                    tabindex="-1"
-                    role="option"
-                    aria-selected={i === categoryHighlight}
-                    class="block w-full truncate px-3 py-1.5 text-left text-xs {i ===
-                    categoryHighlight
-                      ? 'bg-slate-100 text-slate-900'
-                      : 'text-slate-600 hover:bg-slate-50'}"
-                    onmousedown={(e) => e.preventDefault()}
-                    onclick={() => selectCategory(option)}
-                  >
-                    {option}
-                  </button>
-                {/each}
-              </div>
-            {/if}
+                {tag}
+                <button
+                  type="button"
+                  onclick={() => removeTag(tag)}
+                  aria-label={`Remove tag ${tag}`}
+                  class="hover:text-slate-900"
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            {/each}
+            <div class="relative min-w-[8rem] flex-1">
+              <input
+                type="text"
+                class="w-full border-0 bg-transparent px-1 py-0.5 text-xs text-slate-600 placeholder:text-slate-300 focus:outline-none"
+                placeholder={tags.length ? 'Add tag…' : 'Add tags (press Enter)…'}
+                aria-label="Add tag"
+                autocomplete="off"
+                role="combobox"
+                aria-expanded={showTagDropdown && tagDropdownOptions.length > 0}
+                aria-controls={tagListboxId}
+                bind:value={tagDraft}
+                onfocus={() => (showTagDropdown = true)}
+                onkeydown={onTagKeydown}
+                onblur={() => {
+                  addTag();
+                  showTagDropdown = false;
+                }}
+              />
+              {#if showTagDropdown && tagDropdownOptions.length > 0}
+                <div
+                  bind:this={tagDropdownEl}
+                  id={tagListboxId}
+                  role="listbox"
+                  class="absolute inset-x-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-md border border-slate-200 bg-white py-1 shadow-md"
+                >
+                  {#each tagDropdownOptions as option, i (option)}
+                    <button
+                      type="button"
+                      tabindex="-1"
+                      role="option"
+                      aria-selected={i === tagHighlight}
+                      class="block w-full truncate px-3 py-1.5 text-left text-xs {i === tagHighlight
+                        ? 'bg-slate-100 text-slate-900'
+                        : 'text-slate-600 hover:bg-slate-50'}"
+                      onmousedown={(e) => e.preventDefault()}
+                      onclick={() => selectTagSuggestion(option)}
+                    >
+                      {option}
+                    </button>
+                  {/each}
+                </div>
+              {/if}
+            </div>
           </div>
         </div>
 
-        <div class="flex flex-wrap items-center gap-1.5 px-1">
-          <TagIcon size={13} class="shrink-0 text-slate-400" />
-          {#each tags as tag (tag)}
-            <span
-              class="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600"
-            >
-              {tag}
-              <button
-                type="button"
-                onclick={() => removeTag(tag)}
-                aria-label={`Remove tag ${tag}`}
-                class="hover:text-slate-900"
-              >
-                <X size={12} />
-              </button>
-            </span>
-          {/each}
-          <div class="relative min-w-[8rem] flex-1">
-            <input
-              type="text"
-              class="w-full border-0 bg-transparent px-1 py-0.5 text-xs text-slate-600 placeholder:text-slate-300 focus:outline-none"
-              placeholder={tags.length ? 'Add tag…' : 'Add tags (press Enter)…'}
-              aria-label="Add tag"
-              autocomplete="off"
-              role="combobox"
-              aria-expanded={showTagDropdown && tagDropdownOptions.length > 0}
-              aria-controls={tagListboxId}
-              bind:value={tagDraft}
-              onfocus={() => (showTagDropdown = true)}
-              onkeydown={onTagKeydown}
-              onblur={() => {
-                addTag();
-                showTagDropdown = false;
-              }}
-            />
-            {#if showTagDropdown && tagDropdownOptions.length > 0}
-              <div
-                bind:this={tagDropdownEl}
-                id={tagListboxId}
-                role="listbox"
-                class="absolute inset-x-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-md border border-slate-200 bg-white py-1 shadow-md"
-              >
-                {#each tagDropdownOptions as option, i (option)}
-                  <button
-                    type="button"
-                    tabindex="-1"
-                    role="option"
-                    aria-selected={i === tagHighlight}
-                    class="block w-full truncate px-3 py-1.5 text-left text-xs {i === tagHighlight
-                      ? 'bg-slate-100 text-slate-900'
-                      : 'text-slate-600 hover:bg-slate-50'}"
-                    onmousedown={(e) => e.preventDefault()}
-                    onclick={() => selectTagSuggestion(option)}
-                  >
-                    {option}
-                  </button>
-                {/each}
-              </div>
-            {/if}
-          </div>
-        </div>
-      </div>
-
-      <div class="space-y-1.5">
-        <div
-          class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs font-medium text-slate-500"
-        >
-          <span>Settings</span>
-          {#each QUIZ_SUGGESTED_SETTING_KEYS as key (key)}
-            <span class="inline-flex items-center gap-0.5 font-normal text-slate-500">
-              {key}
-              <SettingHelp {key} rules={QUIZ_FRONTMATTER_RULES} />
-            </span>
-          {/each}
-        </div>
-        {#each settingsList as setting (setting._key)}
-          {@const usedElsewhere = settingsList
-            .filter((s) => s._key !== setting._key)
-            .map((s) => s.key)}
-          {@const valueSuggestions = settingValueSuggestions(setting.key, QUIZ_FRONTMATTER_RULES)}
-          {@const validation = setting.key.trim()
-            ? validateSettingValue(setting.key, setting.value, QUIZ_FRONTMATTER_RULES)
-            : null}
-          <div class="flex flex-wrap items-center gap-1.5">
-            <select
-              class="w-44 max-w-full shrink-0 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-900 focus:border-slate-400 focus:outline-none"
-              bind:value={setting.key}
-              onchange={() => selectSettingKey(setting)}
-              aria-label="Setting key"
-            >
-              <option value="">key</option>
-              {#each QUIZ_SUGGESTED_SETTING_KEYS.filter((k) => !usedElsewhere.includes(k)) as k (k)}
-                <option value={k}>{k}</option>
-              {/each}
-            </select>
-            <SuggestionInput
-              bind:value={setting.value}
-              suggestions={valueSuggestions}
-              placeholder="value"
-              class="min-w-[6rem] flex-1"
-            />
-            {#if setting.key.trim()}
-              <SettingHelp key={setting.key} rules={QUIZ_FRONTMATTER_RULES} />
-            {/if}
+        <div class="space-y-1.5">
+          <!-- See QuestionForm's own comment on this disclosure for why the every-key legend is
+             gone. -->
+          <div class="flex items-center gap-1">
             <button
               type="button"
-              class="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100"
-              onclick={() => removeSetting(setting._key)}
-              aria-label="Remove setting"
+              class="flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-700"
+              aria-expanded={settingsOpen}
+              aria-controls={settingsPanelId}
+              onclick={() => (settingsOpen = !settingsOpen)}
             >
-              <X size={13} />
+              {#if settingsOpen}
+                <ChevronDown size={14} class="shrink-0" />
+              {:else}
+                <ChevronRight size={14} class="shrink-0" />
+              {/if}
+              Settings
+              {#if settingsList.length > 0}
+                <span class="rounded-full bg-slate-100 px-1.5 py-0.5 font-semibold text-slate-600">
+                  {settingsList.length}
+                </span>
+              {/if}
+            </button>
+            <SettingsDocsLink />
+          </div>
+          <div id={settingsPanelId} class="space-y-1.5" hidden={!settingsOpen}>
+            <SettingsLegend keys={QUIZ_SUGGESTED_SETTING_KEYS} rules={QUIZ_FRONTMATTER_RULES} />
+            {#each settingsList as setting (setting._key)}
+              {@const usedElsewhere = settingsList
+                .filter((s) => s._key !== setting._key)
+                .map((s) => s.key)}
+              {@const valueSuggestions = settingValueSuggestions(
+                setting.key,
+                QUIZ_FRONTMATTER_RULES
+              )}
+              {@const validation = setting.key.trim()
+                ? validateSettingValue(setting.key, setting.value, QUIZ_FRONTMATTER_RULES)
+                : null}
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span class="flex w-8 shrink-0 justify-center">
+                  {#if setting.key.trim()}
+                    <SettingHelp key={setting.key} rules={QUIZ_FRONTMATTER_RULES} />
+                  {/if}
+                </span>
+                <select
+                  class="w-44 max-w-full shrink-0 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-900 focus:border-slate-400 focus:outline-none"
+                  bind:value={setting.key}
+                  onchange={() => selectSettingKey(setting)}
+                  aria-label="Setting key"
+                >
+                  <option value="">key</option>
+                  {#each QUIZ_SUGGESTED_SETTING_KEYS.filter((k) => !usedElsewhere.includes(k)) as k (k)}
+                    <option value={k}>{k}</option>
+                  {/each}
+                </select>
+                <SuggestionInput
+                  bind:value={setting.value}
+                  suggestions={valueSuggestions}
+                  placeholder="value"
+                  class="min-w-[6rem] flex-1"
+                />
+                <button
+                  type="button"
+                  class="shrink-0 rounded p-2 text-slate-500 hover:bg-slate-100"
+                  onclick={() => removeSetting(setting._key)}
+                  aria-label="Remove setting"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              {#if validation?.error}
+                <!-- Lines up under the value field: the "?" slot (2rem) and the key select (11rem),
+                   plus the gap after each. -->
+                <p class="break-words text-xs text-red-600 sm:pl-[13.75rem]">{validation.error}</p>
+              {/if}
+            {/each}
+            <button
+              type="button"
+              class="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+              onclick={addSetting}
+            >
+              <Plus size={13} /> Add setting
             </button>
           </div>
-          {#if validation?.error}
-            <p class="break-words text-xs text-red-600 sm:pl-[11.5rem]">{validation.error}</p>
-          {/if}
-        {/each}
-        <button
-          type="button"
-          class="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
-          onclick={addSetting}
-        >
-          <Plus size={13} /> Add setting
-        </button>
-      </div>
-    {/if}
-  </div>
+        </div>
+      {/if}
+    </div>
 
-  <!-- Direct siblings of the metadata card in the page's own space-y-6, not a separately-spaced
+    <!-- Direct siblings of the metadata card in the page's own space-y-6, not a separately-spaced
        nested list — the metadata card and every question card are the same visual family (white
        rounded-lg bordered blocks), so they all get the same gap instead of the metadata-to-first-
        question gap (previously 24px, from space-y-6) differing from card-to-card (previously
        16px, from a nested space-y-4). -->
-  {#each questions as question (question.id)}
-    <QuestionCard
-      {question}
-      {quizSettings}
-      mode={activeEdit?.kind === 'question' && activeEdit.questionId === question.id
-        ? activeEdit.mode
-        : 'view'}
-      draft={activeEdit?.kind === 'question' &&
-      activeEdit.questionId === question.id &&
-      activeEdit.mode === 'code'
-        ? activeDraft
-        : question.code}
-      focusTarget={activeEdit?.kind === 'question' &&
-      activeEdit.questionId === question.id &&
-      activeEdit.mode === 'form'
-        ? activeFocusTarget
-        : null}
-      onEnterCode={() => enterCode(question.id)}
-      onEnterForm={(t) => enterForm(question.id, t)}
-      onDraftChange={(v) => (activeDraft = v)}
-      onCommitForm={(next) => commitForm(question.id, next)}
-      onFocusHandled={() => (activeFocusTarget = null)}
-      onClone={() => cloneQuestion(question.id)}
-      onDelete={() => deleteQuestion(question.id)}
-    />
-  {/each}
+    {#each questions as question (question.id)}
+      <QuestionCard
+        {question}
+        {quizSettings}
+        mode={activeEdit?.kind === 'question' && activeEdit.questionId === question.id
+          ? activeEdit.mode
+          : 'view'}
+        draft={activeEdit?.kind === 'question' &&
+        activeEdit.questionId === question.id &&
+        activeEdit.mode === 'code'
+          ? activeDraft
+          : question.code}
+        focusTarget={activeEdit?.kind === 'question' &&
+        activeEdit.questionId === question.id &&
+        activeEdit.mode === 'form'
+          ? activeFocusTarget
+          : null}
+        onEnterCode={() => enterCode(question.id)}
+        onEnterForm={(t) => enterForm(question.id, t)}
+        onDraftChange={(v) => (activeDraft = v)}
+        onCommitForm={(next) => commitForm(question.id, next)}
+        onFocusHandled={() => (activeFocusTarget = null)}
+        onClone={() => cloneQuestion(question.id)}
+        onDelete={() => deleteQuestion(question.id)}
+      />
+    {/each}
 
-  <button
-    type="button"
-    class="flex items-center gap-1 rounded-lg border border-dashed border-slate-300 px-4 py-3 text-sm font-medium text-slate-500 hover:border-slate-400 hover:text-slate-700"
-    onclick={addQuestion}
-  >
-    <Plus size={15} /> Add question
-  </button>
+    <button
+      type="button"
+      class="flex items-center gap-1 rounded-lg border border-dashed border-slate-300 px-4 py-3 text-sm font-medium text-slate-500 hover:border-slate-400 hover:text-slate-700"
+      onclick={addQuestion}
+    >
+      <Plus size={15} /> Add question
+    </button>
+  {/if}
 
   <div class="flex items-center justify-end gap-3 border-t border-slate-200 pt-4">
     {#if saveState === 'saved'}

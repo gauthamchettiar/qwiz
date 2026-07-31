@@ -461,7 +461,7 @@
            answered it — locked, seeded with the recorded answer via `draftFromAnswer` — rather
            than a parallel read-only renderer. A second renderer is what left every variant
            except choice/typed unrenderable here: it only ever knew those two answer shapes, so an
-           order/match/categorise/fill_in_blanks/character_input answer reached it as a `selected`
+           order/match/group_items/fill_blanks/guess_letters answer reached it as a `selected`
            set that doesn't exist on those records. -->
       {#each run as playQuestion, i (i)}
         {@const answer = answers[i]}

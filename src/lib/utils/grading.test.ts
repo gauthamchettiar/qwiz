@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { QuizScriptOption, QuizScriptQuestion, QuizScriptSettings } from './quizScript';
+import type {
+  QuizScriptOption,
+  QuizScriptOptionContent,
+  QuizScriptQuestion,
+  QuizScriptSettings
+} from './quizScript';
 import {
   answerVerdict,
   blankDraft,
@@ -30,8 +35,11 @@ import {
   typedSlotExpectations,
   isTypedMatch,
   levenshteinDistance,
+  matchedPatternIndex,
   matchTypedGuesses,
   normalizeTypedAnswer,
+  gradeTypePatternQuestion,
+  patternMatches,
   questionMaxPoints,
   resolveExtraPrereveal,
   settingBoolean,
@@ -279,7 +287,7 @@ describe('matchTypedGuesses', () => {
 describe('gradeTypedQuestion', () => {
   it("single-response mode awards the matched answer's own points, uncapped by others", () => {
     const q = makeQuestion({
-      variant: 'typed',
+      variant: 'type_answer',
       options: [textOption('paris', true, 5), textOption('lyon', true, 1)]
     });
     expect(gradeTypedQuestion(q, 'paris', new Set())).toEqual({ earned: 5, max: 5 });
@@ -288,7 +296,7 @@ describe('gradeTypedQuestion', () => {
 
   it('multi-guess exact mode requires every accepted answer matched with zero wrong guesses', () => {
     const q = makeQuestion({
-      variant: 'typed',
+      variant: 'type_answer',
       options: [textOption('paris', true, 2), textOption('lyon', true, 3)],
       settings: { max_answers: 2 }
     });
@@ -298,7 +306,7 @@ describe('gradeTypedQuestion', () => {
 
   it('multi-guess partial mode sums matched points and applies the wrong-guess penalty', () => {
     const q = makeQuestion({
-      variant: 'typed',
+      variant: 'type_answer',
       options: [textOption('paris', true, 2), textOption('lyon', true, 3)],
       settings: { max_answers: 2, partial_credit: true, points_wrong: -1 }
     });
@@ -308,13 +316,13 @@ describe('gradeTypedQuestion', () => {
 
 describe('typedBoxGroups / typedBoxCount', () => {
   it('splits the first accepted answer into per-word character counts', () => {
-    const q = makeQuestion({ variant: 'typed', options: [textOption('new york', true)] });
+    const q = makeQuestion({ variant: 'type_answer', options: [textOption('new york', true)] });
     expect(typedBoxGroups(q)).toEqual([3, 4]);
     expect(typedBoxCount(q)).toBe(7);
   });
 
   it('returns an empty shape when there is no text-based accepted answer', () => {
-    const q = makeQuestion({ variant: 'typed', options: [] });
+    const q = makeQuestion({ variant: 'type_answer', options: [] });
     expect(typedBoxGroups(q)).toEqual([]);
     expect(typedBoxCount(q)).toBe(0);
   });
@@ -330,7 +338,7 @@ describe('gradeCharacterInputQuestion', () => {
   it('a bracket-pre-revealed letter counts toward neither earned nor max', () => {
     // "Paris" -> distinct letters p,a,r,i,s (5), minus pre-revealed "p" -> 4 guessable.
     const q = makeQuestion({
-      variant: 'character_input',
+      variant: 'guess_letters',
       options: [characterInputOption('Paris', [0])]
     });
     const result = gradeCharacterInputQuestion(q, blankDraft());
@@ -340,7 +348,7 @@ describe('gradeCharacterInputQuestion', () => {
   it('awards point once per distinct correctly-guessed letter, not per occurrence', () => {
     // "letter" -> distinct guessable letters l,e,t,r (4); "e" appears twice.
     const q = makeQuestion({
-      variant: 'character_input',
+      variant: 'guess_letters',
       options: [characterInputOption('letter')]
     });
     const draft = { ...blankDraft(), guessedLetters: new Map([['e', 'correct' as const]]) };
@@ -349,7 +357,7 @@ describe('gradeCharacterInputQuestion', () => {
 
   it('applies penalty per wrong guess', () => {
     const q = makeQuestion({
-      variant: 'character_input',
+      variant: 'guess_letters',
       options: [characterInputOption('cat')],
       settings: { points_wrong: -2 }
     });
@@ -365,7 +373,7 @@ describe('gradeCharacterInputQuestion', () => {
 
   it('non-letter characters are never guessable and never counted', () => {
     const q = makeQuestion({
-      variant: 'character_input',
+      variant: 'guess_letters',
       options: [characterInputOption('new york')]
     });
     // distinct guessable letters: n,e,w,y,o,r,k -> 7 (the space is excluded).
@@ -373,7 +381,7 @@ describe('gradeCharacterInputQuestion', () => {
   });
 
   it("extraPrerevealed (letters_shown_at_start's resolved picks) also excludes from earned/max", () => {
-    const q = makeQuestion({ variant: 'character_input', options: [characterInputOption('cat')] });
+    const q = makeQuestion({ variant: 'guess_letters', options: [characterInputOption('cat')] });
     const draft = { ...blankDraft(), extraPrerevealed: new Set([0]) }; // pre-reveals "c"
     expect(gradeCharacterInputQuestion(q, draft).max).toBe(2); // a, t only
   });
@@ -381,7 +389,7 @@ describe('gradeCharacterInputQuestion', () => {
 
 describe('gradeOrderQuestion', () => {
   const q = makeQuestion({
-    variant: 'order',
+    variant: 'order_items',
     options: [textOption('First', true), textOption('Second', true), textOption('Third', true)]
   });
 
@@ -399,7 +407,7 @@ describe('gradeOrderQuestion', () => {
 
   it('partial_credit: each correctly-placed slot scores independently', () => {
     const partial = makeQuestion({
-      variant: 'order',
+      variant: 'order_items',
       options: q.options,
       settings: { partial_credit: true }
     });
@@ -408,7 +416,7 @@ describe('gradeOrderQuestion', () => {
 
   it('respects per-option %N% weights and the question default point/penalty', () => {
     const weighted = makeQuestion({
-      variant: 'order',
+      variant: 'order_items',
       options: [textOption('First', true, 5), textOption('Second', true)],
       settings: { points_correct: 2, partial_credit: true }
     });
@@ -417,13 +425,19 @@ describe('gradeOrderQuestion', () => {
   });
 });
 
-function matchOption(text: string, target: string, points?: number): QuizScriptOption {
-  return { content: { kind: 'text', text }, correct: true, target, points };
+/** A plain-text content value — targets are `QuizScriptOptionContent` now that a `match_pairs`
+ * right column can hold pictures, so a text one has to say so. */
+function text(value: string): QuizScriptOptionContent {
+  return { kind: 'text', text: value };
+}
+
+function matchOption(label: string, target: string, points?: number): QuizScriptOption {
+  return { content: text(label), correct: true, target: text(target), points };
 }
 
 describe('gradeMatchQuestion', () => {
   const q = makeQuestion({
-    variant: 'match',
+    variant: 'match_pairs',
     options: [matchOption('Paris', 'France'), matchOption('Tokyo', 'Japan')]
   });
 
@@ -450,7 +464,7 @@ describe('gradeMatchQuestion', () => {
 
   it('partial_credit: each correct pair scores independently', () => {
     const partial = makeQuestion({
-      variant: 'match',
+      variant: 'match_pairs',
       options: q.options,
       settings: { partial_credit: true }
     });
@@ -464,7 +478,7 @@ describe('gradeMatchQuestion', () => {
 
 describe('gradeCategoriseQuestion', () => {
   const q = makeQuestion({
-    variant: 'categorise',
+    variant: 'group_items',
     options: [
       matchOption('Fish', 'Water'),
       matchOption('Frog', 'Water'),
@@ -494,7 +508,7 @@ describe('gradeCategoriseQuestion', () => {
 
   it('partial_credit: each correctly-bucketed item scores independently', () => {
     const partial = makeQuestion({
-      variant: 'categorise',
+      variant: 'group_items',
       options: q.options,
       settings: { partial_credit: true }
     });
@@ -516,7 +530,7 @@ function blankOption(text: string, correct: boolean, points?: number): QuizScrip
 
 describe('gradeFillInBlanksQuestion', () => {
   const q = makeQuestion({
-    variant: 'fill_in_blanks',
+    variant: 'fill_blanks',
     text: 'The ___ is the powerhouse of the ___.',
     options: [
       blankOption('mitochondria', true),
@@ -525,32 +539,48 @@ describe('gradeFillInBlanksQuestion', () => {
     ]
   });
 
-  it('bank mode (default): exact bank-word matches score full credit', () => {
-    expect(gradeFillInBlanksQuestion(q, ['mitochondria', 'cell'], new Set())).toEqual({
-      earned: 2,
-      max: 2
-    });
+  it('bank mode (default): the right bank word in each blank scores full credit', () => {
+    expect(gradeFillInBlanksQuestion(q, [], [0, 1], new Set())).toEqual({ earned: 2, max: 2 });
   });
 
   it('bank mode: an empty or wrong blank fails exact match entirely', () => {
-    expect(gradeFillInBlanksQuestion(q, ['mitochondria', ''], new Set())).toEqual({
-      earned: 0,
-      max: 2
+    expect(gradeFillInBlanksQuestion(q, [], [0, null], new Set())).toEqual({ earned: 0, max: 2 });
+    // Blank 0 filled with the distractor ("nucleus", option 2).
+    expect(gradeFillInBlanksQuestion(q, [], [2, 1], new Set())).toEqual({ earned: 0, max: 2 });
+  });
+
+  it('bank mode: a distractor spelled the same as the answer still counts', () => {
+    // The player has no way to tell two identical buttons apart, so grading compares the word
+    // that was placed rather than which button it came from.
+    const twins = makeQuestion({
+      variant: 'fill_blanks',
+      text: 'The ___ is the powerhouse of the cell.',
+      options: [blankOption('mitochondria', true), blankOption('mitochondria', false)]
     });
-    expect(gradeFillInBlanksQuestion(q, ['nucleus', 'cell'], new Set())).toEqual({
-      earned: 0,
-      max: 2
+    expect(gradeFillInBlanksQuestion(twins, [], [1], new Set())).toEqual({ earned: 1, max: 1 });
+  });
+
+  it('bank mode: a picture bank word scores like any other', () => {
+    const pictures = makeQuestion({
+      variant: 'fill_blanks',
+      text: 'The organelle shown here — ___ — makes ATP.',
+      options: [
+        { content: { kind: 'image', alt: 'A mitochondrion', url: 'mito.png' }, correct: true },
+        { content: { kind: 'image', alt: 'A nucleus', url: 'nucleus.png' }, correct: false }
+      ]
     });
+    expect(gradeFillInBlanksQuestion(pictures, [], [0], new Set())).toEqual({ earned: 1, max: 1 });
+    expect(gradeFillInBlanksQuestion(pictures, [], [1], new Set())).toEqual({ earned: 0, max: 1 });
   });
 
   it('partial_credit: each correct blank scores independently', () => {
     const partial = makeQuestion({
-      variant: 'fill_in_blanks',
+      variant: 'fill_blanks',
       text: q.text,
       options: q.options,
       settings: { partial_credit: true }
     });
-    expect(gradeFillInBlanksQuestion(partial, ['mitochondria', ''], new Set())).toEqual({
+    expect(gradeFillInBlanksQuestion(partial, [], [0, null], new Set())).toEqual({
       earned: 1,
       max: 2
     });
@@ -558,27 +588,41 @@ describe('gradeFillInBlanksQuestion', () => {
 
   it('type mode: typed matching (normalization/case) applies, unlike bank mode', () => {
     const typedMode = makeQuestion({
-      variant: 'fill_in_blanks',
+      variant: 'fill_blanks',
       text: q.text,
       options: q.options,
       settings: { answer_mode: 'type' }
     });
-    expect(gradeFillInBlanksQuestion(typedMode, ['  MITOCHONDRIA ', 'Cell'], new Set())).toEqual({
+    expect(
+      gradeFillInBlanksQuestion(typedMode, ['  MITOCHONDRIA ', 'Cell'], [], new Set())
+    ).toEqual({ earned: 2, max: 2 });
+  });
+
+  it('type mode: typo_tolerance forgives a typo, same as a typed question', () => {
+    const fuzzy = makeQuestion({
+      variant: 'fill_blanks',
+      text: q.text,
+      options: q.options,
+      settings: { answer_mode: 'type', typo_tolerance: 20 }
+    });
+    expect(gradeFillInBlanksQuestion(fuzzy, ['mitochondri', 'cell'], [], new Set())).toEqual({
       earned: 2,
       max: 2
     });
   });
 
-  it('type mode: typo_tolerance forgives a typo, same as a typed question', () => {
-    const fuzzy = makeQuestion({
-      variant: 'fill_in_blanks',
-      text: q.text,
-      options: q.options,
-      settings: { answer_mode: 'type', typo_tolerance: 20 }
+  it('type mode: a picture blank is typed as its alt text', () => {
+    const pictureTyped = makeQuestion({
+      variant: 'fill_blanks',
+      text: 'This is a ___.',
+      options: [
+        { content: { kind: 'image', alt: 'mitochondrion', url: 'mito.png' }, correct: true }
+      ],
+      settings: { answer_mode: 'type' }
     });
-    expect(gradeFillInBlanksQuestion(fuzzy, ['mitochondri', 'cell'], new Set())).toEqual({
-      earned: 2,
-      max: 2
+    expect(gradeFillInBlanksQuestion(pictureTyped, ['Mitochondrion'], [], new Set())).toEqual({
+      earned: 1,
+      max: 1
     });
   });
 });
@@ -593,21 +637,44 @@ describe('fillInBlanksCount', () => {
 describe('categoriseBuckets', () => {
   it('returns the distinct target labels in first-appearance order', () => {
     const q = makeQuestion({
-      variant: 'categorise',
+      variant: 'group_items',
       options: [
-        { content: { kind: 'text', text: 'Fish' }, correct: true, target: 'Water' },
-        { content: { kind: 'text', text: 'Frog' }, correct: true, target: 'Water' },
-        { content: { kind: 'text', text: 'Lion' }, correct: true, target: 'Land' }
+        { content: { kind: 'text', text: 'Fish' }, correct: true, target: text('Water') },
+        { content: { kind: 'text', text: 'Frog' }, correct: true, target: text('Water') },
+        { content: { kind: 'text', text: 'Lion' }, correct: true, target: text('Land') }
       ]
     });
     expect(categoriseBuckets(q)).toEqual(['Water', 'Land']);
+  });
+
+  it('groups a picture item under its bucket like any other', () => {
+    const q = makeQuestion({
+      variant: 'group_items',
+      options: [
+        { content: { kind: 'image', alt: 'A trout', url: 'trout.png' }, correct: true, target: text('Water') },
+        { content: { kind: 'text', text: 'Lion' }, correct: true, target: text('Land') }
+      ]
+    });
+    expect(categoriseBuckets(q)).toEqual(['Water', 'Land']);
+    // Bucket 0 is "Water", which is where the picture belongs.
+    expect(gradeCategoriseQuestion(q, new Map([[0, 0]]), new Set()).earned).toBe(0);
+    expect(
+      gradeCategoriseQuestion(
+        q,
+        new Map([
+          [0, 0],
+          [1, 1]
+        ]),
+        new Set()
+      ).earned
+    ).toBe(2);
   });
 });
 
 describe('characterInputLetterInAnswer / characterInputNormalizeGuess', () => {
   it('is always case-insensitive — a bank guess has no "wrong case" to compare', () => {
     const q = makeQuestion({
-      variant: 'character_input',
+      variant: 'guess_letters',
       options: [characterInputOption('Paris')]
     });
     expect(characterInputLetterInAnswer(q, 'P')).toBe(true);
@@ -619,13 +686,13 @@ describe('characterInputLetterInAnswer / characterInputNormalizeGuess', () => {
 
 describe('characterInputLetterBank', () => {
   it('alphabet mode (default) offers the full a-z', () => {
-    const q = makeQuestion({ variant: 'character_input', options: [characterInputOption('cat')] });
+    const q = makeQuestion({ variant: 'guess_letters', options: [characterInputOption('cat')] });
     expect(characterInputLetterBank(q)).toHaveLength(26);
   });
 
   it('fixed mode offers exactly the configured letters', () => {
     const q = makeQuestion({
-      variant: 'character_input',
+      variant: 'guess_letters',
       options: [characterInputOption('cat')],
       settings: { letter_bank: 'fixed', letter_bank_chars: 'cta' }
     });
@@ -634,7 +701,7 @@ describe('characterInputLetterBank', () => {
 
   it('auto mode includes every answer letter plus some decoys not in the answer', () => {
     const q = makeQuestion({
-      variant: 'character_input',
+      variant: 'guess_letters',
       options: [characterInputOption('cat')],
       settings: { letter_bank: 'auto' }
     });
@@ -648,7 +715,7 @@ describe('characterInputLetterBank', () => {
 describe('characterInputRevealPositionsAfterGuess / characterInputLetterFullyRevealed', () => {
   it('letter_reveal=all reveals every occurrence at once', () => {
     const q = makeQuestion({
-      variant: 'character_input',
+      variant: 'guess_letters',
       options: [characterInputOption('letter')]
     });
     const revealed = characterInputRevealPositionsAfterGuess(q, new Set(), 'e');
@@ -658,7 +725,7 @@ describe('characterInputRevealPositionsAfterGuess / characterInputLetterFullyRev
 
   it('letter_reveal=sequence reveals one occurrence per guess, in order', () => {
     const q = makeQuestion({
-      variant: 'character_input',
+      variant: 'guess_letters',
       options: [characterInputOption('letter')],
       settings: { letter_reveal: 'sequence' }
     });
@@ -671,7 +738,7 @@ describe('characterInputRevealPositionsAfterGuess / characterInputLetterFullyRev
   });
 
   it('is a no-op once every occurrence is already revealed', () => {
-    const q = makeQuestion({ variant: 'character_input', options: [characterInputOption('cat')] });
+    const q = makeQuestion({ variant: 'guess_letters', options: [characterInputOption('cat')] });
     const revealed = new Set([0]);
     expect(characterInputRevealPositionsAfterGuess(q, revealed, 'c')).toEqual(revealed);
   });
@@ -682,7 +749,7 @@ describe('characterInputRevealPositionsAfterGuess / characterInputLetterFullyRev
     // `revealedPositions` starts out equal to the pre-reveal set, so this check doesn't need to
     // know or care whether a letter was ever actually guessed.
     const q = makeQuestion({
-      variant: 'character_input',
+      variant: 'guess_letters',
       options: [characterInputOption('cat', [0])] // "c" pre-revealed
     });
     const initialRevealed = characterInputPrerevealedPositions(q, new Set());
@@ -693,7 +760,7 @@ describe('characterInputRevealPositionsAfterGuess / characterInputLetterFullyRev
     // Regression test: an empty occurrence list would make `.every(...)` vacuously true, which
     // would wrongly read as "fully revealed" for every letter not in the word — pre-disabling
     // the entire rest of the bank instead of leaving it genuinely guessable.
-    const q = makeQuestion({ variant: 'character_input', options: [characterInputOption('cat')] });
+    const q = makeQuestion({ variant: 'guess_letters', options: [characterInputOption('cat')] });
     expect(characterInputLetterFullyRevealed(q, new Set(), 'z')).toBe(false);
   });
 });
@@ -701,7 +768,7 @@ describe('characterInputRevealPositionsAfterGuess / characterInputLetterFullyRev
 describe('characterInputPrerevealedPositions', () => {
   it('unions explicit bracket positions with the resolved extra pre-reveal set', () => {
     const q = makeQuestion({
-      variant: 'character_input',
+      variant: 'guess_letters',
       options: [characterInputOption('Paris', [0])]
     });
     expect(characterInputPrerevealedPositions(q, new Set([2]))).toEqual(new Set([0, 2]));
@@ -711,7 +778,7 @@ describe('characterInputPrerevealedPositions', () => {
 describe('resolveExtraPrereveal', () => {
   it('resolves exactly letters_shown_at_start positions, excluding bracket-marked ones', () => {
     const q = makeQuestion({
-      variant: 'character_input',
+      variant: 'guess_letters',
       options: [characterInputOption('Paris', [0])],
       settings: { letters_shown_at_start: 2 }
     });
@@ -722,7 +789,7 @@ describe('resolveExtraPrereveal', () => {
 
   it('defaults to nothing when letters_shown_at_start is not set', () => {
     const q = makeQuestion({
-      variant: 'character_input',
+      variant: 'guess_letters',
       options: [characterInputOption('Paris')]
     });
     expect(resolveExtraPrereveal(q).size).toBe(0);
@@ -737,14 +804,14 @@ describe('isDraftComplete', () => {
   });
 
   it('a single-input typed draft needs non-blank text', () => {
-    const q = makeQuestion({ variant: 'typed', options: [textOption('paris', true)] });
+    const q = makeQuestion({ variant: 'type_answer', options: [textOption('paris', true)] });
     expect(isDraftComplete(q, { ...blankDraft(), typedSingleAnswer: '  ' })).toBe(false);
     expect(isDraftComplete(q, { ...blankDraft(), typedSingleAnswer: 'paris' })).toBe(true);
   });
 
   it('a boxes-mode typed draft needs every box filled', () => {
     const q = makeQuestion({
-      variant: 'typed',
+      variant: 'type_answer',
       options: [textOption('ab', true)],
       settings: { typed_input: 'boxes' }
     });
@@ -752,8 +819,8 @@ describe('isDraftComplete', () => {
     expect(isDraftComplete(q, { ...blankDraft(), boxChars: ['a', 'b'] })).toBe(true);
   });
 
-  it('a character_input draft is always complete — submittable at any point, like giving up mid-Hangman', () => {
-    const q = makeQuestion({ variant: 'character_input', options: [characterInputOption('cat')] });
+  it('a guess_letters draft is always complete — submittable at any point, like giving up mid-Hangman', () => {
+    const q = makeQuestion({ variant: 'guess_letters', options: [characterInputOption('cat')] });
     expect(isDraftComplete(q, blankDraft())).toBe(true);
   });
 });
@@ -765,19 +832,22 @@ describe('gradeDraft / questionMaxPoints', () => {
     expect(result).toEqual({ earned: 1, max: 1 });
     expect(answer.kind).toBe('choice');
 
-    const typedQ = makeQuestion({ variant: 'typed', options: [textOption('paris', true, 2)] });
+    const typedQ = makeQuestion({
+      variant: 'type_answer',
+      options: [textOption('paris', true, 2)]
+    });
     const typedResult = gradeDraft(typedQ, { ...blankDraft(), typedSingleAnswer: 'paris' });
     expect(typedResult.result).toEqual({ earned: 2, max: 2 });
-    expect(typedResult.answer.kind).toBe('typed');
+    expect(typedResult.answer.kind).toBe('type_answer');
 
     const characterInputQ = makeQuestion({
-      variant: 'character_input',
+      variant: 'guess_letters',
       options: [characterInputOption('cat')]
     });
     const ciDraft = { ...blankDraft(), guessedLetters: new Map([['c', 'correct' as const]]) };
     const ciResult = gradeDraft(characterInputQ, ciDraft);
     expect(ciResult.result).toEqual({ earned: 1, max: 3 });
-    expect(ciResult.answer.kind).toBe('character_input');
+    expect(ciResult.answer.kind).toBe('guess_letters');
   });
 
   it("questionMaxPoints matches a blank draft's max", () => {
@@ -861,13 +931,13 @@ describe('draftFromAnswer', () => {
   });
 
   it('round-trips a single-input typed answer', () => {
-    const q = makeQuestion({ variant: 'typed', options: [textOption('paris', true)] });
+    const q = makeQuestion({ variant: 'type_answer', options: [textOption('paris', true)] });
     roundTrips(q, { ...blankDraft(), typedSingleAnswer: 'Paris' });
   });
 
   it('round-trips a boxes-mode typed answer, including its per-word box split', () => {
     const q = makeQuestion({
-      variant: 'typed',
+      variant: 'type_answer',
       options: [textOption('new york', true)],
       settings: { typed_input: 'boxes' }
     });
@@ -886,16 +956,16 @@ describe('draftFromAnswer', () => {
 
   it('round-trips a multi-guess typed answer', () => {
     const q = makeQuestion({
-      variant: 'typed',
+      variant: 'type_answer',
       options: [textOption('red', true), textOption('blue', true)],
       settings: { max_answers: 2 }
     });
     roundTrips(q, { ...blankDraft(), typedGuesses: ['red', 'green'] });
   });
 
-  it('round-trips a character_input answer, pre-reveals included', () => {
+  it('round-trips a guess_letters answer, pre-reveals included', () => {
     const q = makeQuestion({
-      variant: 'character_input',
+      variant: 'guess_letters',
       options: [characterInputOption('cat', [0])]
     });
     roundTrips(q, {
@@ -910,7 +980,7 @@ describe('draftFromAnswer', () => {
 
   it('round-trips a partially-placed order answer without collapsing its empty slots', () => {
     const q = makeQuestion({
-      variant: 'order',
+      variant: 'order_items',
       options: [textOption('first', true), textOption('second', true), textOption('third', true)],
       settings: { partial_credit: true }
     });
@@ -924,7 +994,7 @@ describe('draftFromAnswer', () => {
 
   it('round-trips a match answer', () => {
     const q = makeQuestion({
-      variant: 'match',
+      variant: 'match_pairs',
       options: [matchOption('Paris', 'France'), matchOption('Tokyo', 'Japan')]
     });
     roundTrips(q, {
@@ -936,9 +1006,9 @@ describe('draftFromAnswer', () => {
     });
   });
 
-  it('round-trips a categorise answer', () => {
+  it('round-trips a group_items answer', () => {
     const q = makeQuestion({
-      variant: 'categorise',
+      variant: 'group_items',
       options: [matchOption('Paris', 'Europe'), matchOption('Tokyo', 'Asia')]
     });
     roundTrips(q, {
@@ -950,9 +1020,9 @@ describe('draftFromAnswer', () => {
     });
   });
 
-  it('round-trips a fill_in_blanks answer', () => {
+  it('round-trips a fill_blanks answer', () => {
     const q = makeQuestion({
-      variant: 'fill_in_blanks',
+      variant: 'fill_blanks',
       text: 'The ___ is the powerhouse of the ___.',
       options: [
         blankOption('mitochondria', true),
@@ -973,12 +1043,12 @@ describe('draftFromAnswer', () => {
   });
 });
 
-describe('answer_mode=type on order/match/categorise', () => {
+describe('answer_mode=type on order/match/group_items', () => {
   const typed = { answer_mode: 'type' };
 
-  it('order: each slot expects the item authored at that position', () => {
+  it('order_items: each slot expects the item authored at that position', () => {
     const q = makeQuestion({
-      variant: 'order',
+      variant: 'order_items',
       options: [textOption('First', true), textOption('Second', true), textOption('Third', true)],
       settings: typed
     });
@@ -994,9 +1064,9 @@ describe('answer_mode=type on order/match/categorise', () => {
     });
   });
 
-  it('match/categorise: each slot expects that item’s own target', () => {
+  it('match/group_items: each slot expects that item’s own target', () => {
     const m = makeQuestion({
-      variant: 'match',
+      variant: 'match_pairs',
       options: [matchOption('Paris', 'France'), matchOption('Tokyo', 'Japan')],
       settings: typed
     });
@@ -1007,7 +1077,7 @@ describe('answer_mode=type on order/match/categorise', () => {
     });
 
     const c = makeQuestion({
-      variant: 'categorise',
+      variant: 'group_items',
       options: [matchOption('Fish', 'Water'), matchOption('Lion', 'Land')],
       settings: typed
     });
@@ -1019,7 +1089,7 @@ describe('answer_mode=type on order/match/categorise', () => {
 
   it('uses the same forgiving matching a typed question gets', () => {
     const q = makeQuestion({
-      variant: 'categorise',
+      variant: 'group_items',
       options: [matchOption('Fish', 'Water')],
       settings: { ...typed, typo_tolerance: 40 }
     });
@@ -1029,7 +1099,7 @@ describe('answer_mode=type on order/match/categorise', () => {
 
   it('an empty slot is never correct, and partial_credit scores the rest', () => {
     const q = makeQuestion({
-      variant: 'match',
+      variant: 'match_pairs',
       options: [matchOption('Paris', 'France'), matchOption('Tokyo', 'Japan')],
       settings: { ...typed, partial_credit: true }
     });
@@ -1042,7 +1112,7 @@ describe('answer_mode=type on order/match/categorise', () => {
 
   it('gradeDraft routes the typed variants through blankAnswers and records typed_slots', () => {
     const q = makeQuestion({
-      variant: 'order',
+      variant: 'order_items',
       options: [textOption('First', true), textOption('Second', true)],
       settings: typed
     });
@@ -1057,11 +1127,104 @@ describe('answer_mode=type on order/match/categorise', () => {
 
   it('is only submittable once every slot has something in it', () => {
     const q = makeQuestion({
-      variant: 'categorise',
+      variant: 'group_items',
       options: [matchOption('Fish', 'Water'), matchOption('Lion', 'Land')],
       settings: typed
     });
     expect(isDraftComplete(q, { ...blankDraft(), blankAnswers: ['Water', ''] })).toBe(false);
     expect(isDraftComplete(q, { ...blankDraft(), blankAnswers: ['Water', 'Land'] })).toBe(true);
+  });
+});
+
+describe('type_pattern grading', () => {
+  function patternQuestion(
+    options: QuizScriptOption[],
+    settings: QuizScriptSettings = {}
+  ): QuizScriptQuestion {
+    return makeQuestion({ variant: 'type_pattern', options, settings });
+  }
+
+  describe('patternMatches', () => {
+    it('is implicitly anchored — a pattern matches the whole response, not a substring', () => {
+      expect(patternMatches('cat', 'cat', {})).toBe(true);
+      expect(patternMatches('cat', 'concatenate', {})).toBe(false);
+      // ...and an author who genuinely wants a substring can still say so.
+      expect(patternMatches('.*cat.*', 'concatenate', {})).toBe(true);
+    });
+
+    it('anchors alternation as a whole, not just its first and last branch', () => {
+      expect(patternMatches('cat|dog', 'dog', {})).toBe(true);
+      expect(patternMatches('cat|dog', 'hotdog', {})).toBe(false);
+    });
+
+    it('is case-insensitive unless match_case says otherwise', () => {
+      expect(patternMatches('paris', 'PARIS', {})).toBe(true);
+      expect(patternMatches('paris', 'PARIS', { match_case: true })).toBe(false);
+    });
+
+    it('trims the response but preserves the characters a pattern is written to match', () => {
+      expect(patternMatches('[0-9]+\\.[0-9]+', '  3.14  ', {})).toBe(true);
+      // Punctuation-stripping normalization would have destroyed this one.
+      expect(patternMatches('[0-9]+\\.[0-9]+', '314', {})).toBe(false);
+    });
+
+    it('treats an uncompilable pattern as simply not matching, rather than throwing', () => {
+      expect(patternMatches('(unclosed', 'anything', {})).toBe(false);
+    });
+  });
+
+  describe('matchedPatternIndex', () => {
+    it('lets a wrong pattern win over a correct one it overlaps', () => {
+      // "anything except Paris" — the whole point of the `~` pattern is to carve an exception out
+      // of the broad `=` one, so resolving the other way would make it dead.
+      const question = patternQuestion([textOption('.+', true), textOption('[Pp]aris', false)]);
+      expect(matchedPatternIndex(question, 'Paris')).toBe(1);
+      expect(matchedPatternIndex(question, 'Lyon')).toBe(0);
+    });
+
+    it('returns null when nothing matches', () => {
+      const question = patternQuestion([textOption('[0-9]+', true)]);
+      expect(matchedPatternIndex(question, 'abc')).toBeNull();
+    });
+  });
+
+  it('awards the matched correct pattern its points', () => {
+    const question = patternQuestion([textOption('[0-9]{4}', true)], { points_correct: 3 });
+    expect(gradeTypePatternQuestion(question, '1999', new Set())).toEqual({ earned: 3, max: 3 });
+  });
+
+  it('awards nothing for a response that matches no pattern at all', () => {
+    const question = patternQuestion([textOption('[0-9]{4}', true)], { points_correct: 3 });
+    expect(gradeTypePatternQuestion(question, 'nope', new Set())).toEqual({ earned: 0, max: 3 });
+  });
+
+  it("applies a wrong pattern's own penalty when one matches", () => {
+    const question = patternQuestion(
+      [textOption('[0-9]{4}', true), textOption('19[0-9]{2}', false, -2)],
+      {
+        points_correct: 3
+      }
+    );
+    expect(gradeTypePatternQuestion(question, '1999', new Set())).toEqual({ earned: -2, max: 3 });
+  });
+
+  it('maxes at the best single correct pattern, not the sum — only one ever resolves', () => {
+    const question = patternQuestion([textOption('a+', true, 5), textOption('b+', true, 2)]);
+    expect(gradeTypePatternQuestion(question, 'aaa', new Set()).max).toBe(5);
+  });
+
+  it('round-trips through gradeDraft and draftFromAnswer', () => {
+    const question = patternQuestion([textOption('[0-9]{4}', true)]);
+    const draft: QuestionDraft = { ...blankDraft(), typedSingleAnswer: '2026' };
+    const { result, answer } = gradeDraft(question, draft);
+    expect(result.earned).toBe(1);
+    expect(answer).toEqual({ kind: 'type_pattern', response: '2026', revealed: new Set() });
+    expect(draftFromAnswer(question, answer).typedSingleAnswer).toBe('2026');
+  });
+
+  it('counts as answered once anything has been typed', () => {
+    const question = patternQuestion([textOption('.+', true)]);
+    expect(isDraftComplete(question, { ...blankDraft(), typedSingleAnswer: '' })).toBe(false);
+    expect(isDraftComplete(question, { ...blankDraft(), typedSingleAnswer: 'x' })).toBe(true);
   });
 });

@@ -4,7 +4,7 @@
 
   // Renders one option/item's content — text, image, or (YouTube) video — the same shape both a
   // question's own media and any option's content use (see QuizScriptOptionContent). Extracted
-  // from QuestionPlayer.svelte's own `optionContent` snippet so order/match/categorise's answer
+  // from QuestionPlayer.svelte's own `optionContent` snippet so order/match/group_items's answer
   // boards (which each render items the same way choice options already do) don't duplicate the
   // image/video rendering rules three more times.
   let { content }: { content: QuizScriptOptionContent } = $props();

@@ -9,7 +9,7 @@ import { resetStorage, seedQuizzes } from './utils/storage';
 // The examples in examples/ are the first thing a new author plays, and they're the app's own
 // demonstration that the format works. Parsing them (sampleQuizzes.test.ts) only proves they're
 // syntactically valid — these actually play them, which is what caught a question whose %N% option
-// weights could never pay out because it lacked (and, as a single_choice, couldn't have)
+// weights could never pay out because it lacked (and, as a pick_one, couldn't have)
 // partial_credit, while its own analysis note claimed otherwise.
 const files = readdirSync('examples')
   .filter((f) => f.endsWith('.qwiz'))
@@ -134,7 +134,7 @@ test('picture round: the weighted near-miss still scores', async ({ page }) => {
   const play = new PlayPage(page);
   await play.goto(quiz.id);
 
-  // Q3 is multiple_choice, so it renders checkboxes rather than radios.
+  // Q3 is pick_many, so it renders checkboxes rather than radios.
   for (let i = 0; i < 3; i++) {
     const radios = page.getByRole('radio');
     const control =

@@ -1,4 +1,4 @@
-/** Pointer-driven drag-and-drop for the answer boards (order/match/categorise/fill_in_blanks),
+/** Pointer-driven drag-and-drop for the answer boards (order_items/match_pairs/group_items/fill_blanks),
  * layered ON TOP OF their existing tap-to-pick-then-tap-to-place interaction rather than replacing
  * it — see `draggable` below for how one gesture is split between the two.
  *
@@ -38,11 +38,15 @@ export interface DraggableParams {
    * everywhere this is currently used. */
   id: number;
   /** Only drop zones carrying a matching `data-drop-group` accept this item, so (for example) a
-   * categorise pool item can't be dropped into a fill_in_blanks blank that happens to be on the
+   * group_items pool item can't be dropped into a fill_blanks blank that happens to be on the
    * same screen. */
   group: string;
   /** Locked boards report no drags at all. */
   disabled?: boolean;
+  /** What the ghost is cloned from, when the thing you grab isn't the thing that moves — a small
+   * grip handle inside a much larger row, say. The grab offset is measured against this too, so
+   * the ghost stays exactly over the element it's standing in for. Defaults to `node`. */
+  ghostFrom?: HTMLElement;
   /** Fires when a drag starts (with the initial state), whenever the hovered zone changes, and
    * with `null` when the drag ends or is cancelled. */
   onDragChange?: (state: DragState | null) => void;
@@ -150,12 +154,17 @@ export function draggable(node: HTMLElement, params: DraggableParams) {
   function beginDrag(x: number, y: number) {
     clearTimeout(holdTimer);
     dragging = true;
-    ghost = buildGhost(node);
+    ghost = buildGhost(current.ghostFrom ?? node);
     moveGhost(x, y);
     document.body.appendChild(ghost);
     // Only now, once the gesture is definitely a drag: setting this up front would make the item
     // an un-scrollable dead zone on a touch screen even for someone just swiping past it.
     node.style.touchAction = 'none';
+    // The node's own `user-select: none` (see below) stops a selection STARTING on it, but a drag
+    // that travels over other text can still extend one that the browser decides to begin
+    // elsewhere mid-gesture. Suppressing it document-wide for the duration is the only thing that
+    // covers the whole path the finger takes.
+    document.body.style.userSelect = 'none';
     report();
   }
 
@@ -167,6 +176,7 @@ export function draggable(node: HTMLElement, params: DraggableParams) {
     ghost?.remove();
     ghost = null;
     node.style.touchAction = '';
+    document.body.style.userSelect = '';
     const zone = overZone;
     const wasDragging = dragging;
     dragging = false;
@@ -191,7 +201,7 @@ export function draggable(node: HTMLElement, params: DraggableParams) {
     activePointer = e.pointerId;
     startX = e.clientX;
     startY = e.clientY;
-    const rect = node.getBoundingClientRect();
+    const rect = (current.ghostFrom ?? node).getBoundingClientRect();
     grabX = e.clientX - rect.left;
     grabY = e.clientY - rect.top;
 
@@ -253,6 +263,19 @@ export function draggable(node: HTMLElement, params: DraggableParams) {
     e.preventDefault();
     e.stopPropagation();
   }
+
+  // A long press is how a touch drag starts (see TOUCH_HOLD_MS) — and it's also how both mobile
+  // browsers start a text selection. Theirs fires around 500ms, well after this one has already
+  // begun, so the selection highlight, handles and magnifier come up on top of a drag in flight.
+  // Neither `touch-action: none` nor pointer capture suppresses any of that; `user-select` is what
+  // does, and `-webkit-touch-callout` is what stops iOS additionally offering its copy/share menu
+  // for the same press. Set once here rather than at drag start, because the browser decides
+  // whether a press is selecting text at the moment it goes down — by the time we know it's a drag
+  // it's already too late to opt out. Nothing this is used on holds text worth selecting: every
+  // one is a button, or a grip handle beside one.
+  node.style.userSelect = 'none';
+  node.style.setProperty('-webkit-user-select', 'none');
+  node.style.setProperty('-webkit-touch-callout', 'none');
 
   node.addEventListener('pointerdown', onPointerDown);
   node.addEventListener('click', onClickCapture, true);

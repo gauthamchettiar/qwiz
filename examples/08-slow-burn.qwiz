@@ -13,7 +13,7 @@ tags: [deferred-reveal, review, mixed]
 :partial_credit=true
 ---
 
-multiple_choice: Which of these are programming languages named after people?
+pick_many: Which of these are programming languages named after people?
 !<analysis>[Why?](Ada is named for Ada Lovelace and Pascal for Blaise Pascal. Python is named after Monty Python, and Java after coffee.)
 {
 =Ada
@@ -23,14 +23,14 @@ multiple_choice: Which of these are programming languages named after people?
 }
 :points_correct=2
 
-typed: What word describes a number that reads the same forwards and backwards?
+type_answer: What word describes a number that reads the same forwards and backwards?
 {
 =palindrome
 }
 :typo_tolerance=25
 :points_correct=2
 
-order: Put these units of length in order, smallest first.
+order_items: Put these units of length in order, smallest first.
 {
 =Millimetre
 =Centimetre
@@ -39,7 +39,7 @@ order: Put these units of length in order, smallest first.
 }
 :points_correct=2
 
-categorise: Sort these into the right column.
+group_items: Sort these into the right column.
 {
 =Copper -> Element
 =Bronze -> Alloy
@@ -48,7 +48,7 @@ categorise: Sort these into the right column.
 }
 :points_correct=1
 
-fill_in_blanks: A ___ angle is exactly 90 degrees, and an angle over 90 is called ___.
+fill_blanks: A ___ angle is exactly 90 degrees, and an angle over 90 is called ___.
 {
 =right
 =obtuse

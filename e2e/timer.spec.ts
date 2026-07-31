@@ -18,9 +18,7 @@ test('a per_question timer auto-submits the current answer when it runs out', as
     questions: [
       {
         id: 'q1',
-        code: ['single_choice: What is the capital of France?', '{', '=Paris', '~Lyon', '}'].join(
-          '\n'
-        )
+        code: ['pick_one: What is the capital of France?', '{', '=Paris', '~Lyon', '}'].join('\n')
       }
     ]
   });
@@ -54,9 +52,7 @@ test('on_timeout=lock_zero scores 0 even if an option was selected before time r
     questions: [
       {
         id: 'q1',
-        code: ['single_choice: What is the capital of France?', '{', '=Paris', '~Lyon', '}'].join(
-          '\n'
-        )
+        code: ['pick_one: What is the capital of France?', '{', '=Paris', '~Lyon', '}'].join('\n')
       }
     ]
   });
@@ -77,8 +73,8 @@ test('reveal_screen_seconds auto-advances to the next question', async ({ page }
   const quiz = buildQuiz({
     settings: { shuffle_questions: false, reveal_screen_seconds: 2 },
     questions: [
-      { id: 'q1', code: ['single_choice: Q1?', '{', '=a', '~b', '}'].join('\n') },
-      { id: 'q2', code: ['single_choice: Q2?', '{', '=c', '~d', '}'].join('\n') }
+      { id: 'q1', code: ['pick_one: Q1?', '{', '=a', '~b', '}'].join('\n') },
+      { id: 'q2', code: ['pick_one: Q2?', '{', '=c', '~d', '}'].join('\n') }
     ]
   });
   await seedQuizzes(page, [quiz]);
@@ -101,8 +97,8 @@ test('a per_quiz timer ends the whole run when the shared budget runs out', asyn
   const quiz = buildQuiz({
     settings: { shuffle_questions: false, timer_mode: 'per_quiz', timer_seconds: 3 },
     questions: [
-      { id: 'q1', code: ['single_choice: Q1?', '{', '=a', '~b', '}'].join('\n') },
-      { id: 'q2', code: ['single_choice: Q2?', '{', '=c', '~d', '}'].join('\n') }
+      { id: 'q1', code: ['pick_one: Q1?', '{', '=a', '~b', '}'].join('\n') },
+      { id: 'q2', code: ['pick_one: Q2?', '{', '=c', '~d', '}'].join('\n') }
     ]
   });
   await seedQuizzes(page, [quiz]);

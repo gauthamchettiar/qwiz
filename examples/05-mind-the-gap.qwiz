@@ -9,7 +9,7 @@ tags: [fill-in-blanks, cloze, spelling]
 :partial_credit=true
 ---
 
-fill_in_blanks: The ___ is the powerhouse of the ___, which is why it turns up in every biology lesson ever taught.
+fill_blanks: The ___ is the powerhouse of the ___, which is why it turns up in every biology lesson ever taught.
 {
 =mitochondria
 =cell
@@ -19,7 +19,7 @@ fill_in_blanks: The ___ is the powerhouse of the ___, which is why it turns up i
 }
 :points_correct=2
 
-fill_in_blanks: In 1969, ___ became the first person to walk on the ___.
+fill_blanks: In 1969, ___ became the first person to walk on the ___.
 !<reveal>[A nudge](He said something about a small step.) %-1%
 {
 =Armstrong
@@ -29,7 +29,7 @@ fill_in_blanks: In 1969, ___ became the first person to walk on the ___.
 }
 :points_correct=2
 
-fill_in_blanks: No word bank here — type it. A ___ of lions, a ___ of geese, a ___ of fish.
+fill_blanks: No word bank here — type it. A ___ of lions, a ___ of geese, a ___ of fish.
 !<analysis>[Why?](answer_mode=type drops the bank entirely, so this is recall rather than recognition. typo_tolerance keeps a near-miss spelling from being marked wrong.)
 {
 =pride
@@ -40,7 +40,7 @@ fill_in_blanks: No word bank here — type it. A ___ of lions, a ___ of geese, a
 :typo_tolerance=30
 :points_correct=2
 
-fill_in_blanks: Numbers, typed, with a little slack: light travels about ___ kilometres per second, and there are ___ minutes in a day.
+fill_blanks: Numbers, typed, with a little slack: light travels about ___ kilometres per second, and there are ___ minutes in a day.
 {
 =300000
 =1440

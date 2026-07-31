@@ -61,14 +61,15 @@ tags: [capitals, easy]
 In order, a question consists of:
 
 1. **A header line** — either `variant: text`, or a bare text line (which defaults to the
-   `multiple_choice` variant). The variant name must be one of the eight in §3.
+   `pick_many` variant). The variant name must be one of the nine in §3.
 2. **Optional media lines** (§4) and **optional extras** (§4.3), in any order, after the header.
 3. **An option block** delimited by `{` and `}` on their own lines. Required for every variant.
    Minimum contents, enforced at parse time:
-   - `single_choice` — exactly one `=`; `character_input` — exactly one `=`.
-   - `order`, `match`, `categorise` — **at least two** options.
-   - `fill_in_blanks` — at least one `___` in the text, and one `=` per blank.
-   - `multiple_choice`, `typed` — at least one option.
+   - `pick_one` — exactly one `=`; `guess_letters` — exactly one `=`.
+   - `order_items`, `match_pairs`, `group_items` — **at least two** options.
+   - `fill_blanks` — at least one `___` in the text, and one `=` per blank.
+   - `type_pattern` — at least one `=` pattern, and every pattern must compile.
+   - `pick_many`, `type_answer` — at least one option.
 4. **Optional `:key=value` settings**, one per line, after the closing `}`.
 
 Multi-line question text: continue on the next line before any media/extra/`{` line — consecutive
@@ -81,7 +82,7 @@ plain text lines are joined with a newline.
 | `=`    | Correct option / accepted answer |
 | `~`    | Incorrect option (a distractor)  |
 
-`=Item -> Target` gives an option a **target** (`match`, `categorise` — see §3).
+`=Item -> Target` gives an option a **target** (`match_pairs`, `group_items` — see §3).
 `=Option %N%` gives an option its own **point weight**, overriding `points_correct` /
 `points_wrong` for that option only. `N` may be negative or zero: `~Nearly right %1%` awards a
 point for a wrong-but-close answer, `~Way off %-2%` penalises.
@@ -100,12 +101,12 @@ A line whose text would otherwise be read as syntax can be quoted or backslash-e
 
 ---
 
-## 3. The eight variants
+## 3. The nine variants
 
-### `single_choice` — pick exactly one
+### `pick_one` — pick exactly one
 
 ```qwiz-question
-single_choice: What is the capital of France?
+pick_one: What is the capital of France?
 {
 =Paris
 ~Lyon
@@ -115,10 +116,10 @@ single_choice: What is the capital of France?
 
 Exactly one `=` option. Renders as a radio group.
 
-### `multiple_choice` — pick any number (the default variant)
+### `pick_many` — pick any number (the default variant)
 
 ```qwiz-question
-multiple_choice: Which of these are prime?
+pick_many: Which of these are prime?
 {
 =2
 =3
@@ -130,10 +131,10 @@ multiple_choice: Which of these are prime?
 Any number of `=` options. Renders as checkboxes. A bare header line with no `variant:` prefix is
 this variant.
 
-### `typed` — type the answer
+### `type_answer` — type the answer
 
 ```qwiz-question
-typed: What is the capital of Italy?
+type_answer: What is the capital of Italy?
 {
 =Rome
 =Roma
@@ -147,10 +148,44 @@ Matching always normalises whitespace, punctuation and accents; `match_case`, `n
 and `typo_tolerance` control the rest. With `max_answers` above 1 the player banks several guesses
 ("name three of…").
 
-### `character_input` — guess it letter by letter
+### `type_pattern` — type it, graded by regex
 
 ```qwiz-question
-character_input: The capital of France
+type_pattern: In which year did the Berlin Wall fall?
+{
+=1989
+=(19)?89
+~19[0-9]{2}
+}
+:match_case=false
+```
+
+The player types free text, exactly as for `type_answer`, but each option is a **regular
+expression** rather than a literal answer. Unlike every other variant, both markers carry meaning:
+`=` patterns define what counts as correct, `~` patterns mark a response the author wants to call
+out as wrong (a known misconception, a near miss) and can carry their own `%N%` penalty. At least
+one `=` pattern is required, options must be plain text, and a pattern that doesn't compile is a
+parse error.
+
+Three rules an author has to know:
+
+- **Patterns are implicitly anchored** — the whole response must match, so `cat` matches "cat" but
+  not "concatenate". Write `.*cat.*` when a substring really is what's wanted.
+- **A matching `~` pattern beats a matching `=` one**, so a broad `=.+` plus a narrow
+  `~[Pp]aris` reads as "anything except Paris".
+- **The response is only trimmed, not normalised** — unlike `type_answer`, punctuation and accents
+  survive, because a pattern like `[0-9]+\.[0-9]+` is written to match exactly those characters.
+  `match_case` is the one normalisation that still applies (patterns are case-insensitive by
+  default).
+
+Exactly one pattern ever resolves, so the question's maximum is the highest-scoring single `=`
+pattern rather than the sum of them. `typo_tolerance`, `number_tolerance` and `typed_input` don't
+apply — a regex already expresses the tolerance, and there are no character boxes to size.
+
+### `guess_letters` — guess it letter by letter
+
+```qwiz-question
+guess_letters: The capital of France
 {
 =[P]aris
 }
@@ -163,10 +198,10 @@ clicks letters from an on-screen bank; scoring is per distinct guessable letter,
 letters count towards neither the score nor the maximum. Non-letters (spaces, punctuation) are
 always shown and never guessable.
 
-### `order` — put them in sequence
+### `order_items` — put them in sequence
 
 ```qwiz-question
-order: Arrange these chronologically, earliest first.
+order_items: Arrange these chronologically, earliest first.
 {
 =Stonehenge
 =Pompeii
@@ -179,10 +214,10 @@ means nothing here: the parser forces every option correct regardless. Use `=` f
 Options are always shown shuffled. Answered by dragging or tapping items into numbered slots, or
 by typing with `answer_mode=type`.
 
-### `match` — pair each item with its target
+### `match_pairs` — pair each item with its target
 
 ```qwiz-question
-match: Match each capital to its country.
+match_pairs: Match each capital to its country.
 {
 =Paris -> France
 =Tokyo -> Japan
@@ -192,10 +227,14 @@ match: Match each capital to its country.
 Every option is `item -> target`, and every option is correct. Each item pairs with exactly one
 target and vice versa. Both columns are shown shuffled.
 
-### `categorise` — sort items into buckets
+Either side can be an image or video instead of text — `=![Eiffel Tower](url) -> Paris`, or
+`=Colosseum -> ![Rome](url)`, or both at once. Targets must still be unique, compared as a whole
+(URL included), not by alt text alone.
+
+### `group_items` — sort items into buckets
 
 ```qwiz-question
-categorise: Sort these animals.
+group_items: Sort these animals.
 {
 =Dolphin -> Mammal
 =Bat -> Mammal
@@ -203,14 +242,17 @@ categorise: Sort these animals.
 }
 ```
 
-Same `item -> target` shape as `match`, but a target is a **bucket** that holds any number of
+Same `item -> target` shape as `match_pairs`, but a target is a **bucket** that holds any number of
 items. Buckets are derived from the distinct targets in first-appearance order — there is no
 separate bucket-declaration syntax.
 
-### `fill_in_blanks` — complete the sentence
+An item can be an image or video; a bucket cannot. A bucket label is the identity its items share,
+so `=Trout -> ![Water](url)` is a parse error while `=![A trout](url) -> Water` is fine.
+
+### `fill_blanks` — complete the sentence
 
 ```qwiz-question
-fill_in_blanks: The ___ is the powerhouse of the ___.
+fill_blanks: The ___ is the powerhouse of the ___.
 {
 =mitochondria
 =cell
@@ -221,6 +263,10 @@ fill_in_blanks: The ___ is the powerhouse of the ___.
 `___` (three underscores) in the question text marks each blank. The `=` options fill the blanks
 **left to right**, so their count must equal the number of `___` tokens — a mismatch is a parse
 error. `~` options are decoy words for the bank, with no blank of their own.
+
+A bank word can be an image or video, so the sentence can be completed with a picture. Under
+`answer_mode=type` there's no bank and a picture blank is typed as its alt text; one with no alt
+text is a parse error there.
 
 ---
 
@@ -240,8 +286,8 @@ A URL must not contain `)`.
 
 ### 4.2 Media as an option
 
-Prefix with the option marker: `=![A photo of Paris](https://…)`. Not allowed on `typed` or
-`character_input`, whose answers must be text.
+Prefix with the option marker: `=![A photo of Paris](https://…)`. Not allowed on `type_answer` or
+`guess_letters`, whose answers must be text.
 
 ### 4.3 Extras: hints and analysis
 
@@ -270,25 +316,25 @@ The label is the clickable text; the parenthesised part is the content.
 
 Written as `:key=value` lines after the option block. Booleans accept `true`/`false`/`yes`/`no`.
 
-| Setting                  | Values                     | Default    | Applies to                                                       | Quiz-wide |
-| ------------------------ | -------------------------- | ---------- | ---------------------------------------------------------------- | --------- |
-| `points_correct`         | `number`                   | `1`        | all                                                              | yes       |
-| `points_wrong`           | `number`                   | `0`        | all                                                              | yes       |
-| `partial_credit`         | `true / false`             | `false`    | multiple_choice, typed, order, match, categorise, fill_in_blanks | yes       |
-| `options_layout`         | `list / grid2x2 / grid3x3` | `list`     | single_choice, multiple_choice                                   | yes       |
-| `min_answers`            | `number`                   | —          | multiple_choice, typed                                           | no        |
-| `max_answers`            | `number`                   | —          | multiple_choice, typed                                           | no        |
-| `shuffle_options`        | `true / false`             | `false`    | single_choice, multiple_choice                                   | yes       |
-| `difficulty`             | `easy / medium / hard`     | —          | all                                                              | no        |
-| `match_case`             | `true / false`             | `false`    | typed, order, match, categorise, fill_in_blanks                  | yes       |
-| `number_tolerance`       | `number`                   | —          | typed, order, match, categorise, fill_in_blanks                  | yes       |
-| `typo_tolerance`         | `number`                   | —          | typed, order, match, categorise, fill_in_blanks                  | yes       |
-| `typed_input`            | `field / boxes`            | `text`     | typed                                                            | yes       |
-| `letter_bank`            | `alphabet / auto / fixed`  | `alphabet` | character_input                                                  | yes       |
-| `letter_bank_chars`      | `string`                   | —          | character_input                                                  | yes       |
-| `letter_reveal`          | `all / sequence / random`  | `all`      | character_input                                                  | yes       |
-| `letters_shown_at_start` | `number`                   | `0`        | character_input                                                  | yes       |
-| `answer_mode`            | `pick / type`              | `pick`     | order, match, categorise, fill_in_blanks                         | yes       |
+| Setting                  | Values                     | Default    | Applies to                                                                    | Quiz-wide |
+| ------------------------ | -------------------------- | ---------- | ----------------------------------------------------------------------------- | --------- |
+| `points_correct`         | `number`                   | `1`        | all                                                                           | yes       |
+| `points_wrong`           | `number`                   | `0`        | all                                                                           | yes       |
+| `partial_credit`         | `true / false`             | `false`    | pick_many, type_answer, order_items, match_pairs, group_items, fill_blanks    | yes       |
+| `options_layout`         | `list / grid2x2 / grid3x3` | `list`     | pick_one, pick_many                                                           | yes       |
+| `min_answers`            | `number`                   | —          | pick_many, type_answer                                                        | no        |
+| `max_answers`            | `number`                   | —          | pick_many, type_answer                                                        | no        |
+| `shuffle_options`        | `true / false`             | `false`    | pick_one, pick_many                                                           | yes       |
+| `difficulty`             | `easy / medium / hard`     | —          | all                                                                           | no        |
+| `match_case`             | `true / false`             | `false`    | type_answer, type_pattern, order_items, match_pairs, group_items, fill_blanks | yes       |
+| `number_tolerance`       | `number`                   | —          | type_answer, order_items, match_pairs, group_items, fill_blanks               | yes       |
+| `typo_tolerance`         | `number`                   | —          | type_answer, order_items, match_pairs, group_items, fill_blanks               | yes       |
+| `typed_input`            | `text / boxes`             | `text`     | typed                                                                         | yes       |
+| `letter_bank`            | `alphabet / auto / fixed`  | `alphabet` | guess_letters                                                                 | yes       |
+| `letter_bank_chars`      | `string`                   | —          | guess_letters                                                                 | yes       |
+| `letter_reveal`          | `all / sequence / random`  | `all`      | guess_letters                                                                 | yes       |
+| `letters_shown_at_start` | `number`                   | `0`        | guess_letters                                                                 | yes       |
+| `answer_mode`            | `pick / type`              | `pick`     | order_items, match_pairs, group_items, fill_blanks                            | yes       |
 
 The **Quiz-wide** column says whether the setting can also be written once in the frontmatter as a
 default for every question — see §7. `min_answers`, `max_answers` and `difficulty` cannot.
@@ -297,21 +343,21 @@ What each one does:
 
 - `points_correct` — Points awarded for each correct option/pair/placement that doesn't specify its own %N% weight.
 - `points_wrong` — Points deducted for each incorrect option/pair/placement that doesn't specify its own %N% weight.
-- `partial_credit` — Whether getting some (not all) of a question right earns partial credit instead of requiring an exact match — e.g. for a typed question with 3 accepted answers, matching only 1 of them awards that one's points instead of 0. For order/match/categorise/fill_in_blanks, "some but not all" means some but not all items/pairs/buckets/blanks placed correctly.
+- `partial_credit` — Whether getting some (not all) of a question right earns partial credit instead of requiring an exact match — e.g. for a type_answer question with 3 accepted answers, matching only 1 of them awards that one's points instead of 0. For order_items/match_pairs/group_items/fill_blanks, "some but not all" means some but not all items/pairs/buckets/blanks placed correctly.
 - `options_layout` — How a choice question's options are laid out. "list": one per row. "grid2x2": a fixed 2-column grid. "grid3x3": 2 columns on narrow screens, 3 on wider ones.
-- `min_answers` — Minimum number of options/answers the player must select or give before they can submit this question. Not meaningful for single_choice, which can only ever have zero or one selected.
-- `max_answers` — Maximum number of options/answers the player is allowed to select or give for this question. Not meaningful for single_choice, which can only ever have zero or one selected.
-- `shuffle_options` — For a choice question, whether its options are shown in a random order each time it's played. Not meaningful for a typed question.
+- `min_answers` — Minimum number of options/answers the player must select or give before they can submit this question. Not meaningful for pick_one, which can only ever have zero or one selected.
+- `max_answers` — Maximum number of options/answers the player is allowed to select or give for this question. Not meaningful for pick_one, which can only ever have zero or one selected.
+- `shuffle_options` — For a choice question, whether its options are shown in a random order each time it's played. Not meaningful for a type_answer question.
 - `difficulty` — How difficult this question is, for organizing or filtering later — purely informational, doesn't affect grading or play.
-- `match_case` — For a typed question (or a fill_in_blanks question with answer_mode=type), whether a player's answer must match an accepted answer's exact letter case instead of being compared case-insensitively. Other normalization (whitespace, punctuation, accents) always applies regardless of this setting. Not meaningful for character_input: the player guesses by clicking a bank letter, not typing text, so there's no "wrong case" input to compare against — matching there is always case-insensitive. A no-op on fill_in_blanks when answer_mode=pick, since picking a bank word is never a case mismatch.
-- `number_tolerance` — For a typed question (or a fill_in_blanks question with answer_mode=type), the allowed absolute difference between a numeric answer and a numeric response (e.g. 0.5 lets "3.5" match "3"). Falls back to normalized text comparison when either side isn't a number. Cannot be combined with typo_tolerance on the same question. A no-op on fill_in_blanks when answer_mode=pick.
-- `typo_tolerance` — For a typed question (or a fill_in_blanks question with answer_mode=type), how many typos a response may have and still match, as a percentage of the accepted answer's length (edit distance). Cannot be combined with number_tolerance on the same question. A no-op on fill_in_blanks when answer_mode=pick.
-- `typed_input` — How a typed question's answer field is displayed: a plain text box, or one box per character (grouped by word) sized to the first accepted answer's shape. Works in both single-answer and multi-guess (max_answers > 1) mode.
+- `match_case` — For a type_answer question (or a fill_blanks question with answer_mode=type), whether a player's answer must match an accepted answer's exact letter case instead of being compared case-insensitively. Other normalization (whitespace, punctuation, accents) always applies regardless of this setting. Not meaningful for guess_letters: the player guesses by clicking a bank letter, not typing text, so there's no "wrong case" input to compare against — matching there is always case-insensitive. A no-op on fill_blanks when answer_mode=pick, since picking a bank word is never a case mismatch.
+- `number_tolerance` — For a type_answer question (or a fill_blanks question with answer_mode=type), the allowed absolute difference between a numeric answer and a numeric response (e.g. 0.5 lets "3.5" match "3"). Falls back to normalized text comparison when either side isn't a number. Cannot be combined with typo_tolerance on the same question. A no-op on fill_blanks when answer_mode=pick.
+- `typo_tolerance` — For a type_answer question (or a fill_blanks question with answer_mode=type), how many typos a response may have and still match, as a percentage of the accepted answer's length (edit distance). Cannot be combined with number_tolerance on the same question. A no-op on fill_blanks when answer_mode=pick.
+- `typed_input` — How a type_answer question's answer field is displayed: a plain text box, or one box per character (grouped by word) sized to the first accepted answer's shape. Works in both single-answer and multi-guess (max_answers > 1) mode.
 - `letter_bank` — Which letters appear in the on-screen letter bank. "alphabet": the full A-Z. "auto": every distinct letter actually in the answer, plus a handful of random decoy letters that aren't (so a guess still carries real risk). "fixed": exactly the letters in letter_bank_chars.
 - `letter_bank_chars` — The exact letters offered in the bank — only read when letter_bank=fixed. E.g. "abcdefghijklmnop".
 - `letter_reveal` — How a correct letter guess reveals its occurrences in the answer. "all": every occurrence at once (classic Hangman), and that letter's bank button disables immediately. "sequence"/"random": one not-yet-revealed occurrence per guess (next-in-order, or a random remaining one) — the bank button stays clickable until every occurrence of that letter is revealed.
 - `letters_shown_at_start` — Additional random characters (on top of any explicit [x] pre-reveal brackets in the answer) revealed from the start, free of charge.
-- `answer_mode` — How the answer is given, for the four variants that place things rather than select them. "pick": the on-screen board — tap an item then tap its target, or drag it there. "type": no board, just a text field per answer, matched the same way a typed question's response is (match_case/number_tolerance/typo_tolerance all apply). What gets typed depends on the variant: for fill_in_blanks each blank's word, for order the item belonging at each position, and for match/categorise each item's target or bucket.
+- `answer_mode` — How the answer is given, for the four variants that place things rather than select them. "pick": the on-screen board — tap an item then tap its target, or drag it there. "type": no board, just a text field per answer, matched the same way a type_answer question's response is (match_case/number_tolerance/typo_tolerance all apply). What gets typed depends on the variant: for fill_blanks each blank's word, for order the item belonging at each position, and for match/group_items each item's target or bucket.
 
 ---
 
@@ -364,13 +410,13 @@ title: Typed Throughout
 :points_correct=2
 ---
 
-match: Match the capitals.
+match_pairs: Match the capitals.
 {
 =Paris -> France
 =Tokyo -> Japan
 }
 
-categorise: Sort the animals.
+group_items: Sort the animals.
 {
 =Fish -> Water
 =Lion -> Land
@@ -381,7 +427,7 @@ categorise: Sort the animals.
 Above, every placement question is typed except the last, which opts back out.
 
 An inherited setting only reaches questions whose variant accepts it: a quiz-wide
-`:letter_bank=auto` applies to `character_input` questions and is ignored by the rest, rather than
+`:letter_bank=auto` applies to `guess_letters` questions and is ignored by the rest, rather than
 being an error.
 
 ---
@@ -406,15 +452,16 @@ being an error.
 | --------------------------------------------------------------------------- | ---------------------------------------------------------------- |
 | Missing the opening or closing `---`                                        | The file is rejected                                             |
 | A setting on a variant that doesn't accept it                               | Parse error — check the "Applies to" column                      |
-| `fill_in_blanks` where `___` count ≠ number of `=` options                  | Parse error                                                      |
-| `~` distractors on `order`, `match` or `categorise`                         | Silently treated as correct — every option is part of the answer |
+| `fill_blanks` where `___` count ≠ number of `=` options                     | Parse error                                                      |
+| `~` distractors on `order_items`, `match_pairs` or `group_items`            | Silently treated as correct — every option is part of the answer |
 | A misspelled `!<…>` tag (e.g. `!<hint>`)                                    | No error: the line becomes literal question text                 |
-| An image or video option on `typed`/`character_input`                       | Parse error                                                      |
+| An image or video option on `type_answer`/`guess_letters`/`type_pattern`    | Parse error                                                      |
+| An image or video BUCKET on `group_items` (the items themselves are fine)   | Parse error                                                      |
 | `max_answers` below the number of correct options, without `partial_credit` | Rejected: unwinnable                                             |
 | Both `number_tolerance` and `typo_tolerance` on one question                | Rejected: they conflict                                          |
 | A `)` inside a media URL                                                    | Truncates the URL                                                |
-| More than one `=` on `single_choice` or `character_input`                   | Parse error                                                      |
-| Only one option on `order`, `match` or `categorise`                         | Parse error — they need at least two                             |
+| More than one `=` on `pick_one` or `guess_letters`                          | Parse error                                                      |
+| Only one option on `order_items`, `match_pairs` or `group_items`            | Parse error — they need at least two                             |
 | A `#` "comment" after a setting value                                       | Becomes part of the value, then fails validation                 |
 
 ---
@@ -434,7 +481,7 @@ tags: [demo, mixed]
 :partial_credit=true
 ---
 
-single_choice: Which planet is closest to the Sun?
+pick_one: Which planet is closest to the Sun?
 !<reveal>[Nudge me](It is not the hottest one.) %-1%
 {
 =Mercury
@@ -443,7 +490,7 @@ single_choice: Which planet is closest to the Sun?
 }
 :points_correct=2
 
-multiple_choice: Which of these are noble gases?
+pick_many: Which of these are noble gases?
 !<analysis>[Why?](Nitrogen is inert in practice but is not in group 18.)
 {
 =Helium
@@ -453,21 +500,21 @@ multiple_choice: Which of these are noble gases?
 :points_correct=2
 :options_layout=grid2x2
 
-typed: Roughly how tall is Mount Everest, in metres?
+type_answer: Roughly how tall is Mount Everest, in metres?
 {
 =8849
 }
 :number_tolerance=50
 :points_correct=2
 
-character_input: A collective noun for crows.
+guess_letters: A collective noun for crows.
 {
 =[M]urder
 }
 :letter_reveal=all
 :points_correct=2
 
-order: Smallest to largest.
+order_items: Smallest to largest.
 {
 =Atom
 =Grain of sand
@@ -475,7 +522,7 @@ order: Smallest to largest.
 }
 :points_correct=2
 
-match: Match the instrument to what it measures.
+match_pairs: Match the instrument to what it measures.
 {
 =Anemometer -> Wind speed
 =Hygrometer -> Humidity
@@ -484,7 +531,7 @@ match: Match the instrument to what it measures.
 :typo_tolerance=30
 :points_correct=2
 
-categorise: Element or alloy?
+group_items: Element or alloy?
 {
 =Copper -> Element
 =Bronze -> Alloy
@@ -492,7 +539,7 @@ categorise: Element or alloy?
 }
 :points_correct=1
 
-fill_in_blanks: A ___ angle is exactly 90 degrees.
+fill_blanks: A ___ angle is exactly 90 degrees.
 {
 =right
 ~acute
@@ -509,7 +556,7 @@ fill_in_blanks: A ___ angle is exactly 90 degrees.
 3. Every variant name is one of the eight in §3.
 4. Every setting key appears in §5 or §6, and every value is in range.
 5. Every setting is allowed on the variant it's attached to.
-6. `order`/`match`/`categorise` use only `=` options; `match`/`categorise` give every option a
+6. `order_items`/`match_pairs`/`group_items` use only `=` options; `match_pairs`/`group_items` give every option a
    `->` target.
-7. `fill_in_blanks` has one `=` option per `___`.
+7. `fill_blanks` has one `=` option per `___`.
 8. No `)` inside any URL.

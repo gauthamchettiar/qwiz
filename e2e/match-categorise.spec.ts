@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { buildCategoriseQuiz, buildMatchQuiz } from './fixtures/quizzes';
+import { buildCategoriseQuiz, buildMatchQuiz, buildPictureMatchQuiz } from './fixtures/quizzes';
 import { BuilderPage } from './pages/BuilderPage';
 import { PlayPage } from './pages/PlayPage';
 import { resetStorage, seedQuizzes } from './utils/storage';
@@ -16,14 +16,14 @@ test('authoring a match question has item/target pairs and no correct checkbox',
   await builder.gotoCreate();
   await builder.titleInput.fill('Match Quiz');
   await builder.addQuestion();
-  await page.getByLabel('Variant', { exact: true }).selectOption('match');
+  await page.getByLabel('Variant', { exact: true }).selectOption('match_pairs');
   await builder.questionTextInput().fill('Match capitals');
 
   await expect(page.getByRole('checkbox', { name: 'Correct' })).toHaveCount(0);
 
   await page.getByPlaceholder('Item').nth(0).fill('Paris');
   await page.getByPlaceholder('Matches with').nth(0).fill('France');
-  await page.getByRole('button', { name: 'Add option' }).click();
+  await page.getByRole('button', { name: 'Add text option' }).click();
   await page.getByPlaceholder('Item').nth(1).fill('Tokyo');
   await page.getByPlaceholder('Matches with').nth(1).fill('Japan');
 
@@ -33,14 +33,14 @@ test('authoring a match question has item/target pairs and no correct checkbox',
   );
 });
 
-test('authoring a categorise question uses "Bucket" as the target placeholder', async ({
+test('authoring a group_items question uses "Bucket" as the target placeholder', async ({
   page
 }) => {
   const builder = new BuilderPage(page);
   await builder.gotoCreate();
   await builder.titleInput.fill('Categorise Quiz');
   await builder.addQuestion();
-  await page.getByLabel('Variant', { exact: true }).selectOption('categorise');
+  await page.getByLabel('Variant', { exact: true }).selectOption('group_items');
   await builder.questionTextInput().fill('Sort animals');
 
   await page.getByPlaceholder('Item').nth(0).fill('Fish');
@@ -54,7 +54,7 @@ test('authoring a categorise question uses "Bucket" as the target placeholder', 
   );
 });
 
-test('match: correct pairs win full credit, and re-pairing (stealing a used target) works', async ({
+test('match_pairs: correct pairs win full credit, and re-pairing (stealing a used target) works', async ({
   page
 }) => {
   const quiz = buildMatchQuiz();
@@ -80,7 +80,28 @@ test('match: correct pairs win full credit, and re-pairing (stealing a used targ
   await expect(page.getByText('2 / 2 points')).toBeVisible();
 });
 
-test('categorise: several items can correctly share one bucket', async ({ page }) => {
+test('match_pairs: a picture can be the item, the target, or both', async ({ page }) => {
+  const quiz = buildPictureMatchQuiz();
+  await seedQuizzes(page, [quiz]);
+
+  const play = new PlayPage(page);
+  await play.goto(quiz.id);
+
+  // A picture column entry's accessible name is its alt text — the picture IS the label here, so
+  // there's no separate caption for either column to be found by.
+  await expect(page.getByRole('img', { name: 'Red swatch' })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'Blue swatch' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Red swatch', exact: true }).click();
+  await page.getByRole('button', { name: 'Red', exact: true }).click();
+  await page.getByRole('button', { name: 'Blue', exact: true }).click();
+  await page.getByRole('button', { name: 'Blue swatch', exact: true }).click();
+
+  await play.submitAnswerButton.click();
+  await expect(page.getByText('2 / 2 points')).toBeVisible();
+});
+
+test('group_items: several items can correctly share one bucket', async ({ page }) => {
   const quiz = buildCategoriseQuiz();
   await seedQuizzes(page, [quiz]);
 
@@ -105,7 +126,7 @@ test('categorise: several items can correctly share one bucket', async ({ page }
   await expect(page.getByText('3 / 3 points')).toBeVisible();
 });
 
-test('categorise: picking an item back up from a bucket returns it to the pool', async ({
+test('group_items: picking an item back up from a bucket returns it to the pool', async ({
   page
 }) => {
   const quiz = buildCategoriseQuiz();

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { CircleCheck, CircleX, Eye, Plus, RotateCcw, X } from '@lucide/svelte';
-  import type { QuizScriptQuestion } from '@/lib/utils/quizScript';
+  import { optionLabelText, type QuizScriptQuestion } from '@/lib/utils/quizScript';
   import {
     blankDraft,
     boxAnswer,
@@ -18,6 +18,7 @@
     gradeDraft,
     isDraftComplete,
     isGuessableChar,
+    matchedPatternIndex,
     matchTypedGuesses,
     resolveExtraPrereveal,
     isTypedAnswerMode,
@@ -74,19 +75,23 @@
   } = $props();
 
   const pq = $derived(playQuestionProp ?? buildPlayRun([question], {})[0]);
-  const isTyped = $derived(question.variant === 'typed');
-  const isCharacterInput = $derived(question.variant === 'character_input');
-  const isOrder = $derived(question.variant === 'order');
-  const isMatch = $derived(question.variant === 'match');
-  const isCategorise = $derived(question.variant === 'categorise');
+  const isTyped = $derived(question.variant === 'type_answer');
+  // Regex-graded free text. Shares type_answer's single text field (and nothing else — no
+  // multi-guess, no character boxes), but an entirely different reveal, since "the answer" here is
+  // a set of patterns rather than a list of literal answers.
+  const isPattern = $derived(question.variant === 'type_pattern');
+  const isCharacterInput = $derived(question.variant === 'guess_letters');
+  const isOrder = $derived(question.variant === 'order_items');
+  const isMatch = $derived(question.variant === 'match_pairs');
+  const isCategorise = $derived(question.variant === 'group_items');
   const categoriseBucketLabels = $derived(isCategorise ? categoriseBuckets(question) : []);
-  const isFillInBlanks = $derived(question.variant === 'fill_in_blanks');
+  const isFillInBlanks = $derived(question.variant === 'fill_blanks');
   const fillInBlanksAnswers = $derived(isFillInBlanks ? fillInBlanksAnswerOptions(question) : []);
   const fillInBlanksMode = $derived(
     question.settings.answer_mode === 'type' ? 'type' : ('pick' as const)
   );
-  // order/match/categorise answered by typing (`:answer_mode=type`) swap their board for a plain
-  // list of fields — see TypedSlotsBoard. fill_in_blanks keeps its own board either way, since its
+  // order/match/group_items answered by typing (`:answer_mode=type`) swap their board for a plain
+  // list of fields — see TypedSlotsBoard. fill_blanks keeps its own board either way, since its
   // typed mode is inline in the sentence rather than a separate list.
   const isTypedSlots = $derived(
     isTypedAnswerMode(question) && (isOrder || isMatch || isCategorise)
@@ -144,10 +149,10 @@
   // match only: left original option index -> right original option index (whose own `.target`
   // is what's displayed there) — see `pickMatchLeft`/`clickMatchRight` below.
   let matchPairs = $state<Map<number, number>>(new Map(seed.matchPairs));
-  // categorise only: original option index -> bucket index into `categoriseBuckets(question)`.
+  // group_items only: original option index -> bucket index into `categoriseBuckets(question)`.
   let categoriseAssignments = $state<Map<number, number>>(new Map(seed.categoriseAssignments));
-  // fill_in_blanks only: one entry per blank, sized fresh (all-empty) unless a persisted draft
-  // already has the right number — same pattern as `orderPlacement`/`runOrderPlacement` above.
+  // answer_mode=type only: one entry per typed slot, sized fresh (all-empty) unless a persisted
+  // draft already has the right number — same pattern as `orderPlacement`/`runOrderPlacement`.
   function runBlankAnswers(): string[] {
     return new Array(typedSlotCount(question)).fill('');
   }
@@ -155,6 +160,15 @@
     seed.blankAnswers.length === typedSlotCount(question)
       ? [...seed.blankAnswers]
       : runBlankAnswers()
+  );
+  // fill_blanks in answer_mode=pick only: one entry per blank, holding the option index of the
+  // bank word placed there. Sized off the same slot count, so switching a question's answer_mode
+  // never leaves a stale array of the wrong length behind.
+  function runBlankPicks(): (number | null)[] {
+    return new Array(typedSlotCount(question)).fill(null);
+  }
+  let blankPicks = $state<(number | null)[]>(
+    seed.blankPicks.length === typedSlotCount(question) ? [...seed.blankPicks] : runBlankPicks()
   );
   let boxRefs: HTMLInputElement[] = $state([]);
   let typedSingleInputRef: HTMLInputElement | undefined = $state();
@@ -187,12 +201,6 @@
       : 'border-slate-200 hover:bg-slate-50';
   }
 
-  /** An option's text, for labelling the field that asks about it — falls back to an image/video's
-   * alt text, which is the only words a non-text option has. */
-  function optionLabel(option: QuizScriptQuestion['options'][number]): string {
-    return option.content.kind === 'text' ? option.content.text : option.content.alt;
-  }
-
   function currentDraft(): QuestionDraft {
     return {
       selected: new Set(selected),
@@ -208,7 +216,8 @@
       picked,
       matchPairs: new Map(matchPairs),
       categoriseAssignments: new Map(categoriseAssignments),
-      blankAnswers: [...blankAnswers]
+      blankAnswers: [...blankAnswers],
+      blankPicks: [...blankPicks]
     };
   }
 
@@ -223,11 +232,11 @@
 
   const minAnswers = $derived(settingNumber(question.settings.min_answers) ?? 0);
   const maxAnswers = $derived(settingNumber(question.settings.max_answers));
-  // Keyed off the variant itself (not `maxAnswers === 1`, the old proxy) — a single_choice
+  // Keyed off the variant itself (not `maxAnswers === 1`, the old proxy) — a pick_one
   // question always renders as a radio group regardless of whether it also sets max_answers, and
-  // a multiple_choice question with max_answers=1 (a real, if unusual, thing to author) still
+  // a pick_many question with max_answers=1 (a real, if unusual, thing to author) still
   // renders as checkboxes, since it's still a "pick from a set" question, just capped at one pick.
-  const isSingleSelect = $derived(question.variant === 'single_choice');
+  const isSingleSelect = $derived(question.variant === 'pick_one');
   const isMultiGuess = $derived(isTyped && maxAnswers !== undefined && maxAnswers > 1);
   const isBoxes = $derived(isTyped && question.settings.typed_input === 'boxes');
   const boxGroups = $derived(isBoxes ? typedBoxGroups(question) : []);
@@ -291,7 +300,7 @@
     selected = new Set([optionIndex]);
   }
 
-  // --- order/match/categorise/fill_in_blanks placement ---------------------------------------
+  // --- order/match/group_items/fill_blanks placement ---------------------------------------
   //
   // Each board supports two ways to place an item, and both go through the same `place*`/`assign*`
   // primitive below so they can't drift apart:
@@ -435,19 +444,21 @@
     picked = null;
   }
 
-  /** fill_in_blanks (answer_mode=pick): a blank holds the literal TEXT of the bank word placed in
-   * it, not its option index — that's what grading compares (see `gradeFillInBlanksQuestion`). */
+  /** fill_blanks (answer_mode=pick): a blank holds the option INDEX of the bank word placed in it.
+   * A word can be a picture, which has no text to record, and an index also keeps "this bank
+   * button is used up" exact when two words are spelled the same (see `gradeFillInBlanksQuestion`,
+   * which still compares the words themselves when scoring). A word already sitting in another
+   * blank is moved rather than duplicated — the bank holds one of each. */
   function fillBlank(blankIndex: number, optionIndex: number) {
-    const option = question.options[optionIndex];
-    const next = [...blankAnswers];
-    next[blankIndex] = option.content.kind === 'text' ? option.content.text : '';
-    blankAnswers = next;
+    const next = blankPicks.map((p) => (p === optionIndex ? null : p));
+    next[blankIndex] = optionIndex;
+    blankPicks = next;
   }
 
   function clearBlank(blankIndex: number) {
-    const next = [...blankAnswers];
-    next[blankIndex] = '';
-    blankAnswers = next;
+    const next = [...blankPicks];
+    next[blankIndex] = null;
+    blankPicks = next;
   }
 
   function pickBankWord(optionIndex: number) {
@@ -462,15 +473,12 @@
       picked = null;
       return;
     }
-    if (!blankAnswers[blankIndex]) return;
-    // Pick it back up — best-effort match a bank option by text (see FillInBlanksBoard's own
-    // "Known limitation" doc comment on why this isn't index-exact for duplicate bank words).
-    const text = blankAnswers[blankIndex];
-    const match = question.options.findIndex(
-      (o) => o.content.kind === 'text' && o.content.text === text
-    );
+    const occupant = blankPicks[blankIndex];
+    if (occupant === null || occupant === undefined) return;
+    // Pick it back up — exactly the word that's in there, since the blank records which option it
+    // was rather than what it said.
     clearBlank(blankIndex);
-    if (match !== -1) picked = match;
+    picked = occupant;
   }
 
   function dropBankWord(optionIndex: number, blankIndex: number) {
@@ -487,7 +495,7 @@
     picked = null;
   }
 
-  // fill_in_blanks (answer_mode=type) — a plain per-blank text input, no picking involved.
+  // fill_blanks (answer_mode=type) — a plain per-blank text input, no picking involved.
   function setBlankText(blankIndex: number, value: string) {
     if (isLocked) return;
     const next = [...blankAnswers];
@@ -641,7 +649,7 @@
   </div>
 {/snippet}
 
-<!-- character_input's answer display: one box per guessable letter (revealed/blank per
+<!-- guess_letters's answer display: one box per guessable letter (revealed/blank per
      displayedRevealedPositions), non-letter characters (spaces, punctuation) shown plainly since
      they're never part of the guessing game — see isGuessableChar in grading.ts. -->
 {#snippet characterInputRow()}
@@ -719,6 +727,48 @@
   {@render typedAcceptedAnswers()}
 {/snippet}
 
+<!-- type_pattern's locked-and-revealed view. Shows WHICH pattern caught the response, not just
+     whether it was right: with regex answers the interesting information is the rule, and an author
+     debugging their own question needs to see which of several patterns actually fired. The `~`
+     patterns are listed too — an explicitly-wrong pattern is part of the answer key here, unlike
+     a plain distractor. -->
+{#snippet patternRevealed(response: string)}
+  {@const matched = matchedPatternIndex(question, response)}
+  {@const isRight = matched !== null && question.options[matched].correct}
+  <div
+    class="rounded-md border p-3 {isRight
+      ? 'border-green-400 bg-green-50'
+      : 'border-red-400 bg-red-50'}"
+  >
+    <p class="flex items-center gap-1.5 text-sm text-slate-900">
+      {#if isRight}<CircleCheck size={14} class="shrink-0 text-green-600" />{:else}<CircleX
+          size={14}
+          class="shrink-0 text-red-500"
+        />{/if}
+      {response.trim() || '(left blank)'}
+    </p>
+  </div>
+  <div class="mt-2">
+    <p class="text-xs font-medium text-slate-500">Patterns</p>
+    <div class="mt-1 space-y-1">
+      {#each question.options as option, i (i)}
+        {#if option.content.kind === 'text'}
+          <p class="flex items-start gap-1.5 text-xs">
+            <span
+              class="shrink-0 font-semibold {option.correct ? 'text-green-700' : 'text-red-600'}"
+              >{option.correct ? 'correct' : 'wrong'}</span
+            >
+            <code class="min-w-0 break-all font-mono text-slate-700">{option.content.text}</code>
+            {#if i === matched}
+              <span class="shrink-0 font-semibold text-slate-500">← matched</span>
+            {/if}
+          </p>
+        {/if}
+      {/each}
+    </div>
+  </div>
+{/snippet}
+
 <!-- Locked but NOT revealing correctness (reveal_answers=at_end/never — see QuizPlayer.svelte):
      just what the player typed, with no color/marking and no accepted-answer list yet. -->
 {#snippet typedLockedNeutral(response: string | string[])}
@@ -783,7 +833,23 @@
     </div>
   {/each}
 
-  {#if isTyped}
+  {#if isPattern}
+    {#if isLocked}
+      {#if revealAnswers}
+        {@render patternRevealed(typedSingleAnswer)}
+      {:else}
+        {@render typedLockedNeutral(typedSingleAnswer)}
+      {/if}
+    {:else}
+      <input
+        bind:this={typedSingleInputRef}
+        type="text"
+        class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
+        placeholder="Type your answer"
+        bind:value={typedSingleAnswer}
+      />
+    {/if}
+  {:else if isTyped}
     {@const response = isMultiGuess
       ? typedGuesses
       : isBoxes
@@ -884,7 +950,7 @@
         ? question.options.map((_, i) => ({ label: `${i + 1}.`, name: `position ${i + 1}` }))
         : pq.optionOrder.map((i) => ({
             content: question.options[i].content,
-            name: optionLabel(question.options[i])
+            name: optionLabelText(question.options[i])
           }))}
       answers={isOrder ? blankAnswers : pq.optionOrder.map((i) => blankAnswers[i] ?? '')}
       caption={isOrder
@@ -947,6 +1013,7 @@
       options={question.options}
       bankOrder={pq.optionOrder}
       {blankAnswers}
+      {blankPicks}
       answerOptions={fillInBlanksAnswers}
       {picked}
       mode={fillInBlanksMode}

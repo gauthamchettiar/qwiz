@@ -13,14 +13,14 @@ tags: [geography, capitals, easy]
 :shuffle_questions=true
 ---
 
-single_choice: What is the capital of France?
+pick_one: What is the capital of France?
 {
 =Paris
 ~London
 ~Berlin
 }
 
-typed: What is the capital of Japan?
+type_answer: What is the capital of Japan?
 {
 =Tokyo
 }
@@ -62,33 +62,35 @@ Each question is one blank-line-separated block. Only the question's **text** an
 Two ways to declare a question's type, both equivalent:
 
 ```
-single_choice: What is H2O?
+pick_one: What is H2O?
 ```
 
 ```
-variant : single_choice
+variant : pick_one
 What is H2O?
 ```
 
 Recognized variants:
 
-- **`single_choice`** — pick exactly one option. Exactly one `=` is required; more than one is a
+- **`pick_one`** — pick exactly one option. Exactly one `=` is required; more than one is a
   parse error. Always renders as a radio group.
-- **`multiple_choice`** — pick one or more options. Any number of `=` (one or more). Always
+- **`pick_many`** — pick one or more options. Any number of `=` (one or more). Always
   renders as checkboxes.
-- **`typed`** — type a free-text answer, matched against one or more accepted answers.
-- **`character_input`** — guess a word letter-by-letter from an on-screen bank, Hangman-style —
-  see [Character input](#character-input) below.
-- **`order`** — drag (or tap-to-pick-then-tap-to-place) items into the correct sequence — see
-  [Order](#order) below.
-- **`match`** — pair up items from a left column with items from a right column — see
-  [Match](#match) below.
-- **`categorise`** — sort items into buckets, several items per bucket — see
-  [Categorise](#categorise) below.
-- **`fill_in_blanks`** — fill in blanks in the question text from a word bank or by typing — see
-  [Fill in the blanks](#fill-in-the-blanks) below.
+- **`type_answer`** — type a free-text answer, matched against one or more accepted answers.
+- **`type_pattern`** — type a free-text answer, graded against regular expressions rather than
+  literal answers — see [`type_pattern`](#type_pattern) below.
+- **`guess_letters`** — guess a word letter-by-letter from an on-screen bank, Hangman-style —
+  see [`guess_letters`](#guess_letters) below.
+- **`order_items`** — drag (or tap-to-pick-then-tap-to-place) items into the correct sequence — see
+  [`order_items`](#order_items) below.
+- **`match_pairs`** — pair up items from a left column with items from a right column — see
+  [`match_pairs`](#match_pairs) below.
+- **`group_items`** — sort items into buckets, several items per bucket — see
+  [`group_items`](#group_items) below.
+- **`fill_blanks`** — fill in blanks in the question text from a word bank or by typing — see
+  [`fill_blanks`](#fill_blanks) below.
 
-Omitting a variant entirely defaults to the same behavior as `multiple_choice`.
+Omitting a variant entirely defaults to the same behavior as `pick_many`.
 
 ### Options block
 
@@ -101,16 +103,16 @@ Omitting a variant entirely defaults to the same behavior as `multiple_choice`.
 ```
 
 - Every line starts with `=` (correct/accepted) or `~` (incorrect) — one option per line.
-- `single_choice` allows at most one `=` line; `multiple_choice` allows any number (one or more).
+- `pick_one` allows at most one `=` line; `pick_many` allows any number (one or more).
 - An optional trailing `%N%` sets that option's own point value, overriding the question's
   `point`/`penalty` settings for just that option — e.g. `=Water %4%`, `~Salt %-1%`.
 - An option's content can be an image or video, using the same syntax as question-level media
   (below) — e.g. `=![a cat](https://example.com/cat.jpg)`.
-- **`typed` questions**: every option is an accepted answer, matched against what the player
+- **`type_answer` questions**: every option is an accepted answer, matched against what the player
   types — the `=`/`~` marker doesn't matter (both are accepted purely for authoring convenience,
   and the parser forces every option `correct: true`). An accepted answer must be plain text — an
   image/video option is a parse error, since matching is always a text comparison.
-- **`character_input` questions**: exactly one plain-text accepted answer (a second `=` line is a
+- **`guess_letters` questions**: exactly one plain-text accepted answer (a second `=` line is a
   parse error — the guess mechanic is one fixed board of boxes/pre-reveals, so there's nothing a
   second answer could represent), marker ignored, image/video rejected — plus the `[X]` pre-reveal
   bracket syntax described below.
@@ -155,13 +157,13 @@ Only appears on the per-question intermediate screen (`show_reveal_screen`, gate
 way as live `reveal_answers`/`reveal_scores` — see [below](#quiz-wide-settings)) — it's never
 shown on the end-of-quiz Review screen for quizzes that defer reveal to the end.
 
-### Order
+### `order_items`
 
-`order` presents a set of items and asks the player to arrange them into the correct sequence —
+`order_items` presents a set of items and asks the player to arrange them into the correct sequence —
 the order they're written in `{ }` IS the answer key, so it's never shown to the player unshuffled.
 
 ```
-order: Arrange chronologically
+order_items: Arrange chronologically
 {
 =First
 =Second
@@ -170,23 +172,23 @@ order: Arrange chronologically
 ```
 
 - Every line starts with `=` — the `=`/`~` marker doesn't matter (both are accepted purely for
-  authoring convenience, same as `typed`), since every listed item is implicitly part of the
+  authoring convenience, same as `type_answer`), since every listed item is implicitly part of the
   sequence; there's no "wrong item," only a wrong position.
 - At least 2 items are required — a single item has no meaningful order.
 - An item's content can be an image or video, using the same syntax as question-level media —
   ordering pictures (e.g. "arrange these photos chronologically") is a real use case, unlike
-  `typed`/`character_input` where content must always be plain text.
+  `type_answer`/`guess_letters` where content must always be plain text.
 - Played by tapping an item to pick it up, then tapping a numbered position to place it (or
   tapping a filled position to swap) — works identically via mouse, touch, or keyboard
   (Tab + Enter/Space), with no drag gesture required.
 
-### Match
+### `match_pairs`
 
-`match` presents two columns and asks the player to pair up each left-side item with its matching
+`match_pairs` presents two columns and asks the player to pair up each left-side item with its matching
 right-side entry — a 1-to-1 pairing, every target used exactly once.
 
 ```
-match: Match the capital to its country
+match_pairs: Match the capital to its country
 {
 =Paris -> France
 =Tokyo -> Japan
@@ -197,18 +199,32 @@ match: Match the capital to its country
 - Every line is `item -> target`, split on the first `" -> "` — quote or backslash-escape the
   line (see [Escaping](#escaping)) if an item's own text genuinely needs to contain that.
 - At least 2 pairs are required, and every target must be unique — two items can't both correctly
-  pair with the same target (that's what [Categorise](#categorise) is for).
-- Both `item` and `target` must be plain text (no image/video) for now.
-- Played the same tap-to-pick-then-tap-to-place way as `order`: tap a left item, then tap a right
+  pair with the same target (that's what [`group_items`](#group_items) is for).
+- Either side can be an image or video instead of text, written the same
+  `![alt](url)` / `!<youtube>[alt](url)` way as anywhere else — matching a photograph to a name, a
+  name to a photograph, or one picture to another are all valid:
+
+  ```
+  match_pairs: Match the landmark to its city
+  {
+  =![Eiffel Tower](https://example.com/eiffel.jpg) -> Paris
+  =Colosseum -> ![Rome's skyline](https://example.com/rome.jpg)
+  }
+  ```
+
+  Uniqueness compares the whole target, so two pictures with different URLs are two distinct
+  targets even if their alt text matches.
+
+- Played the same tap-to-pick-then-tap-to-place way as `order_items`: tap a left item, then tap a right
   target to pair them (or tap an already-paired target to steal it for the currently-picked item).
 
-### Categorise
+### `group_items`
 
-`categorise` presents a set of items and a set of buckets, and asks the player to sort each item
-into its correct bucket — unlike `match`, several items can correctly share one bucket.
+`group_items` presents a set of items and a set of buckets, and asks the player to sort each item
+into its correct bucket — unlike `match_pairs`, several items can correctly share one bucket.
 
 ```
-categorise: Sort these animals by habitat
+group_items: Sort these animals by habitat
 {
 =Fish -> Water
 =Frog -> Water
@@ -217,21 +233,24 @@ categorise: Sort these animals by habitat
 }
 ```
 
-- Same `item -> target` syntax as `match`, but `target` is a bucket name here, not a unique
+- Same `item -> target` syntax as `match_pairs`, but `target` is a bucket name here, not a unique
   pairing partner — the buckets shown to the player are simply the distinct set of targets across
   every option (there's no separate bucket-naming syntax). Repeating a target across several
   options is expected, not an error.
-- At least 2 items are required. Both `item` and `target` must be plain text.
+- At least 2 items are required.
+- An `item` can be an image or video, same as in `match_pairs` — but a `target` here must be plain
+  text, and an image/video bucket is a parse error. A bucket label is the identity several items
+  share, which only works for something that reads as one name.
 - Played by tapping an item to pick it up, then tapping a bucket to place it there (or tapping an
   already-placed item to pick it back up).
 
-### Fill in the blanks
+### `fill_blanks`
 
-`fill_in_blanks` embeds one or more blanks directly in the question text and asks the player to
+`fill_blanks` embeds one or more blanks directly in the question text and asks the player to
 fill each one, either by picking words from a bank or by typing.
 
 ```
-fill_in_blanks: The ___ is the powerhouse of the ___.
+fill_blanks: The ___ is the powerhouse of the ___.
 {
 =mitochondria
 =cell
@@ -244,22 +263,53 @@ fill_in_blanks: The ___ is the powerhouse of the ___.
   of `___` tokens must exactly match the number of correct (`=`) options, since each one is filled,
   left to right, by the correct options in the order they're written.
 - `~` options don't fill any blank — they're extra distractor words added to the bank, same
-  purpose as `letter_bank=auto`'s decoy letters in `character_input`: without them, every bank pick
+  purpose as `letter_bank=auto`'s decoy letters in `guess_letters`: without them, every bank pick
   would be a guaranteed-right word with no risk to it.
 - `answer_mode` (per-question setting, see [below](#per-question-settings)) controls how a blank is
   filled: `pick` (default) — tap a bank word, then tap a blank to place it (same tap-to-place
-  interaction as `order`/`match`/`categorise`), matched by exact text since the player picked it
-  verbatim. `type` — a plain inline text field per blank, matched the same way a `typed` question's
+  interaction as `order_items`/`match_pairs`/`group_items`), matched exactly since the player picked it
+  verbatim. `type` — a plain inline text field per blank, matched the same way a `type_answer` question's
   response is (`match_case`/`number_tolerance`/`typo_tolerance` all apply).
-- Both blank-answer and distractor content must be plain text.
+- A blank answer or distractor can be an image or video, so a bank of pictures can be dropped into
+  the sentence. Under `answer_mode=type` there's no bank to pick from, and a picture blank has to
+  be typed as its alt text instead — one with no alt text at all is a parse error there, since
+  nothing could ever be typed to match it.
 
-### Character input
+### `type_pattern`
 
-`character_input` guesses a single accepted answer letter-by-letter via an on-screen bank —
+Free text like `type_answer`, but every option is a **regular expression**:
+
+```
+type_pattern: Give any year in the 1990s.
+{
+=199[0-9]
+~19[0-9]{2}
+}
+```
+
+Unlike every other variant, both markers are load-bearing: `=` patterns say what counts as correct,
+`~` patterns explicitly mark a response wrong (and may carry their own `%N%` penalty, as above).
+At least one `=` pattern is required, and a pattern that doesn't compile is a parse error rather
+than one that silently never fires.
+
+- **Implicitly anchored** — the pattern must match the whole response, so `cat` matches "cat" and
+  not "concatenate". Use `.*cat.*` for a genuine substring match.
+- **A matching `~` beats a matching `=`**, so `=.+` with `~[Pp]aris` reads as "anything but Paris".
+- **The response is trimmed but not normalised.** `type_answer`'s accent-folding and
+  punctuation-stripping would destroy the very characters a pattern like `[0-9]+\.[0-9]+` exists to
+  match, so they don't apply here. `match_case` still does — patterns are case-insensitive by
+  default.
+
+Exactly one pattern ever resolves, so a question's maximum is its best single `=` pattern, not the
+sum. `typo_tolerance`, `number_tolerance` and `typed_input` don't apply.
+
+### `guess_letters`
+
+`guess_letters` guesses a single accepted answer letter-by-letter via an on-screen bank —
 Hangman, in other words.
 
 ```
-character_input: Guess the capital of France
+guess_letters: Guess the capital of France
 {
 =[P]aris
 }
@@ -271,7 +321,7 @@ character_input: Guess the capital of France
 - **`[X]` pre-reveal brackets**: wrap a character in `[ ]` inside the accepted-answer line to
   reveal it from the start, free of charge — `=[P]aris` pre-reveals "P". Multiple markers are
   fine: `=[P]a[r]is`. Only meaningful on the first accepted answer (if more than one is given, the
-  rest are just alternate matches, same as `typed`). Form mode offers the same thing as a row of
+  rest are just alternate matches, same as `type_answer`). Form mode offers the same thing as a row of
   clickable letter buttons under the answer field, instead of typing brackets directly.
 - Only `\p{L}` Unicode letters are ever guessable — spaces, punctuation, and digits in the answer
   are always shown and never count toward scoring, same as a real Hangman board doesn't ask you to
@@ -287,7 +337,7 @@ rejected, which are harmless no-ops, and which are valid but non-obvious) — li
 [`settings.md`](./settings.md#per-question-settings). In brief: scoring (`point`, `penalty`,
 `partial_credit`), selection limits (`min_answers`, `max_answers`), choice-only display
 (`options_layout`, `shuffle_options`), typed matching (`match_case`, `number_tolerance`,
-`typo_tolerance`, `typed_input`), and character_input's own (`letter_bank`,
+`typo_tolerance`, `typed_input`), and guess_letters's own (`letter_bank`,
 `letter_bank_chars`, `letter_reveal`, `letters_shown_at_start`). `options_layout` accepts `list`,
 `grid2x2` (a fixed 2-column grid), and `grid3x3` (2 columns on narrow screens, 3 on wider ones).
 
@@ -296,8 +346,8 @@ in the quiz frontmatter as a default that individual questions override — see
 [Settings](./settings.md#quiz-wide-defaults-for-per-question-settings).
 
 A setting outside its applicable variant is a parse error, not a silent no-op — e.g. `shuffle_options` on
-a `typed` question, or `letter_bank` on a `multiple_choice` question. `min_answers`, `max_answers`,
-and `partial_credit` are also rejected on `single_choice` — it can only ever have zero or one
+a `type_answer` question, or `letter_bank` on a `pick_many` question. `min_answers`, `max_answers`,
+and `partial_credit` are also rejected on `pick_one` — it can only ever have zero or one
 option selected, so none of the three mean anything for it.
 
 ## Scoring
@@ -350,7 +400,7 @@ tags: [demo, scoring]
 :points_to_win=15
 ---
 
-multiple_choice: Which of these are primary colors? (select all that apply)
+pick_many: Which of these are primary colors? (select all that apply)
 :partial_credit=true
 {
 =Red %3%
@@ -360,7 +410,7 @@ multiple_choice: Which of these are primary colors? (select all that apply)
 }
 :difficulty=easy
 
-typed: What is the capital of France? (typo-tolerant)
+type_answer: What is the capital of France? (typo-tolerant)
 :typo_tolerance=20
 {
 =Paris
@@ -376,10 +426,10 @@ typed: What is the capital of France? (typo-tolerant)
 title: Hangman Challenge
 description: Guess each word one letter at a time. A wrong guess costs a point.
 category: demo
-tags: [demo, character_input]
+tags: [demo, guess_letters]
 ---
 
-character_input: Guess the capital of France (one letter pre-revealed)
+guess_letters: Guess the capital of France (one letter pre-revealed)
 {
 =[P]aris
 }

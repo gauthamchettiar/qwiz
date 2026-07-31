@@ -1,6 +1,6 @@
 <script lang="ts">
   import { CircleCheck, CircleX, GripVertical } from '@lucide/svelte';
-  import type { QuizScriptOption } from '@/lib/utils/quizScript';
+  import { optionLabelText, type QuizScriptOption } from '@/lib/utils/quizScript';
   import { draggable, type DragState } from '@/lib/utils/dragDrop';
   import OptionContent from './OptionContent.svelte';
 
@@ -37,10 +37,15 @@
     onDrop: (optionIndex: number, zone: number) => void;
   } = $props();
 
-  const DROP_GROUP = 'order';
+  const DROP_GROUP = 'order_items';
   const SOURCE_ZONE = -1;
 
   const bankIndices = $derived(optionOrder.filter((i) => !placement.includes(i)));
+
+  /** Locked AND revealing — the only state in which this board says anything about correctness.
+   * Named once here because it now gates two separate things: the green/red tinting, and the
+   * answer key below it. */
+  const showing = $derived(locked && revealAnswers);
 
   let drag = $state<DragState | null>(null);
   /** True whenever an item is in flight by either mechanism — every valid target advertises itself
@@ -61,7 +66,7 @@
    * override": conflicting utilities are resolved by stylesheet order, not attribute order, so a
    * correctly-placed locked slot was rendering a green background inside a slate border. */
   function slotTone(slotIndex: number, occupant: number | null): string {
-    if (locked && revealAnswers && occupant !== null) {
+    if (showing && occupant !== null) {
       return occupant === slotIndex ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50';
     }
     if (isOver(slotIndex)) return 'border-indigo-500 bg-indigo-100 ring-2 ring-indigo-200';
@@ -87,47 +92,62 @@
     <ol class="space-y-1.5">
       {#each placement as occupant, slotIndex (slotIndex)}
         {@const isCorrect = occupant === slotIndex}
-        <li class="flex items-center gap-2">
-          <span class="w-5 shrink-0 text-right text-xs font-medium text-slate-500"
-            >{slotIndex + 1}.</span
-          >
-          <button
-            type="button"
-            data-drop-group={DROP_GROUP}
-            data-drop-zone={slotIndex}
-            use:draggable={occupant !== null
-              ? dragParams(occupant)
-              : { id: -1, group: DROP_GROUP, disabled: true }}
-            class="min-w-0 flex-1 rounded-md border p-2.5 text-left transition-colors disabled:cursor-not-allowed {slotTone(
-              slotIndex,
-              occupant
-            )} {occupant !== null && isLifted(occupant) ? 'opacity-40' : ''}"
-            disabled={locked}
-            onclick={() => onSlotClick(slotIndex)}
-            aria-label={occupant !== null
-              ? `Position ${slotIndex + 1}, filled — tap to pick back up, or drag to move`
-              : `Position ${slotIndex + 1}, empty — tap to place the picked item here`}
-          >
-            {#if occupant !== null}
-              <div class="flex items-center gap-2">
-                {#if !locked}
-                  <GripVertical size={14} class="shrink-0 text-slate-400" />
-                {/if}
-                <div class="min-w-0 flex-1">
-                  <OptionContent content={options[occupant].content} />
-                </div>
-                {#if locked && revealAnswers}
-                  {#if isCorrect}
-                    <CircleCheck size={16} class="shrink-0 text-green-600" />
-                  {:else}
-                    <CircleX size={16} class="shrink-0 text-red-500" />
+        <li class="space-y-1">
+          <div class="flex items-center gap-2">
+            <span class="w-5 shrink-0 text-right text-xs font-medium text-slate-500"
+              >{slotIndex + 1}.</span
+            >
+            <button
+              type="button"
+              data-drop-group={DROP_GROUP}
+              data-drop-zone={slotIndex}
+              use:draggable={occupant !== null
+                ? dragParams(occupant)
+                : { id: -1, group: DROP_GROUP, disabled: true }}
+              class="min-w-0 flex-1 rounded-md border p-2.5 text-left transition-colors disabled:cursor-not-allowed {slotTone(
+                slotIndex,
+                occupant
+              )} {occupant !== null && isLifted(occupant) ? 'opacity-40' : ''}"
+              disabled={locked}
+              onclick={() => onSlotClick(slotIndex)}
+              aria-label={occupant !== null
+                ? `Position ${slotIndex + 1}, filled — tap to pick back up, or drag to move`
+                : `Position ${slotIndex + 1}, empty — tap to place the picked item here`}
+            >
+              {#if occupant !== null}
+                <div class="flex items-center gap-2">
+                  {#if !locked}
+                    <GripVertical size={14} class="shrink-0 text-slate-400" />
                   {/if}
-                {/if}
-              </div>
-            {:else}
-              <p class="text-sm text-slate-500">Empty</p>
-            {/if}
-          </button>
+                  <div class="min-w-0 flex-1">
+                    <OptionContent content={options[occupant].content} />
+                  </div>
+                  {#if showing}
+                    {#if isCorrect}
+                      <CircleCheck size={16} class="shrink-0 text-green-600" />
+                    {:else}
+                      <CircleX size={16} class="shrink-0 text-red-500" />
+                    {/if}
+                  {/if}
+                </div>
+              {:else}
+                <p class="text-sm text-slate-500">Empty</p>
+              {/if}
+            </button>
+          </div>
+          <!-- The answer key. Green/red tinting alone only ever said WHETHER a position was right,
+               never what belonged there — so a player who got it wrong (or ran out of time and left
+               it empty) had no way to learn the sequence from the review screen. Shown per position
+               rather than as a separate correct-order list, so it reads against the attempt it's
+               correcting. Same shape and indent as TypedSlotsBoard's, which answer_mode=type
+               already showed for exactly this reason. -->
+          {#if showing && !isCorrect}
+            <p class="pl-7 text-xs text-slate-500">
+              Answer: <span class="font-medium text-green-700"
+                >{optionLabelText(options[slotIndex])}</span
+              >
+            </p>
+          {/if}
         </li>
       {/each}
     </ol>

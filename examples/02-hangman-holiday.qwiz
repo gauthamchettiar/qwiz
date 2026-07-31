@@ -10,7 +10,7 @@ tags: [hangman, letters, wordplay]
 :letter_bank=alphabet
 ---
 
-character_input: A word for a group of crows — and for a sudden fear.
+guess_letters: A word for a group of crows — and for a sudden fear.
 !<reveal>[First letter](It starts with M, and it rhymes with "sturder".) %-1%
 {
 =[M]urder
@@ -18,7 +18,7 @@ character_input: A word for a group of crows — and for a sudden fear.
 :letter_reveal=all
 :points_correct=2
 
-character_input: The Italian city built on 118 small islands.
+guess_letters: The Italian city built on 118 small islands.
 {
 =[V]enic[e]
 }
@@ -26,7 +26,7 @@ character_input: The Italian city built on 118 small islands.
 :letter_reveal=all
 :points_correct=2
 
-character_input: Only these letters are on the board — the answer is a shade of blue.
+guess_letters: Only these letters are on the board — the answer is a shade of blue.
 {
 =indigo
 }
@@ -35,7 +35,7 @@ character_input: Only these letters are on the board — the answer is a shade o
 :letter_reveal=all
 :points_correct=3
 
-character_input: A repeated letter here only appears one occurrence at a time. Guess the fruit.
+guess_letters: A repeated letter here only appears one occurrence at a time. Guess the fruit.
 {
 =banana
 }
@@ -43,7 +43,7 @@ character_input: A repeated letter here only appears one occurrence at a time. G
 :points_correct=3
 :difficulty=hard
 
-character_input: The bank is mostly real letters, with a few decoys thrown in.
+guess_letters: The bank is mostly real letters, with a few decoys thrown in.
 !<analysis>[Why?](letter_bank=auto builds the bank from the letters actually in the answer plus up to six random decoys, so a guess still carries real risk.)
 {
 =e[c]lipse

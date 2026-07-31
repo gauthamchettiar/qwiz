@@ -9,14 +9,14 @@ test.beforeEach(async ({ page }) => {
   await resetStorage(page);
 });
 
-test('authoring a fill_in_blanks question keeps the correct checkbox, unlike order/match/categorise', async ({
+test('authoring a fill_blanks question keeps the correct checkbox, unlike order/match/group_items', async ({
   page
 }) => {
   const builder = new BuilderPage(page);
   await builder.gotoCreate();
   await builder.titleInput.fill('Fill in the Blanks Quiz');
   await builder.addQuestion();
-  await page.getByLabel('Variant', { exact: true }).selectOption('fill_in_blanks');
+  await page.getByLabel('Variant', { exact: true }).selectOption('fill_blanks');
   await builder.questionTextInput().fill('The ___ is the powerhouse of the ___.');
 
   await expect(page.getByRole('checkbox', { name: 'Correct' })).toHaveCount(2);
@@ -24,7 +24,7 @@ test('authoring a fill_in_blanks question keeps the correct checkbox, unlike ord
   await page.getByPlaceholder('Blank answer').nth(0).fill('mitochondria');
   await page.getByRole('checkbox', { name: 'Correct' }).nth(1).check();
   await page.getByPlaceholder('Blank answer').nth(1).fill('cell');
-  await page.getByRole('button', { name: 'Add option' }).click();
+  await page.getByRole('button', { name: 'Add text option' }).click();
   // The 3rd row starts unchecked (a distractor) — leave it that way.
   await page.getByPlaceholder('Distractor word').fill('nucleus');
 
@@ -73,7 +73,7 @@ test('type mode: typed answers are matched with the same tolerances a typed ques
       {
         id: 'q1',
         code: [
-          'fill_in_blanks: The ___ is the powerhouse of the ___.',
+          'fill_blanks: The ___ is the powerhouse of the ___.',
           '{',
           '=mitochondria',
           '=cell',

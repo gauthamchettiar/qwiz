@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   coerceSetting,
+  optionTargetText,
   parseOptionContent,
   parseQuizScriptFrontmatter,
   parseQuizScriptQuestion,
@@ -113,13 +114,13 @@ describe('validateSettingValue', () => {
 });
 
 describe('suggestedSettingKeysForVariant / settingValueSuggestions', () => {
-  it('excludes typed-only settings for single_choice/multiple_choice questions', () => {
-    expect(suggestedSettingKeysForVariant('single_choice')).not.toContain('match_case');
-    expect(suggestedSettingKeysForVariant('multiple_choice')).not.toContain('match_case');
+  it('excludes typed-only settings for pick_one/pick_many questions', () => {
+    expect(suggestedSettingKeysForVariant('pick_one')).not.toContain('match_case');
+    expect(suggestedSettingKeysForVariant('pick_many')).not.toContain('match_case');
   });
 
   it('excludes choice-only settings for a typed question', () => {
-    expect(suggestedSettingKeysForVariant('typed')).not.toContain('shuffle_options');
+    expect(suggestedSettingKeysForVariant('type_answer')).not.toContain('shuffle_options');
   });
 
   it('suggests true/false for a boolean key and enum values for an enum key', () => {
@@ -165,8 +166,8 @@ describe('parseQuizScriptQuestion', () => {
     ]);
   });
 
-  it('parses a compact variant header line for single_choice and multiple_choice', () => {
-    for (const variant of ['single_choice', 'multiple_choice']) {
+  it('parses a compact variant header line for pick_one and pick_many', () => {
+    for (const variant of ['pick_one', 'pick_many']) {
       const source = [`${variant}: What is H2O?`, '{', '=Water', '}'].join('\n');
       const { question, errors } = parseQuizScriptQuestion(source);
       expect(errors).toEqual([]);
@@ -181,20 +182,20 @@ describe('parseQuizScriptQuestion', () => {
     expect(errors.some((e) => /Unknown variant "choice"/.test(e.message))).toBe(true);
   });
 
-  it('rejects more than one correct option on a single_choice question', () => {
-    const source = ['single_choice: Pick one', '{', '=a', '=b', '~c', '}'].join('\n');
+  it('rejects more than one correct option on a pick_one question', () => {
+    const source = ['pick_one: Pick one', '{', '=a', '=b', '~c', '}'].join('\n');
     const { errors } = parseQuizScriptQuestion(source);
-    expect(errors.some((e) => /single_choice.*requires exactly one/.test(e.message))).toBe(true);
+    expect(errors.some((e) => /pick_one.*requires exactly one/.test(e.message))).toBe(true);
   });
 
-  it('allows exactly one correct option on a single_choice question', () => {
-    const source = ['single_choice: Pick one', '{', '=a', '~b', '~c', '}'].join('\n');
+  it('allows exactly one correct option on a pick_one question', () => {
+    const source = ['pick_one: Pick one', '{', '=a', '~b', '~c', '}'].join('\n');
     const { errors } = parseQuizScriptQuestion(source);
     expect(errors).toEqual([]);
   });
 
-  it('allows any number of correct options on a multiple_choice question', () => {
-    const source = ['multiple_choice: Pick some', '{', '=a', '=b', '~c', '}'].join('\n');
+  it('allows any number of correct options on a pick_many question', () => {
+    const source = ['pick_many: Pick some', '{', '=a', '=b', '~c', '}'].join('\n');
     const { errors } = parseQuizScriptQuestion(source);
     expect(errors).toEqual([]);
   });
@@ -207,14 +208,14 @@ describe('parseQuizScriptQuestion', () => {
   });
 
   it('forces every typed option to correct: true regardless of its marker', () => {
-    const source = ['typed: Capital of France?', '{', '=Paris', '~Paris', '}'].join('\n');
+    const source = ['type_answer: Capital of France?', '{', '=Paris', '~Paris', '}'].join('\n');
     const { question, errors } = parseQuizScriptQuestion(source);
     expect(errors).toEqual([]);
     expect(question.options.every((o) => o.correct)).toBe(true);
   });
 
   it('rejects an image/video option on a typed question', () => {
-    const source = ['typed: pick', '{', '=![alt](url)', '}'].join('\n');
+    const source = ['type_answer: pick', '{', '=![alt](url)', '}'].join('\n');
     const { errors } = parseQuizScriptQuestion(source);
     expect(errors.some((e) => /plain text/.test(e.message))).toBe(true);
   });
@@ -231,9 +232,14 @@ describe('parseQuizScriptQuestion', () => {
   });
 
   it('errors when number_tolerance and typo_tolerance are both set', () => {
-    const source = ['typed: q', '{', '=a', '}', ':number_tolerance=1', ':typo_tolerance=10'].join(
-      '\n'
-    );
+    const source = [
+      'type_answer: q',
+      '{',
+      '=a',
+      '}',
+      ':number_tolerance=1',
+      ':typo_tolerance=10'
+    ].join('\n');
     const { errors } = parseQuizScriptQuestion(source);
     expect(errors.some((e) => /can't set both/.test(e.message))).toBe(true);
   });
@@ -241,38 +247,34 @@ describe('parseQuizScriptQuestion', () => {
   it('errors when a typed-only setting is used on a non-typed question', () => {
     const source = ['Question', '{', '=a', '~b', '}', ':match_case=true'].join('\n');
     const { errors } = parseQuizScriptQuestion(source);
-    expect(errors.some((e) => /only applies to typed/.test(e.message))).toBe(true);
+    expect(errors.some((e) => /only applies to type_answer/.test(e.message))).toBe(true);
   });
 
   it('errors when a choice-only setting is used on a typed question', () => {
-    const source = ['typed: q', '{', '=a', '}', ':shuffle_options=true'].join('\n');
+    const source = ['type_answer: q', '{', '=a', '}', ':shuffle_options=true'].join('\n');
     const { errors } = parseQuizScriptQuestion(source);
-    expect(
-      errors.some((e) => /only applies to single_choice\/multiple_choice/.test(e.message))
-    ).toBe(true);
+    expect(errors.some((e) => /only applies to pick_one\/pick_many/.test(e.message))).toBe(true);
   });
 
-  it('rejects min_answers/max_answers/partial_credit on a single_choice question — it can never have "some but not all" or "more than one" selected', () => {
-    const minSource = ['single_choice: q', '{', '=a', '~b', '}', ':min_answers=1'].join('\n');
+  it('rejects min_answers/max_answers/partial_credit on a pick_one question — it can never have "some but not all" or "more than one" selected', () => {
+    const minSource = ['pick_one: q', '{', '=a', '~b', '}', ':min_answers=1'].join('\n');
     expect(
       parseQuizScriptQuestion(minSource).errors.some((e) =>
-        /only applies to multiple_choice\/typed/.test(e.message)
+        /only applies to pick_many\/type_answer/.test(e.message)
       )
     ).toBe(true);
 
-    const maxSource = ['single_choice: q', '{', '=a', '~b', '}', ':max_answers=1'].join('\n');
+    const maxSource = ['pick_one: q', '{', '=a', '~b', '}', ':max_answers=1'].join('\n');
     expect(
       parseQuizScriptQuestion(maxSource).errors.some((e) =>
-        /only applies to multiple_choice\/typed/.test(e.message)
+        /only applies to pick_many\/type_answer/.test(e.message)
       )
     ).toBe(true);
 
-    const partialSource = ['single_choice: q', '{', '=a', '~b', '}', ':partial_credit=true'].join(
-      '\n'
-    );
+    const partialSource = ['pick_one: q', '{', '=a', '~b', '}', ':partial_credit=true'].join('\n');
     expect(
       parseQuizScriptQuestion(partialSource).errors.some((e) =>
-        /only applies to multiple_choice\/typed/.test(e.message)
+        /only applies to pick_many\/type_answer/.test(e.message)
       )
     ).toBe(true);
   });
@@ -381,21 +383,23 @@ describe('parseQuizScriptQuestion', () => {
 
 describe('order parsing', () => {
   it('forces every option correct: true regardless of marker', () => {
-    const source = ['order: Arrange chronologically', '{', '=First', '~Second', '}'].join('\n');
+    const source = ['order_items: Arrange chronologically', '{', '=First', '~Second', '}'].join(
+      '\n'
+    );
     const { question, errors } = parseQuizScriptQuestion(source);
     expect(errors).toEqual([]);
     expect(question.options.every((o) => o.correct)).toBe(true);
   });
 
   it('errors when fewer than 2 items are given', () => {
-    const source = ['order: Arrange', '{', '=Only one', '}'].join('\n');
+    const source = ['order_items: Arrange', '{', '=Only one', '}'].join('\n');
     const { errors } = parseQuizScriptQuestion(source);
     expect(errors.some((e) => /needs at least 2 items/.test(e.message))).toBe(true);
   });
 
-  it('allows image/video items, unlike typed/character_input', () => {
+  it('allows image/video items, unlike typed/guess_letters', () => {
     const source = [
-      'order: Arrange',
+      'order_items: Arrange',
       '{',
       '=![first](https://example.com/1.png)',
       '=![second](https://example.com/2.png)',
@@ -411,22 +415,34 @@ describe('order parsing', () => {
   });
 });
 
-describe('match/categorise parsing', () => {
+describe('match/group_items parsing', () => {
   it('parses "item -> target" pairs for match', () => {
-    const source = ['match: Match capitals', '{', '=Paris -> France', '=Tokyo -> Japan', '}'].join(
-      '\n'
-    );
+    const source = [
+      'match_pairs: Match capitals',
+      '{',
+      '=Paris -> France',
+      '=Tokyo -> Japan',
+      '}'
+    ].join('\n');
     const { question, errors } = parseQuizScriptQuestion(source);
     expect(errors).toEqual([]);
     expect(question.options).toEqual([
-      { content: { kind: 'text', text: 'Paris' }, correct: true, target: 'France' },
-      { content: { kind: 'text', text: 'Tokyo' }, correct: true, target: 'Japan' }
+      {
+        content: { kind: 'text', text: 'Paris' },
+        correct: true,
+        target: { kind: 'text', text: 'France' }
+      },
+      {
+        content: { kind: 'text', text: 'Tokyo' },
+        correct: true,
+        target: { kind: 'text', text: 'Japan' }
+      }
     ]);
   });
 
-  it('categorise allows several items to share one target/bucket', () => {
+  it('group_items allows several items to share one target/bucket', () => {
     const source = [
-      'categorise: Sort animals',
+      'group_items: Sort animals',
       '{',
       '=Fish -> Water',
       '=Frog -> Water',
@@ -435,38 +451,89 @@ describe('match/categorise parsing', () => {
     ].join('\n');
     const { question, errors } = parseQuizScriptQuestion(source);
     expect(errors).toEqual([]);
-    expect(question.options.map((o) => o.target)).toEqual(['Water', 'Water', 'Land']);
+    expect(question.options.map((o) => optionTargetText(o))).toEqual(['Water', 'Water', 'Land']);
+  });
+
+  it('parses a picture on either side of the pairing', () => {
+    const source = [
+      'match_pairs: Match the landmark to its city',
+      '{',
+      '=![Eiffel Tower](eiffel.png) -> Paris',
+      '=Colosseum -> ![Rome skyline](rome.png)',
+      '}'
+    ].join('\n');
+    const { question, errors } = parseQuizScriptQuestion(source);
+    expect(errors).toEqual([]);
+    expect(question.options[0].content).toEqual({
+      kind: 'image',
+      alt: 'Eiffel Tower',
+      url: 'eiffel.png'
+    });
+    expect(question.options[0].target).toEqual({ kind: 'text', text: 'Paris' });
+    expect(question.options[1].content).toEqual({ kind: 'text', text: 'Colosseum' });
+    expect(question.options[1].target).toEqual({
+      kind: 'image',
+      alt: 'Rome skyline',
+      url: 'rome.png'
+    });
+    // Round-trips: the `-> ` split has to survive re-serialization for either half to be editable
+    // in form mode and then saved back.
+    expect(serializeQuizScriptQuestion(question)).toBe(source);
+  });
+
+  it('allows a picture ITEM in group_items but not a picture bucket', () => {
+    const ok = parseQuizScriptQuestion(
+      ['group_items: Sort', '{', '=![A trout](trout.png) -> Water', '=Lion -> Land', '}'].join('\n')
+    );
+    expect(ok.errors).toEqual([]);
+    expect(ok.question.options[0].content).toEqual({
+      kind: 'image',
+      alt: 'A trout',
+      url: 'trout.png'
+    });
+
+    const bad = parseQuizScriptQuestion(
+      ['group_items: Sort', '{', '=Trout -> ![Water](water.png)', '=Lion -> Land', '}'].join('\n')
+    );
+    expect(bad.errors[0].message).toContain('"group_items" buckets must be plain text');
+  });
+
+  it('tells two pictureless match targets apart by url, not by their shared empty alt', () => {
+    const { errors } = parseQuizScriptQuestion(
+      ['match_pairs: q', '{', '=A -> ![](one.png)', '=B -> ![](two.png)', '}'].join('\n')
+    );
+    expect(errors).toEqual([]);
   });
 
   it('errors when match targets are not unique', () => {
-    const source = ['match: q', '{', '=A -> X', '=B -> X', '}'].join('\n');
+    const source = ['match_pairs: q', '{', '=A -> X', '=B -> X', '}'].join('\n');
     const { errors } = parseQuizScriptQuestion(source);
     expect(errors.some((e) => /targets must be unique/.test(e.message))).toBe(true);
   });
 
-  it('does not error when categorise targets repeat', () => {
-    const source = ['categorise: q', '{', '=A -> X', '=B -> X', '}'].join('\n');
+  it('does not error when group_items targets repeat', () => {
+    const source = ['group_items: q', '{', '=A -> X', '=B -> X', '}'].join('\n');
     const { errors } = parseQuizScriptQuestion(source);
     expect(errors).toEqual([]);
   });
 
   it('errors when an option is missing its "-> target"', () => {
-    const source = ['match: q', '{', '=A -> X', '=B', '}'].join('\n');
+    const source = ['match_pairs: q', '{', '=A -> X', '=B', '}'].join('\n');
     const { errors } = parseQuizScriptQuestion(source);
     expect(errors.some((e) => /needs a "-> target" pairing/.test(e.message))).toBe(true);
   });
 
   it('errors when fewer than 2 items are given', () => {
-    const source = ['match: q', '{', '=A -> X', '}'].join('\n');
+    const source = ['match_pairs: q', '{', '=A -> X', '}'].join('\n');
     const { errors } = parseQuizScriptQuestion(source);
     expect(errors.some((e) => /needs at least 2 items/.test(e.message))).toBe(true);
   });
 });
 
-describe('fill_in_blanks parsing', () => {
+describe('fill_blanks parsing', () => {
   it('maps correct options to blanks in order and incorrect ones become bank distractors', () => {
     const source = [
-      'fill_in_blanks: The ___ is the powerhouse of the ___.',
+      'fill_blanks: The ___ is the powerhouse of the ___.',
       '{',
       '=mitochondria',
       '=cell',
@@ -483,21 +550,21 @@ describe('fill_in_blanks parsing', () => {
   });
 
   it('errors when there are no "___" blanks', () => {
-    const source = ['fill_in_blanks: No blanks here', '{', '=word', '}'].join('\n');
+    const source = ['fill_blanks: No blanks here', '{', '=word', '}'].join('\n');
     const { errors } = parseQuizScriptQuestion(source);
     expect(errors.some((e) => /at least one "___" blank/.test(e.message))).toBe(true);
   });
 
   it('errors when the blank count and correct-answer count disagree', () => {
-    const source = ['fill_in_blanks: One ___ blank', '{', '=a', '=b', '}'].join('\n');
+    const source = ['fill_blanks: One ___ blank', '{', '=a', '=b', '}'].join('\n');
     const { errors } = parseQuizScriptQuestion(source);
     expect(errors.some((e) => /1 blank\(s\).*2 correct/.test(e.message))).toBe(true);
   });
 });
 
-describe('character_input parsing', () => {
+describe('guess_letters parsing', () => {
   it('parses bracket pre-reveal markers and strips them from the option text', () => {
-    const source = ['character_input: word', '{', '=[P]a[r]is', '}'].join('\n');
+    const source = ['guess_letters: word', '{', '=[P]a[r]is', '}'].join('\n');
     const { question, errors } = parseQuizScriptQuestion(source);
     expect(errors).toEqual([]);
     expect(question.options[0]).toEqual({
@@ -508,34 +575,34 @@ describe('character_input parsing', () => {
   });
 
   it('forces every option correct: true regardless of its marker, same as typed', () => {
-    const source = ['character_input: word', '{', '~paris', '}'].join('\n');
+    const source = ['guess_letters: word', '{', '~paris', '}'].join('\n');
     const { question, errors } = parseQuizScriptQuestion(source);
     expect(errors).toEqual([]);
     expect(question.options[0].correct).toBe(true);
   });
 
   it('rejects an image/video option, same as typed', () => {
-    const source = ['character_input: pick', '{', '=![alt](url)', '}'].join('\n');
+    const source = ['guess_letters: pick', '{', '=![alt](url)', '}'].join('\n');
     const { errors } = parseQuizScriptQuestion(source);
     expect(errors.some((e) => /plain text/.test(e.message))).toBe(true);
   });
 
   it('rejects more than one accepted answer — the guess mechanic is one fixed board', () => {
-    const source = ['character_input: word', '{', '=paris', '~london', '}'].join('\n');
+    const source = ['guess_letters: word', '{', '=paris', '~london', '}'].join('\n');
     const { errors } = parseQuizScriptQuestion(source);
     expect(
-      errors.some((e) => /"character_input" allows exactly one accepted answer/.test(e.message))
+      errors.some((e) => /"guess_letters" allows exactly one accepted answer/.test(e.message))
     ).toBe(true);
   });
 
   it('allows exactly one accepted answer', () => {
-    const source = ['character_input: word', '{', '=paris', '}'].join('\n');
+    const source = ['guess_letters: word', '{', '=paris', '}'].join('\n');
     expect(parseQuizScriptQuestion(source).errors).toEqual([]);
   });
 
   it('accepts its own settings (letter_bank, letter_reveal, letters_shown_at_start, letter_bank_chars)', () => {
     const source = [
-      'character_input: word',
+      'guess_letters: word',
       '{',
       '=cat',
       '}',
@@ -554,26 +621,28 @@ describe('character_input parsing', () => {
     });
   });
 
-  it('rejects a character_input-only setting on another variant', () => {
-    const source = ['multiple_choice: q', '{', '=a', '~b', '}', ':letter_bank=alphabet'].join('\n');
+  it('rejects a guess_letters-only setting on another variant', () => {
+    const source = ['pick_many: q', '{', '=a', '~b', '}', ':letter_bank=alphabet'].join('\n');
     const { errors } = parseQuizScriptQuestion(source);
-    expect(errors.some((e) => /only applies to character_input/.test(e.message))).toBe(true);
+    expect(errors.some((e) => /only applies to guess_letters/.test(e.message))).toBe(true);
   });
 
-  it('match_case applies to typed only, not character_input — a bank guess has no case to compare', () => {
-    const typedSource = ['typed: q', '{', '=a', '}', ':match_case=true'].join('\n');
+  it('match_case applies to typed only, not guess_letters — a bank guess has no case to compare', () => {
+    const typedSource = ['type_answer: q', '{', '=a', '}', ':match_case=true'].join('\n');
     expect(parseQuizScriptQuestion(typedSource).errors).toEqual([]);
 
-    const ciSource = ['character_input: q', '{', '=a', '}', ':match_case=true'].join('\n');
+    const ciSource = ['guess_letters: q', '{', '=a', '}', ':match_case=true'].join('\n');
     expect(
-      parseQuizScriptQuestion(ciSource).errors.some((e) => /only applies to typed/.test(e.message))
+      parseQuizScriptQuestion(ciSource).errors.some((e) =>
+        /only applies to type_answer/.test(e.message)
+      )
     ).toBe(true);
   });
 });
 
 describe('setting interactions', () => {
   it('letter_bank=fixed with no letter_bank_chars is a parse error (would produce an empty, unplayable bank)', () => {
-    const source = ['character_input: q', '{', '=cat', '}', ':letter_bank=fixed'].join('\n');
+    const source = ['guess_letters: q', '{', '=cat', '}', ':letter_bank=fixed'].join('\n');
     const { errors } = parseQuizScriptQuestion(source);
     expect(
       errors.some((e) => /letter_bank=fixed.*requires.*letter_bank_chars/.test(e.message))
@@ -582,7 +651,7 @@ describe('setting interactions', () => {
 
   it('letter_bank=fixed with only non-letter characters is also a parse error', () => {
     const source = [
-      'character_input: q',
+      'guess_letters: q',
       '{',
       '=cat',
       '}',
@@ -597,7 +666,7 @@ describe('setting interactions', () => {
 
   it('letter_bank=fixed with at least one real letter is fine', () => {
     const source = [
-      'character_input: q',
+      'guess_letters: q',
       '{',
       '=cat',
       '}',
@@ -699,22 +768,19 @@ describe('serializeQuizScriptQuestion round-trips through parseQuizScriptQuestio
       'plain question (defaults to multi-select)',
       ['What is H2O?', '{', '=Water', '~Salt', '}'].join('\n')
     ],
+    ['pick_one header', ['pick_one: What is H2O?', '{', '=Water', '~Salt', '}'].join('\n')],
     [
-      'single_choice header',
-      ['single_choice: What is H2O?', '{', '=Water', '~Salt', '}'].join('\n')
-    ],
-    [
-      'multiple_choice header',
-      ['multiple_choice: Pick some', '{', '=Water', '=Steam', '~Salt', '}'].join('\n')
+      'pick_many header',
+      ['pick_many: Pick some', '{', '=Water', '=Steam', '~Salt', '}'].join('\n')
     ],
     [
       'typed with settings',
-      ['typed: Capital of France?', '{', '=Paris', '}', ':typo_tolerance=15'].join('\n')
+      ['type_answer: Capital of France?', '{', '=Paris', '}', ':typo_tolerance=15'].join('\n')
     ],
     [
-      'character_input with bracket pre-reveal and settings',
+      'guess_letters with bracket pre-reveal and settings',
       [
-        'character_input: Capital of France?',
+        'guess_letters: Capital of France?',
         '{',
         '=[P]a[r]is',
         '}',
@@ -736,17 +802,19 @@ describe('serializeQuizScriptQuestion round-trips through parseQuizScriptQuestio
       ].join('\n')
     ],
     [
-      'order',
-      ['order: Arrange chronologically', '{', '=First', '=Second', '=Third', '}'].join('\n')
+      'order_items',
+      ['order_items: Arrange chronologically', '{', '=First', '=Second', '=Third', '}'].join('\n')
     ],
     [
       'match with weighted pairs',
-      ['match: Match capitals', '{', '=Paris -> France %2%', '=Tokyo -> Japan', '}'].join('\n')
+      ['match_pairs: Match capitals', '{', '=Paris -> France %2%', '=Tokyo -> Japan', '}'].join(
+        '\n'
+      )
     ],
     [
-      'categorise with shared buckets',
+      'group_items with shared buckets',
       [
-        'categorise: Sort animals',
+        'group_items: Sort animals',
         '{',
         '=Fish -> Water',
         '=Frog -> Water',
@@ -755,9 +823,9 @@ describe('serializeQuizScriptQuestion round-trips through parseQuizScriptQuestio
       ].join('\n')
     ],
     [
-      'fill_in_blanks with distractors',
+      'fill_blanks with distractors',
       [
-        'fill_in_blanks: The ___ is the powerhouse of the ___.',
+        'fill_blanks: The ___ is the powerhouse of the ___.',
         '{',
         '=mitochondria',
         '=cell',
@@ -857,7 +925,7 @@ describe('parseQwizFile', () => {
       '~Lyon',
       '}',
       '',
-      'typed: What is 2+2?',
+      'type_answer: What is 2+2?',
       '{',
       '=4',
       '}'
@@ -911,7 +979,7 @@ describe('serializeQuizScript', () => {
 describe('resolveQuestionSettings (quiz-wide defaults)', () => {
   function question(overrides: Partial<QuizScriptQuestion> = {}): QuizScriptQuestion {
     return {
-      variant: 'multiple_choice',
+      variant: 'pick_many',
       text: 'q',
       media: [],
       options: [],
@@ -942,13 +1010,13 @@ describe('resolveQuestionSettings (quiz-wide defaults)', () => {
   });
 
   it('only inherits a setting that applies to this variant', () => {
-    // letter_bank is character_input-only: it reaches that variant and no other, so a quiz can set
+    // letter_bank is guess_letters-only: it reaches that variant and no other, so a quiz can set
     // it once without it landing on questions that would have rejected it if authored directly.
     const quizWide = { letter_bank: 'auto' };
-    expect(resolveQuestionSettings(question({ variant: 'character_input' }), quizWide)).toEqual({
+    expect(resolveQuestionSettings(question({ variant: 'guess_letters' }), quizWide)).toEqual({
       letter_bank: 'auto'
     });
-    expect(resolveQuestionSettings(question({ variant: 'typed' }), quizWide)).toEqual({});
+    expect(resolveQuestionSettings(question({ variant: 'type_answer' }), quizWide)).toEqual({});
   });
 
   it('does not inherit the per-question-only counts, which mean nothing quiz-wide', () => {
@@ -981,5 +1049,53 @@ describe('resolveQuestionSettings (quiz-wide defaults)', () => {
     const { frontmatter, errors } = parseQwizFile(source);
     expect(errors).toEqual([]);
     expect(frontmatter.settings).toEqual({ shuffle_options: true, points_correct: 3 });
+  });
+});
+
+describe('type_pattern parsing', () => {
+  it('keeps the =/~ markers instead of forcing every option correct', () => {
+    const source = ['type_pattern: Any four-digit year', '{', '=[0-9]{4}', '~19[0-9]{2}', '}'].join(
+      '\n'
+    );
+    const { question, errors } = parseQuizScriptQuestion(source);
+    expect(errors).toEqual([]);
+    expect(question.options.map((o) => o.correct)).toEqual([true, false]);
+  });
+
+  it('rejects a pattern that is not a valid regular expression', () => {
+    const source = ['type_pattern: q', '{', '=(unclosed', '}'].join('\n');
+    const { errors } = parseQuizScriptQuestion(source);
+    expect(errors.some((e) => /isn't a valid regular expression/.test(e.message))).toBe(true);
+  });
+
+  it('rejects a question with no correct pattern — nothing could ever be right', () => {
+    const source = ['type_pattern: q', '{', '~[0-9]+', '}'].join('\n');
+    const { errors } = parseQuizScriptQuestion(source);
+    expect(errors.some((e) => /at least one "=" pattern/.test(e.message))).toBe(true);
+  });
+
+  it('rejects an image/video pattern', () => {
+    const source = ['type_pattern: q', '{', '=![a](https://x/y.png)', '}'].join('\n');
+    const { errors } = parseQuizScriptQuestion(source);
+    expect(errors.some((e) => /must be plain text/.test(e.message))).toBe(true);
+  });
+
+  it('round-trips through serialize + parse with its markers intact', () => {
+    const source = ['type_pattern: q', '{', '=a+', '~b+', '}'].join('\n');
+    const first = parseQuizScriptQuestion(source);
+    expect(first.errors).toEqual([]);
+    const second = parseQuizScriptQuestion(serializeQuizScriptQuestion(first.question));
+    expect(second.errors).toEqual([]);
+    expect(second.question).toEqual(first.question);
+  });
+
+  it('only offers settings that mean something for a regex answer', () => {
+    const keys = suggestedSettingKeysForVariant('type_pattern');
+    expect(keys).toContain('match_case');
+    expect(keys).toContain('points_correct');
+    // Fuzzy/numeric matching and the character-box display have nothing to act on here.
+    expect(keys).not.toContain('typo_tolerance');
+    expect(keys).not.toContain('number_tolerance');
+    expect(keys).not.toContain('typed_input');
   });
 });

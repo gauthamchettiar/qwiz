@@ -9,7 +9,7 @@ tags: [pictures, media, weighted]
 :show_reveal_screen=true
 ---
 
-single_choice: Whose flag is this?
+pick_one: Whose flag is this?
 !<image>[A white flag with a single red circle in the centre](data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27300%27%20height%3D%27200%27%20viewBox%3D%270%200%2060%2040%27%3E%3Crect%20width%3D%2760%27%20height%3D%2740%27%20fill%3D%27%23fff%27%20stroke%3D%27%23ddd%27%20stroke-width%3D%270.5%27%2F%3E%3Ccircle%20cx%3D%2730%27%20cy%3D%2720%27%20r%3D%2711%27%20fill%3D%27%23bc002d%27%2F%3E%3C%2Fsvg%3E)
 {
 =Japan
@@ -20,7 +20,7 @@ single_choice: Whose flag is this?
 :points_correct=2
 :options_layout=grid2x2
 
-single_choice: And this one?
+pick_one: And this one?
 ![Three vertical bands: blue, white and red](data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27300%27%20height%3D%27200%27%20viewBox%3D%270%200%2060%2040%27%3E%3Crect%20width%3D%2720%27%20height%3D%2740%27%20fill%3D%27%23002395%27%2F%3E%3Crect%20x%3D%2720%27%20width%3D%2720%27%20height%3D%2740%27%20fill%3D%27%23fff%27%2F%3E%3Crect%20x%3D%2740%27%20width%3D%2720%27%20height%3D%2740%27%20fill%3D%27%23ed2939%27%2F%3E%3C%2Fsvg%3E)
 {
 =France
@@ -31,7 +31,7 @@ single_choice: And this one?
 :points_correct=2
 :options_layout=grid2x2
 
-multiple_choice: One of these uses a Nordic cross — the off-centre cross shared across Scandinavia. Which?
+pick_many: One of these uses a Nordic cross — the off-centre cross shared across Scandinavia. Which?
 ![A blue flag with an off-centre yellow cross](data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27300%27%20height%3D%27200%27%20viewBox%3D%270%200%2060%2040%27%3E%3Crect%20width%3D%2760%27%20height%3D%2740%27%20fill%3D%27%23006aa7%27%2F%3E%3Crect%20y%3D%2716%27%20width%3D%2760%27%20height%3D%278%27%20fill%3D%27%23fecc00%27%2F%3E%3Crect%20x%3D%2718%27%20width%3D%278%27%20height%3D%2740%27%20fill%3D%27%23fecc00%27%2F%3E%3C%2Fsvg%3E)
 ![Three vertical bands: green, white, green](data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27300%27%20height%3D%27200%27%20viewBox%3D%270%200%2060%2040%27%3E%3Crect%20width%3D%2720%27%20height%3D%2740%27%20fill%3D%27%23008751%27%2F%3E%3Crect%20x%3D%2720%27%20width%3D%2720%27%20height%3D%2740%27%20fill%3D%27%23fff%27%2F%3E%3Crect%20x%3D%2740%27%20width%3D%2720%27%20height%3D%2740%27%20fill%3D%27%23008751%27%2F%3E%3C%2Fsvg%3E)
 {
@@ -40,8 +40,8 @@ multiple_choice: One of these uses a Nordic cross — the off-centre cross share
 }
 :points_correct=2
 
-multiple_choice: How close can you get? Each answer is worth what it deserves — pick one.
-!<analysis>[Why?](A trailing %N% sets one option's own point value, overriding the question default. It only pays out alongside partial_credit, though: without it a choice question is all-or-nothing, so a weighted wrong answer would still score zero. partial_credit isn't available on single_choice, which is why this is a multiple_choice capped at one pick.)
+pick_many: How close can you get? Each answer is worth what it deserves — pick one.
+!<analysis>[Why?](A trailing %N% sets one option's own point value, overriding the question default. It only pays out alongside partial_credit, though: without it a choice question is all-or-nothing, so a weighted wrong answer would still score zero. partial_credit isn't available on pick_one, which is why this is a pick_many capped at one pick.)
 ![A green flag with a yellow diamond and a blue globe](data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27300%27%20height%3D%27200%27%20viewBox%3D%270%200%2060%2040%27%3E%3Crect%20width%3D%2760%27%20height%3D%2740%27%20fill%3D%27%23009b3a%27%2F%3E%3Cpath%20d%3D%27M30%205%2055%2020%2030%2035%205%2020Z%27%20fill%3D%27%23fedf00%27%2F%3E%3Ccircle%20cx%3D%2730%27%20cy%3D%2720%27%20r%3D%277%27%20fill%3D%27%23002776%27%2F%3E%3C%2Fsvg%3E)
 {
 =Brazil %3%
@@ -54,7 +54,7 @@ multiple_choice: How close can you get? Each answer is worth what it deserves �
 :max_answers=1
 :difficulty=medium
 
-single_choice: Watch the clip, then answer: what is this video famous for being?
+pick_one: Watch the clip, then answer: what is this video famous for being?
 !<youtube>[The first video uploaded to YouTube](https://www.youtube.com/watch?v=jNQXAC9IVRw)
 {
 =The first video ever uploaded to YouTube
@@ -63,3 +63,21 @@ single_choice: Watch the clip, then answer: what is this video famous for being?
 ~The first live stream on YouTube
 }
 :points_correct=3
+
+match_pairs: Match each country to its flag — and one flag back to its country.
+{
+=Japan -> ![A white flag with a single red circle in the centre](data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27300%27%20height%3D%27200%27%20viewBox%3D%270%200%2060%2040%27%3E%3Crect%20width%3D%2760%27%20height%3D%2740%27%20fill%3D%27%23fff%27%20stroke%3D%27%23ddd%27%20stroke-width%3D%270.5%27%2F%3E%3Ccircle%20cx%3D%2730%27%20cy%3D%2720%27%20r%3D%2711%27%20fill%3D%27%23bc002d%27%2F%3E%3C%2Fsvg%3E)
+=France -> ![Three vertical bands: blue, white and red](data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27300%27%20height%3D%27200%27%20viewBox%3D%270%200%2060%2040%27%3E%3Crect%20width%3D%2720%27%20height%3D%2740%27%20fill%3D%27%23002395%27%2F%3E%3Crect%20x%3D%2720%27%20width%3D%2720%27%20height%3D%2740%27%20fill%3D%27%23fff%27%2F%3E%3Crect%20x%3D%2740%27%20width%3D%2720%27%20height%3D%2740%27%20fill%3D%27%23ed2939%27%2F%3E%3C%2Fsvg%3E)
+=![A blue flag with an off-centre yellow cross](data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27300%27%20height%3D%27200%27%20viewBox%3D%270%200%2060%2040%27%3E%3Crect%20width%3D%2760%27%20height%3D%2740%27%20fill%3D%27%23006aa7%27%2F%3E%3Crect%20y%3D%2716%27%20width%3D%2760%27%20height%3D%278%27%20fill%3D%27%23fecc00%27%2F%3E%3Crect%20x%3D%2718%27%20width%3D%278%27%20height%3D%2740%27%20fill%3D%27%23fecc00%27%2F%3E%3C%2Fsvg%3E) -> Sweden
+}
+:points_correct=2
+:partial_credit=true
+
+fill_blanks: Fill the gaps with flags. The flag of Japan is ___ and the flag of France is ___.
+{
+=![A white flag with a single red circle in the centre](data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27300%27%20height%3D%27200%27%20viewBox%3D%270%200%2060%2040%27%3E%3Crect%20width%3D%2760%27%20height%3D%2740%27%20fill%3D%27%23fff%27%20stroke%3D%27%23ddd%27%20stroke-width%3D%270.5%27%2F%3E%3Ccircle%20cx%3D%2730%27%20cy%3D%2720%27%20r%3D%2711%27%20fill%3D%27%23bc002d%27%2F%3E%3C%2Fsvg%3E)
+=![Three vertical bands: blue, white and red](data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27300%27%20height%3D%27200%27%20viewBox%3D%270%200%2060%2040%27%3E%3Crect%20width%3D%2720%27%20height%3D%2740%27%20fill%3D%27%23002395%27%2F%3E%3Crect%20x%3D%2720%27%20width%3D%2720%27%20height%3D%2740%27%20fill%3D%27%23fff%27%2F%3E%3Crect%20x%3D%2740%27%20width%3D%2720%27%20height%3D%2740%27%20fill%3D%27%23ed2939%27%2F%3E%3C%2Fsvg%3E)
+~![A blue flag with an off-centre yellow cross](data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27300%27%20height%3D%27200%27%20viewBox%3D%270%200%2060%2040%27%3E%3Crect%20width%3D%2760%27%20height%3D%2740%27%20fill%3D%27%23006aa7%27%2F%3E%3Crect%20y%3D%2716%27%20width%3D%2760%27%20height%3D%278%27%20fill%3D%27%23fecc00%27%2F%3E%3Crect%20x%3D%2718%27%20width%3D%278%27%20height%3D%2740%27%20fill%3D%27%23fecc00%27%2F%3E%3C%2Fsvg%3E)
+}
+:points_correct=2
+:partial_credit=true

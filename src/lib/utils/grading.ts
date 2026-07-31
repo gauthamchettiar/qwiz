@@ -1,4 +1,7 @@
 import {
+  optionContentKey,
+  optionLabelText,
+  optionTargetText,
   resolveQuestionSettings,
   type QuizScriptOption,
   type QuizScriptQuestion,
@@ -118,7 +121,7 @@ export function gradeQuestion(
   return { earned: optionsEarned + reveal.earned, max: optionsMax + reveal.max };
 }
 
-/** The options-container class for a `single_choice`/`multiple_choice` question, driven by
+/** The options-container class for a `pick_one`/`pick_many` question, driven by
  * `options_layout` — shared by QuestionView (author-side preview), QuestionPlayer (live
  * answering), and QuizPlayer (the run's Review screen), which all rendered this same three-way
  * branch independently before. "list" (or the setting being absent): one option per row.
@@ -380,8 +383,8 @@ export function typedBoxCount(question: QuizScriptQuestion): number {
   return typedBoxGroups(question).reduce((sum, n) => sum + n, 0);
 }
 
-// --- character_input matching and grading --------------------------------------------------
-// A character_input question's single accepted answer (its first `=` option, same "first
+// --- guess_letters matching and grading --------------------------------------------------
+// A guess_letters question's single accepted answer (its first `=` option, same "first
 // accepted answer" convention typedBoxGroups uses) is guessed letter-by-letter via an on-screen
 // bank rather than typed — see docs/qwiz-format.md's "Character input" section for the authored
 // syntax (`[X]` pre-reveal brackets, letter_bank/letter_reveal/letters_shown_at_start settings).
@@ -395,7 +398,7 @@ export function isGuessableChar(c: string): boolean {
   return /\p{L}/u.test(c);
 }
 
-/** The answer text a character_input question's box row/bank are built from — its first `=`
+/** The answer text a guess_letters question's box row/bank are built from — its first `=`
  * option's text (same "first accepted answer" convention `typedBoxGroups` uses). Exported so
  * QuestionPlayer.svelte doesn't duplicate this "first option, text kind" access. */
 export function characterInputAnswerText(question: QuizScriptQuestion): string {
@@ -542,7 +545,7 @@ export function characterInputLetterFullyRevealed(
   return occurrences.length > 0 && occurrences.every((i) => revealedPositions.has(i));
 }
 
-/** Grades a character_input question. Scoring is per DISTINCT guessable letter, not per
+/** Grades a guess_letters question. Scoring is per DISTINCT guessable letter, not per
  * occurrence — guessing "e" that appears three times in the answer is one scoring event, same
  * whether `letter_reveal` reveals all three occurrences at once or trickles them out one guess at a
  * time (letter_reveal is a pure display concern, irrelevant to grading here). A pre-revealed letter
@@ -581,7 +584,7 @@ export function gradeCharacterInputQuestion(
 // An order question's options are forced `correct: true` at parse time (see quizScript.ts) — there
 // is no right/wrong ITEM, only a right/wrong POSITION: the authored `{ }` order IS the answer key.
 
-/** Grades an `order` question. `placement[i]` is the original option index the player put at
+/** Grades an `order_items` question. `placement[i]` is the original option index the player put at
  * slot i (`null` while that slot is still empty); slot i is correct iff `placement[i] === i` — the
  * canonical, authored order. Mirrors `gradeQuestion`'s own exact-match/partial-credit split:
  * without `partial_credit`, every slot must be correct or the question scores 0; with it, each
@@ -609,11 +612,11 @@ export function gradeOrderQuestion(
   return { earned: optionsEarned + reveal.earned, max: correctSum + reveal.max };
 }
 
-// --- match/categorise matching and grading ---------------------------------------------------
+// --- match/group_items matching and grading ---------------------------------------------------
 // Both share the same `item -> target` option shape (see quizScript.ts's OPTION_TARGET) — every
 // option is forced `correct: true` at parse time, same invariant as order above.
 
-/** Grades a `match` question. `pairs` maps a left-side original option index to the right-side
+/** Grades a `match_pairs` question. `pairs` maps a left-side original option index to the right-side
  * original option index the player placed it against — since every option's OWN `.target` is that
  * option's one, unique right-column entry (see quizScript.ts), a pair is correct iff
  * `pairs.get(i) === i` (the player matched option i's item back to option i's own target).
@@ -640,11 +643,12 @@ export function gradeMatchQuestion(
   return { earned: optionsEarned + reveal.earned, max: correctSum + reveal.max };
 }
 
-/** Grades a `categorise` question. `assignments` maps an original option index to the bucket
+/** Grades a `group_items` question. `assignments` maps an original option index to the bucket
  * index (into `categoriseBuckets(question)`) the player put it in — an assignment is correct iff
- * that bucket's label equals the option's own authored `.target`. Unlike `match`, several options
+ * that bucket's label equals the option's own authored target (always text for this variant, so
+ * `optionTargetText` is exact here rather than a fallback). Unlike `match_pairs`, several options
  * can correctly share the same bucket, so there's no per-option "this bucket is taken" constraint
- * the way `match`'s 1-to-1 pairing has. Mirrors `gradeOrderQuestion`/`gradeMatchQuestion`'s own
+ * the way `match_pairs`'s 1-to-1 pairing has. Mirrors `gradeOrderQuestion`/`gradeMatchQuestion`'s own
  * exact-match/partial-credit split. */
 export function gradeCategoriseQuestion(
   question: QuizScriptQuestion,
@@ -657,7 +661,7 @@ export function gradeCategoriseQuestion(
   const partial = settingBoolean(question.settings.partial_credit);
   const correctAssignments = question.options.map((option, i) => {
     const bucketIndex = assignments.get(i);
-    return bucketIndex !== undefined && buckets[bucketIndex] === option.target;
+    return bucketIndex !== undefined && buckets[bucketIndex] === optionTargetText(option);
   });
   const isExact = correctAssignments.every(Boolean) && assignments.size === question.options.length;
 
@@ -672,7 +676,7 @@ export function gradeCategoriseQuestion(
 }
 
 // --- answer_mode=type: typing the answer instead of using a board ---------------------------
-// `order`, `match`, `categorise` and `fill_in_blanks` all place things rather than select them, and
+// `order_items`, `match_pairs`, `group_items` and `fill_blanks` all place things rather than select them, and
 // all four can instead be answered by typing (`:answer_mode=type`). What gets typed differs per
 // variant, but everything after that — normalization, tolerance, the partial/exact split — is
 // identical, so it lives here once rather than in four grade functions.
@@ -685,24 +689,29 @@ export function isTypedAnswerMode(question: QuizScriptQuestion): boolean {
 }
 
 /** The expected text for each typed answer slot, in slot order:
- * - `fill_in_blanks` — each blank's own answer word, left to right.
- * - `order` — the item belonging at that position, so slot i expects option i (the authored
+ * - `fill_blanks` — each blank's own answer word, left to right.
+ * - `order_items` — the item belonging at that position, so slot i expects option i (the authored
  *   sequence IS the answer key).
- * - `match`/`categorise` — each item's own `.target`: the thing it pairs with, or the bucket it
+ * - `match_pairs`/`group_items` — each item's own target: the thing it pairs with, or the bucket it
  *   belongs in.
+ *
+ * All four now accept picture content where a slot's answer lives, and a picture is typed as its
+ * alt text — `optionLabelText`/`optionTargetText`'s existing rule, which is why they're used here
+ * rather than reading `.content.text` directly. A picture with no alt yields `''` and can't be
+ * matched by anything, the same dead end an option the author left blank already was; it's worth
+ * knowing that `answer_mode=type` is the one mode where alt text is load-bearing rather than
+ * merely good practice.
  *
  * Exported so a board can show the right answer next to a slot the player got wrong without
  * re-deriving which option a slot corresponds to. */
 export function typedSlotExpectations(question: QuizScriptQuestion): string[] {
-  if (question.variant === 'fill_in_blanks') {
-    return fillInBlanksAnswerOptions(question).map((o) =>
-      o.content.kind === 'text' ? o.content.text : ''
-    );
+  if (question.variant === 'fill_blanks') {
+    return fillInBlanksAnswerOptions(question).map(optionLabelText);
   }
-  if (question.variant === 'order') {
-    return question.options.map((o) => (o.content.kind === 'text' ? o.content.text : ''));
+  if (question.variant === 'order_items') {
+    return question.options.map(optionLabelText);
   }
-  return question.options.map((o) => o.target ?? '');
+  return question.options.map(optionTargetText);
 }
 
 /** How many typed slots this question has — what a draft's `blankAnswers` array is sized to. */
@@ -710,7 +719,7 @@ export function typedSlotCount(question: QuizScriptQuestion): number {
   return typedSlotExpectations(question).length;
 }
 
-/** Per-slot correctness for a typed answer, using the same matching a `typed` question gets
+/** Per-slot correctness for a typed answer, using the same matching a `type_answer` question gets
  * (`match_case`/`number_tolerance`/`typo_tolerance` all apply). An empty slot is never correct,
  * even against an empty expectation — leaving it blank isn't answering it. */
 export function typedSlotCorrectness(
@@ -725,7 +734,7 @@ export function typedSlotCorrectness(
 }
 
 /** Grades any of the four placement variants when it's answered by typing. Scoring weights come
- * from the options the slots correspond to — the correct (`=`) options for `fill_in_blanks`, since
+ * from the options the slots correspond to — the correct (`=`) options for `fill_blanks`, since
  * its `~` distractors have no blank of their own, and every option for the other three, where each
  * option owns exactly one slot. Mirrors the same `partial_credit` split every other grade function
  * uses. */
@@ -735,7 +744,7 @@ export function gradeTypedSlotsQuestion(
   revealed: ReadonlySet<number>
 ): QuestionResult {
   const scoredOptions =
-    question.variant === 'fill_in_blanks' ? fillInBlanksAnswerOptions(question) : question.options;
+    question.variant === 'fill_blanks' ? fillInBlanksAnswerOptions(question) : question.options;
   const effective = scoredOptions.map((o) => effectivePoints(o, question.settings));
   const correctSum = effective.reduce((sum, p) => sum + p, 0);
   const correct = typedSlotCorrectness(question, answers);
@@ -751,11 +760,11 @@ export function gradeTypedSlotsQuestion(
   return { earned: optionsEarned + reveal.earned, max: correctSum + reveal.max };
 }
 
-// --- fill_in_blanks matching and grading -----------------------------------------------------
-// A fill_in_blanks question's `___` tokens in `text` are its blanks, filled left-to-right by this
+// --- fill_blanks matching and grading -----------------------------------------------------
+// A fill_blanks question's `___` tokens in `text` are its blanks, filled left-to-right by this
 // question's correct ("=") options in order — its `~` options are distractor bank words with no
 // blank of their own (see quizScript.ts's own validation: blank count must equal correct-option
-// count). Unlike order/match/categorise, the `=`/`~` marker stays meaningful here.
+// count). Unlike order/match/group_items, the `=`/`~` marker stays meaningful here.
 
 /** The blank-answer options, in blank order (blank 0 first) — exported so the play/author UI can
  * read the same "which options are actual blank answers, not distractors" rule grading uses,
@@ -770,16 +779,25 @@ export function fillInBlanksCount(question: QuizScriptQuestion): number {
   return (question.text.match(/___/g) ?? []).length;
 }
 
-/** Grades a `fill_in_blanks` question. `answers[i]` is the player's response for blank i — either
- * their typed text (`answer_mode=type`, matched via `isTypedMatch`, same normalization/tolerance
- * settings a `typed` question uses) or their chosen bank word (`answer_mode=pick`, the default —
- * matched by exact text equality, since the player picked it verbatim off a button rather than
- * typing it, so there's no typo for fuzzy/case-insensitive matching to forgive). Mirrors
- * `gradeOrderQuestion`/`gradeMatchQuestion`/`gradeCategoriseQuestion`'s own exact-match/
+/** Grades a `fill_blanks` question.
+ *
+ * Two modes, two response shapes. `answer_mode=type`: `answers[i]` is what the player typed into
+ * blank i, matched via `isTypedMatch` with the same normalization/tolerance settings a
+ * `type_answer` question uses. `answer_mode=pick` (the default): `picks[i]` is the ORIGINAL option
+ * index of the bank word they put in blank i, `null` while it's empty.
+ *
+ * Pick mode records an index rather than the word's text because a bank word can now be a picture,
+ * which has no text to record — and compares by `optionContentKey`, not by index, so that two
+ * options a player genuinely cannot tell apart (an answer and a distractor with the same word)
+ * still both count, exactly as they did when this compared text directly. There's no typo or
+ * casing for the tolerance settings to forgive either way: the word was chosen off a button.
+ *
+ * Mirrors `gradeOrderQuestion`/`gradeMatchQuestion`/`gradeCategoriseQuestion`'s own exact-match/
  * partial-credit split. */
 export function gradeFillInBlanksQuestion(
   question: QuizScriptQuestion,
   answers: readonly string[],
+  picks: readonly (number | null)[],
   revealed: ReadonlySet<number>
 ): QuestionResult {
   if (isTypedAnswerMode(question)) return gradeTypedSlotsQuestion(question, answers, revealed);
@@ -789,13 +807,12 @@ export function gradeFillInBlanksQuestion(
   const correctSum = effective.reduce((sum, p) => sum + p, 0);
   const partial = settingBoolean(question.settings.partial_credit);
 
-  // Pick mode only: the player chose this word off a button rather than typing it, so there's no
-  // typo or casing for the tolerance settings to forgive — exact text equality is the whole test.
   const correctBlanks = answerOptions.map((option, i) => {
-    const response = answers[i] ?? '';
-    if (response === '') return false;
-    const answerText = option.content.kind === 'text' ? option.content.text : '';
-    return response === answerText;
+    const picked = picks[i];
+    if (picked === null || picked === undefined) return false;
+    const placed = question.options[picked];
+    if (!placed) return false;
+    return optionContentKey(placed.content) === optionContentKey(option.content);
   });
   const isExact = correctBlanks.every(Boolean);
 
@@ -824,15 +841,15 @@ export interface QuestionDraft {
   boxChars: string[];
   typedGuesses: string[];
   typedGuessDraft: string;
-  /** character_input only: which bank letters have been guessed so far, and whether each was
+  /** guess_letters only: which bank letters have been guessed so far, and whether each was
    * 'correct' (appears in the answer) or 'wrong'. */
   guessedLetters: Map<string, 'correct' | 'wrong'>;
-  /** character_input only: `letters_shown_at_start`'s randomly-chosen extra pre-reveal positions —
+  /** guess_letters only: `letters_shown_at_start`'s randomly-chosen extra pre-reveal positions —
    * blank here (see `blankDraft`, which stays entirely question-agnostic); `QuestionPlayer.svelte`
    * resolves the real value itself via `resolveExtraPrereveal(question)` at mount, the same way it
    * already resolves `boxChars`' sizing via `runBoxChars()` rather than `blankDraft()` doing it. */
   extraPrerevealed: Set<number>;
-  /** character_input only: every answer-text position currently visible — starts out equal to
+  /** guess_letters only: every answer-text position currently visible — starts out equal to
    * the pre-revealed set (bracket + extraPrerevealed) and grows as correct guesses land, per
    * `characterInputRevealPositionsAfterGuess`'s `letter_reveal` handling. Separate from
    * `guessedLetters` because they answer different questions: guessedLetters is "was this letter
@@ -846,22 +863,28 @@ export interface QuestionDraft {
    * means "original option 2 goes first, option 0 second, option 1 third." Grading (see
    * `gradeOrderQuestion`) compares each slot's placed index against its own slot position. */
   orderPlacement: (number | null)[];
-  /** order/match/categorise/fill_in_blanks only: the tap-to-select-then-place interaction's
-   * "currently picked, awaiting a target" item — an original option index (order/match/categorise)
-   * or bank-word slot index (fill_in_blanks), `null` when nothing is picked up. Persisted here
+  /** order/match/group_items/fill_blanks only: the tap-to-select-then-place interaction's
+   * "currently picked, awaiting a target" item — an original option index (order/match/group_items)
+   * or bank-word slot index (fill_blanks), `null` when nothing is picked up. Persisted here
    * (rather than transient component state) for the same reason `typedGuessDraft` is: an
    * in-progress pick must survive navigating away and back before the question is graded. */
   picked: number | null;
   /** match only: this run's chosen pairing, left option index -> right option index (whose own
    * `.target` is the right-column label the player placed it against) — `undefined` while unpaired. */
   matchPairs: Map<number, number>;
-  /** categorise only: this run's chosen bucket per option, option index -> bucket index into
+  /** group_items only: this run's chosen bucket per option, option index -> bucket index into
    * `categoriseBuckets(question)`'s derived distinct-target array — absent while unassigned. */
   categoriseAssignments: Map<number, number>;
-  /** fill_in_blanks only: one entry per `___` blank in `question.text`, in left-to-right order —
-   * the player's typed text (`answer_mode=type`) or their chosen bank word (`answer_mode=pick`).
-   * Empty string means that blank is still unfilled. */
+  /** One entry per typed answer slot (`answer_mode=type`, any of the four placement variants —
+   * see `typedSlotCount`), in slot order: the text the player typed there, `''` while empty. Not
+   * used at all in `answer_mode=pick`, which records `blankPicks` instead. */
   blankAnswers: string[];
+  /** fill_blanks in `answer_mode=pick` only: one entry per `___` blank in `question.text`, in
+   * left-to-right order — the ORIGINAL option index of the bank word placed there, `null` while
+   * empty. An index rather than the word's own text, because a bank word can be a picture; it
+   * also makes "which bank buttons are used up" exact for words that share the same text, which
+   * matching back by text could only ever approximate. */
+  blankPicks: (number | null)[];
 }
 
 export function blankDraft(): QuestionDraft {
@@ -879,7 +902,8 @@ export function blankDraft(): QuestionDraft {
     picked: null,
     matchPairs: new Map(),
     categoriseAssignments: new Map(),
-    blankAnswers: []
+    blankAnswers: [],
+    blankPicks: []
   };
 }
 
@@ -912,34 +936,35 @@ function typedResponseFromDraft(
 /** Whether `draft` has enough of an answer to submit — `min_answers`, plus mode-specific
  * completeness (every box filled, at least one character typed) — shared so a live Submit
  * button's own gating and any embedding parent's can never disagree about what counts as ready.
- * character_input has no `min_answers` (excluded from its settings — see quizScript.ts's
+ * guess_letters has no `min_answers` (excluded from its settings — see quizScript.ts's
  * SETTING_RULES) and can be submitted at any point, guessed-so-far included, same as giving up
  * partway through a real Hangman round. */
 export function isDraftComplete(question: QuizScriptQuestion, draft: QuestionDraft): boolean {
-  if (question.variant === 'character_input') return true;
+  if (question.variant === 'guess_letters') return true;
+  // Always a single free-text field, so "answered" is just "typed something" — the same bar the
+  // single-input branch of type_answer uses at the end of this function.
+  if (question.variant === 'type_pattern') return draft.typedSingleAnswer.trim().length > 0;
   if (isTypedAnswerMode(question)) {
     const slots = typedSlotCount(question);
     return draft.blankAnswers.length === slots && draft.blankAnswers.every((a) => a.trim() !== '');
   }
-  if (question.variant === 'order') {
+  if (question.variant === 'order_items') {
     return (
       draft.orderPlacement.length === question.options.length &&
       draft.orderPlacement.every((p) => p !== null)
     );
   }
-  if (question.variant === 'match') return draft.matchPairs.size === question.options.length;
-  if (question.variant === 'categorise') {
+  if (question.variant === 'match_pairs') return draft.matchPairs.size === question.options.length;
+  if (question.variant === 'group_items') {
     return draft.categoriseAssignments.size === question.options.length;
   }
-  if (question.variant === 'fill_in_blanks') {
+  if (question.variant === 'fill_blanks') {
     const blankCount = fillInBlanksAnswerOptions(question).length;
-    return (
-      draft.blankAnswers.length === blankCount && draft.blankAnswers.every((a) => a.trim() !== '')
-    );
+    return draft.blankPicks.length === blankCount && draft.blankPicks.every((p) => p !== null);
   }
 
   const minAnswers = settingNumber(question.settings.min_answers) ?? 0;
-  if (question.variant !== 'typed') return draft.selected.size >= minAnswers;
+  if (question.variant !== 'type_answer') return draft.selected.size >= minAnswers;
   const maxAnswers = settingNumber(question.settings.max_answers);
   if (maxAnswers !== undefined && maxAnswers > 1) return draft.typedGuesses.length >= minAnswers;
   if (question.settings.typed_input === 'boxes')
@@ -947,13 +972,101 @@ export function isDraftComplete(question: QuizScriptQuestion, draft: QuestionDra
   return draft.typedSingleAnswer.trim().length > 0;
 }
 
+// --- type_pattern: regex-graded typed answers ------------------------------------------------
+// The author writes regular expressions instead of literal accepted answers, so one option can
+// stand for a whole family of responses ("2[0-9]{3}" for any 4-digit year). Its `=`/`~` markers
+// both matter, unlike `type_answer`'s: `=` patterns say what's right, `~` patterns let an author
+// call out a specific wrong answer — a classic misconception, say — and attach its own `%N%`
+// penalty to it.
+
+/** Whether `response` matches `pattern`, under this question's settings.
+ *
+ * Two deliberate decisions, both documented in qwiz-format.md because an author writing a pattern
+ * has to know them:
+ *
+ * - **Implicitly anchored.** The pattern is wrapped in `^(?:...)$`, so `cat` matches "cat" and not
+ *   "concatenate". An unanchored default is the classic way a quiz written this way quietly marks
+ *   wrong answers correct, and `.*` on either end is easy to add back when a substring really is
+ *   what's wanted. The non-capturing group keeps alternation intact — a bare `^a|b$` would
+ *   otherwise parse as `(^a)|(b$)`.
+ * - **Raw response, only trimmed.** `normalizeTypedAnswer`'s accent-folding and punctuation
+ *   stripping would make a pattern like `\\d+\\.\\d+` unmatchable by removing the very characters
+ *   it's written to match. Case is the one normalization that still applies, via `match_case`.
+ *
+ * An uncompilable pattern is rejected at parse time (`parseQuestionBlock`), so by here it only
+ * happens for a hand-edited quiz that skipped the parser — treated as "doesn't match" rather than
+ * thrown, since a player mid-run can't act on an exception. */
+export function patternMatches(
+  pattern: string,
+  response: string,
+  settings: QuizScriptSettings
+): boolean {
+  try {
+    const flags = settingBoolean(settings.match_case) ? 'u' : 'iu';
+    return new RegExp(`^(?:${pattern})$`, flags).test(response.trim());
+  } catch {
+    return false;
+  }
+}
+
+/** The option index whose pattern `response` matches, or `null` for a response that matches none.
+ *
+ * A matching `~` pattern wins over a matching `=` one. An author writes a `~` pattern precisely
+ * because it overlaps something a broad `=` pattern would otherwise sweep up — `=.+` plus
+ * `~[Pp]aris` means "anything but Paris" — so resolving the other way round would make every `~`
+ * pattern dead the moment a general `=` pattern also matched. */
+export function matchedPatternIndex(question: QuizScriptQuestion, response: string): number | null {
+  const patterns = question.options.map((option, index) => ({ option, index }));
+  const text = (option: QuizScriptOption) =>
+    option.content.kind === 'text' ? option.content.text : '';
+
+  const wrong = patterns.find(
+    ({ option }) => !option.correct && patternMatches(text(option), response, question.settings)
+  );
+  if (wrong) return wrong.index;
+
+  const right = patterns.find(
+    ({ option }) => option.correct && patternMatches(text(option), response, question.settings)
+  );
+  return right ? right.index : null;
+}
+
+/** Scores one type_pattern response: the matched pattern's own points (its `%N%` if it has one,
+ * otherwise `points_correct`/`points_wrong`), or nothing at all for a response that matched no
+ * pattern.
+ *
+ * `max` is the best a correct answer could have scored — the largest positive value among the `=`
+ * patterns, since exactly one pattern ever resolves. Not the sum: matching two `=` patterns at once
+ * still only earns one, so summing them would report a maximum no response could reach and drag
+ * every percentage-based total (`percent_to_win`) down with it. */
+export function gradeTypePatternQuestion(
+  question: QuizScriptQuestion,
+  response: string,
+  revealed: ReadonlySet<number>
+): QuestionResult {
+  const matched = matchedPatternIndex(question, response);
+  const earned =
+    matched === null ? 0 : effectivePoints(question.options[matched], question.settings);
+
+  const correctPoints = question.options
+    .filter((o) => o.correct)
+    .map((o) => effectivePoints(o, question.settings));
+  const max = correctPoints.length > 0 ? Math.max(0, ...correctPoints) : 0;
+
+  const reveal = gradeRevealExtras(question.extras, revealed);
+  return { earned: earned + reveal.earned, max: max + reveal.max };
+}
+
 /** What the end-of-run Review screen shows for one already-answered question: the player's own
  * pick(s)/response, plus which hints they revealed — a read-only recap, not a re-editable draft. */
 export type AnswerRecord =
   | { kind: 'choice'; selected: Set<number>; revealed: Set<number> }
-  | { kind: 'typed'; response: string | string[]; revealed: Set<number> }
+  | { kind: 'type_answer'; response: string | string[]; revealed: Set<number> }
+  /** `type_pattern` is always a single free-text response — no multi-guess, no character boxes —
+   * so it records a plain string rather than `type_answer`'s string-or-array. */
+  | { kind: 'type_pattern'; response: string; revealed: Set<number> }
   | {
-      kind: 'character_input';
+      kind: 'guess_letters';
       guessedLetters: Map<string, 'correct' | 'wrong'>;
       extraPrerevealed: Set<number>;
       revealedPositions: Set<number>;
@@ -963,12 +1076,20 @@ export type AnswerRecord =
    * answer for this variant (see `gradeOrderQuestion`), so a partly-filled board recorded as a
    * dense array would replay as a completely different set of placements on the Review screen
    * than the one that was actually graded. */
-  | { kind: 'order'; placement: (number | null)[]; revealed: Set<number> }
-  | { kind: 'match'; pairs: Map<number, number>; revealed: Set<number> }
-  | { kind: 'categorise'; assignments: Map<number, number>; revealed: Set<number> }
-  | { kind: 'fill_in_blanks'; answers: string[]; revealed: Set<number> }
-  /** `order`/`match`/`categorise` answered with `answer_mode=type` — there's no placement, pairing
-   * or assignment to record, just the text typed into each slot. (`fill_in_blanks` keeps its own
+  | { kind: 'order_items'; placement: (number | null)[]; revealed: Set<number> }
+  | { kind: 'match_pairs'; pairs: Map<number, number>; revealed: Set<number> }
+  | { kind: 'group_items'; assignments: Map<number, number>; revealed: Set<number> }
+  /** Carries both response shapes because this one kind covers both of the variant's modes:
+   * `answers` is what was typed (`answer_mode=type`), `picks` which bank word went where
+   * (`answer_mode=pick`). Only one is ever populated for a given question. */
+  | {
+      kind: 'fill_blanks';
+      answers: string[];
+      picks: (number | null)[];
+      revealed: Set<number>;
+    }
+  /** `order_items`/`match_pairs`/`group_items` answered with `answer_mode=type` — there's no placement, pairing
+   * or assignment to record, just the text typed into each slot. (`fill_blanks` keeps its own
    * kind for both of its modes, since its record already carries exactly this.) */
   | { kind: 'typed_slots'; answers: string[]; revealed: Set<number> };
 
@@ -981,18 +1102,25 @@ export function gradeDraft(
   question: QuizScriptQuestion,
   draft: QuestionDraft
 ): { result: QuestionResult; answer: AnswerRecord } {
-  if (question.variant === 'typed') {
+  if (question.variant === 'type_answer') {
     const response = typedResponseFromDraft(question, draft);
     return {
       result: gradeTypedQuestion(question, response, draft.revealed),
-      answer: { kind: 'typed', response, revealed: new Set(draft.revealed) }
+      answer: { kind: 'type_answer', response, revealed: new Set(draft.revealed) }
     };
   }
-  if (question.variant === 'character_input') {
+  if (question.variant === 'type_pattern') {
+    const response = draft.typedSingleAnswer;
+    return {
+      result: gradeTypePatternQuestion(question, response, draft.revealed),
+      answer: { kind: 'type_pattern', response, revealed: new Set(draft.revealed) }
+    };
+  }
+  if (question.variant === 'guess_letters') {
     return {
       result: gradeCharacterInputQuestion(question, draft),
       answer: {
-        kind: 'character_input',
+        kind: 'guess_letters',
         guessedLetters: new Map(draft.guessedLetters),
         extraPrerevealed: new Set(draft.extraPrerevealed),
         revealedPositions: new Set(draft.revealedPositions),
@@ -1002,7 +1130,10 @@ export function gradeDraft(
   }
   // The three board variants answer through `blankAnswers` instead when they're typed, so this has
   // to come before each of their own board-shaped branches below.
-  if (isTypedAnswerMode(question) && ['order', 'match', 'categorise'].includes(question.variant)) {
+  if (
+    isTypedAnswerMode(question) &&
+    ['order_items', 'match_pairs', 'group_items'].includes(question.variant)
+  ) {
     return {
       result: gradeTypedSlotsQuestion(question, draft.blankAnswers, draft.revealed),
       answer: {
@@ -1012,42 +1143,48 @@ export function gradeDraft(
       }
     };
   }
-  if (question.variant === 'order') {
+  if (question.variant === 'order_items') {
     return {
       result: gradeOrderQuestion(question, draft.orderPlacement, draft.revealed),
       answer: {
-        kind: 'order',
+        kind: 'order_items',
         placement: [...draft.orderPlacement],
         revealed: new Set(draft.revealed)
       }
     };
   }
-  if (question.variant === 'match') {
+  if (question.variant === 'match_pairs') {
     return {
       result: gradeMatchQuestion(question, draft.matchPairs, draft.revealed),
       answer: {
-        kind: 'match',
+        kind: 'match_pairs',
         pairs: new Map(draft.matchPairs),
         revealed: new Set(draft.revealed)
       }
     };
   }
-  if (question.variant === 'categorise') {
+  if (question.variant === 'group_items') {
     return {
       result: gradeCategoriseQuestion(question, draft.categoriseAssignments, draft.revealed),
       answer: {
-        kind: 'categorise',
+        kind: 'group_items',
         assignments: new Map(draft.categoriseAssignments),
         revealed: new Set(draft.revealed)
       }
     };
   }
-  if (question.variant === 'fill_in_blanks') {
+  if (question.variant === 'fill_blanks') {
     return {
-      result: gradeFillInBlanksQuestion(question, draft.blankAnswers, draft.revealed),
+      result: gradeFillInBlanksQuestion(
+        question,
+        draft.blankAnswers,
+        draft.blankPicks,
+        draft.revealed
+      ),
       answer: {
-        kind: 'fill_in_blanks',
+        kind: 'fill_blanks',
         answers: [...draft.blankAnswers],
+        picks: [...draft.blankPicks],
         revealed: new Set(draft.revealed)
       }
     };
@@ -1076,7 +1213,7 @@ function boxCharsFromAnswer(answer: string, groups: number[]): string[] {
  * that has to be kept in sync with the real one — which is exactly how every non-choice, non-typed
  * variant ended up silently unrenderable on that screen.
  *
- * `question` is needed only to decide which typed input mode a `'typed'` record's response belongs
+ * `question` is needed only to decide which typed input mode a `'type_answer'` record's response belongs
  * in (single field / character boxes / banked guesses), the same three-way split
  * `typedResponseFromDraft` makes in the other direction. */
 export function draftFromAnswer(question: QuizScriptQuestion, answer: AnswerRecord): QuestionDraft {
@@ -1087,7 +1224,7 @@ export function draftFromAnswer(question: QuizScriptQuestion, answer: AnswerReco
     case 'choice':
       draft.selected = new Set(answer.selected);
       break;
-    case 'typed':
+    case 'type_answer':
       if (Array.isArray(answer.response)) {
         draft.typedGuesses = [...answer.response];
       } else if (question.settings.typed_input === 'boxes') {
@@ -1096,21 +1233,27 @@ export function draftFromAnswer(question: QuizScriptQuestion, answer: AnswerReco
         draft.typedSingleAnswer = answer.response;
       }
       break;
-    case 'character_input':
+    case 'type_pattern':
+      draft.typedSingleAnswer = answer.response;
+      break;
+    case 'guess_letters':
       draft.guessedLetters = new Map(answer.guessedLetters);
       draft.extraPrerevealed = new Set(answer.extraPrerevealed);
       draft.revealedPositions = new Set(answer.revealedPositions);
       break;
-    case 'order':
+    case 'order_items':
       draft.orderPlacement = [...answer.placement];
       break;
-    case 'match':
+    case 'match_pairs':
       draft.matchPairs = new Map(answer.pairs);
       break;
-    case 'categorise':
+    case 'group_items':
       draft.categoriseAssignments = new Map(answer.assignments);
       break;
-    case 'fill_in_blanks':
+    case 'fill_blanks':
+      draft.blankAnswers = [...answer.answers];
+      draft.blankPicks = [...answer.picks];
+      break;
     case 'typed_slots':
       draft.blankAnswers = [...answer.answers];
       break;
@@ -1143,8 +1286,8 @@ export function questionMaxPoints(question: QuizScriptQuestion): number {
   return gradeDraft(question, blankDraft()).result.max;
 }
 
-/** categorise only: the distinct set of bucket labels across every option's `.target`, in
- * first-appearance order — categorise has no separate bucket-naming syntax (see quizScript.ts),
+/** group_items only: the distinct set of bucket labels across every option's `.target`, in
+ * first-appearance order — group_items has no separate bucket-naming syntax (see quizScript.ts),
  * so the buckets a play/authoring UI renders are always derived from this. Exported so both
  * `buildPlayRun` (bucket display order) and the play/author UI (which buckets exist at all) share
  * one derivation instead of two copies that could drift. */
@@ -1152,32 +1295,33 @@ export function categoriseBuckets(question: QuizScriptQuestion): string[] {
   const seen = new Set<string>();
   const buckets: string[] = [];
   for (const option of question.options) {
-    if (option.target !== undefined && !seen.has(option.target)) {
-      seen.add(option.target);
-      buckets.push(option.target);
-    }
+    if (option.target === undefined) continue;
+    const label = optionTargetText(option);
+    if (seen.has(label)) continue;
+    seen.add(label);
+    buckets.push(label);
   }
   return buckets;
 }
 
 /** Variants whose display order is ALWAYS shuffled, never authored-order, regardless of a
  * `shuffle_options` setting — because `shuffle_options` isn't even offered to them (see quizScript.ts's
- * `SETTING_RULES.shuffle_options.appliesTo`). `order`'s authored sequence IS the answer, so showing it
- * unshuffled would give the answer away outright; `match`/`categorise`/`fill_in_blanks` don't leak
+ * `SETTING_RULES.shuffle_options.appliesTo`). `order_items`'s authored sequence IS the answer, so showing it
+ * unshuffled would give the answer away outright; `match_pairs`/`group_items`/`fill_blanks` don't leak
  * their answer through authored order the same way, but shuffling is still the only sensible
  * default — an unshuffled bank/item list would be a strange, unintentional-looking "hint" of its
- * own (e.g. two same-position columns in `match` silently pairing up by coincidence). */
-const ALWAYS_SHUFFLED_VARIANTS = ['order', 'match', 'categorise', 'fill_in_blanks'];
+ * own (e.g. two same-position columns in `match_pairs` silently pairing up by coincidence). */
+const ALWAYS_SHUFFLED_VARIANTS = ['order_items', 'match_pairs', 'group_items', 'fill_blanks'];
 
 export interface PlayQuestion {
   question: QuizScriptQuestion;
-  /** This run's display order for the question's options (or, for `fill_in_blanks`, its word
+  /** This run's display order for the question's options (or, for `fill_blanks`, its word
    * bank), as indices into `question.options` — grading always works in terms of those original
    * indices; this only ever affects render order. */
   optionOrder: number[];
-  /** `match`/`categorise` only: this run's display order for the right-hand column. For `match`,
+  /** `match_pairs`/`group_items` only: this run's display order for the right-hand column. For `match_pairs`,
    * indices into `question.options` (each option's own `.target` is that option's one
-   * right-column entry). For `categorise`, indices into `categoriseBuckets(question)`'s derived
+   * right-column entry). For `group_items`, indices into `categoriseBuckets(question)`'s derived
    * distinct-target array. `undefined` for every other variant. */
   targetOrder?: number[];
 }
@@ -1219,9 +1363,9 @@ export function buildPlayRun(
         : indices;
 
     let targetOrder: number[] | undefined;
-    if (question.variant === 'match') {
+    if (question.variant === 'match_pairs') {
       targetOrder = shuffledArray(indices);
-    } else if (question.variant === 'categorise') {
+    } else if (question.variant === 'group_items') {
       const buckets = categoriseBuckets(question);
       targetOrder = shuffledArray(buckets.map((_, i) => i));
     }

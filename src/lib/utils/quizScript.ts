@@ -9,7 +9,7 @@
  *   :questions_per_run=5
  *   ---
  *
- *   multiple_choice : What is H2O?
+ *   pick_many : What is H2O?
  *   ![alt](image link)
  *   !<image>[alt](image link)
  *   !<youtube>[alt](youtube link)
@@ -22,13 +22,13 @@
  *   :shuffle_options=true
  *
  * A question's variant can also be declared with its text in one line —
- * `multiple_choice: What is H2O?` — instead of the two-line `variant : multiple_choice` + separate
- * text form; both set the same field. `single_choice` is `multiple_choice`'s sibling — identical
- * syntax, but the parser rejects more than one option marked `=` (a `single_choice` question with
- * zero or exactly one correct option is fine; two or more is a parse error). `typed` is the other
+ * `pick_many: What is H2O?` — instead of the two-line `variant : pick_many` + separate
+ * text form; both set the same field. `pick_one` is `pick_many`'s sibling — identical
+ * syntax, but the parser rejects more than one option marked `=` (a `pick_one` question with
+ * zero or exactly one correct option is fine; two or more is a parse error). `type_answer` is the other
  * recognized variant: same `{ }` block, but every line in it is an
  * accepted answer instead of a right/wrong choice — the player types a response instead of picking
- * one. `=`/`~` still mark each line, but a typed question's parser forces every option
+ * one. `=`/`~` still mark each line, but a type_answer question's parser forces every option
  * `correct: true` regardless, so both markers are accepted purely as authoring convenience; `%N%`
  * weights still work per accepted answer exactly as for choice. Matching is controlled by settings
  * (`match_case`, `number_tolerance`, `typo_tolerance`, `typed_input` — see `SETTING_RULES`)
@@ -68,8 +68,8 @@
  *
  * Inside the option block, every line is exactly one option, starting with `=` (correct) or `~`
  * (incorrect), optionally ending with an explicit point value — `=Water %4%` — instead of relying
- * on question-level `:points_correct=`/`:points_wrong=` settings. `multiple_choice` allows any number of `=`
- * lines (one or more); `single_choice` allows at most one. An option's own content can be an image
+ * on question-level `:points_correct=`/`:points_wrong=` settings. `pick_many` allows any number of `=`
+ * lines (one or more); `pick_one` allows at most one. An option's own content can be an image
  * or video the same way question-level media is written
  * — `=![a cat](url)` or `=!<youtube>[intro](url)` — checked against whatever remains after
  * stripping the `=`/`~` marker (and any `%N%` weight); anything not matching that shape is plain
@@ -112,18 +112,50 @@ export interface QuizScriptOption {
    * `undefined` when not given — this is NOT auto-filled from a question's `:points_correct`/`:points_wrong`
    * settings; reconciling those two mechanisms is a scoring concern left to a later consumer. */
   points?: number;
-  /** `character_input` only: character indices into `content.text` (only ever `kind: 'text'` for
+  /** `guess_letters` only: character indices into `content.text` (only ever `kind: 'text'` for
    * this variant) that are pre-revealed from the start — authored with a `[X]` bracket around
    * that character, e.g. `=[P]aris` pre-reveals index 0. `undefined`/empty when none are marked.
    * Never set for any other variant. */
   prerevealed?: number[];
-  /** `match`/`categorise` only: the right-hand label this item pairs with (`match`) or the bucket
-   * it belongs to (`categorise`) — authored as `=item -> target`. For `match`, every option's own
-   * `target` is unique and doubles as that item's one right-column entry; for `categorise`, several
-   * options can share the same `target` string, and the distinct set of targets across all options
-   * IS the list of buckets (there's no separate bucket-naming syntax). Always plain text — a
-   * target can't be an image/video. Never set for any other variant. */
-  target?: string;
+  /** `match_pairs`/`group_items` only: the right-hand entry this item pairs with (`match_pairs`) or the
+   * bucket it belongs to (`group_items`) — authored as `=item -> target`. For `match_pairs`, every
+   * option's own `target` is unique and doubles as that item's one right-column entry; for
+   * `group_items`, several options can share the same target, and the distinct set of targets across
+   * all options IS the list of buckets (there's no separate bucket-naming syntax).
+   *
+   * Same content shape as `content`, so a `match_pairs` right column can be pictures too — matching
+   * a flag to a map is as natural as matching two words. `group_items` is the exception and its
+   * targets stay `kind: 'text'` (enforced at parse time): a bucket's label is its IDENTITY, the
+   * thing several items are compared against and deduplicated by, which only works for a value that
+   * reads as one name. Never set for any other variant. */
+  target?: QuizScriptOptionContent;
+}
+
+/** An option's words: its own text, or an image/video's alt text — the only words a non-text option
+ * has. For everywhere an option has to appear as a LABEL rather than as rendered content: the field
+ * that asks about it, the answer-key line that names it, the builder's own preview rows. An option
+ * with neither (a bare image URL, no alt) yields `''`, which every caller already has to handle for
+ * an option the author simply left empty. */
+export function optionLabelText(option: QuizScriptOption): string {
+  return option.content.kind === 'text' ? option.content.text : option.content.alt;
+}
+
+/** The same thing for an option's `target` — the words its right-column entry or bucket has. Used
+ * for `group_items` bucket labels (always text by construction), for the accessible name of a
+ * `match_pairs` right-column button that renders a picture, and for what an `answer_mode=type`
+ * slot expects to be typed. `''` for an option with no target at all. */
+export function optionTargetText(option: QuizScriptOption): string {
+  if (!option.target) return '';
+  return option.target.kind === 'text' ? option.target.text : option.target.alt;
+}
+
+/** A content value's canonical identity — its serialized form, so two options are "the same
+ * target" exactly when they'd round-trip to the same source line. Text compares by its own text
+ * (unchanged from when targets were plain strings); a picture compares by url AND alt, so two
+ * genuinely distinct images never collapse into one bucket just because neither has alt text.
+ * Used for `match_pairs`'s unique-target rule and `categoriseBuckets`'s dedupe. */
+export function optionContentKey(content: QuizScriptOptionContent): string {
+  return content.kind === 'text' ? content.text : formatOptionContent(content);
 }
 
 /** A question-level hint: `label` is the prompt shown before it's revealed (e.g. "Need a hint?"),
@@ -146,7 +178,7 @@ export interface QuizScriptReveal {
  * after answering either way. Written `!<analysis>[label](content)`, same bracket/paren shape as
  * media/hints, but with no trailing `%N%` weight (there's no scoring concept for it). At most one
  * per question — a second `!<analysis>[...]` line is a parse error, same closed-set philosophy as
- * `character_input` allowing only one accepted answer. */
+ * `guess_letters` allowing only one accepted answer. */
 export interface QuizScriptAnalysis {
   label: string;
   content: string;
@@ -184,7 +216,7 @@ const ANALYSIS_LINE = /^!<analysis>\[(.*)\]\((.*)\)$/;
 const VARIANT_LINE = /^variant\s*:\s*(.+)$/i;
 const SETTING_LINE = /^:([A-Za-z_][\w-]*)\s*=\s*(.*)$/;
 const FRONTMATTER_LINE = /^([A-Za-z_][\w-]*)\s*:\s*(.*)$/;
-/** `match`/`categorise` option shape: `item -> target`, split on the FIRST " -> " (non-greedy
+/** `match_pairs`/`group_items` option shape: `item -> target`, split on the FIRST " -> " (non-greedy
  * left side) — a known, documented simplification, same category as `matchTypedGuesses`' own
  * "Known limitation" comment in grading.ts: an item whose own text contains a literal " -> " would
  * split in the wrong place. Quote or backslash-escape the line (see `parseEscaped`) to opt out. */
@@ -196,36 +228,38 @@ const OPTION_TARGET = /^(.*?)\s->\s(.*)$/;
  * it's just the default a question gets by not declaring anything, not a real variant, so a
  * hand-typed `question: ...` header isn't recognized (it just reads as plain question text). */
 export const KNOWN_VARIANTS = [
-  'single_choice',
-  'multiple_choice',
-  'typed',
-  'character_input',
-  'order',
-  'match',
-  'categorise',
-  'fill_in_blanks'
+  'pick_one',
+  'pick_many',
+  'type_answer',
+  'type_pattern',
+  'guess_letters',
+  'order_items',
+  'match_pairs',
+  'group_items',
+  'fill_blanks'
 ];
 
 const VARIANT_HEADER_LINE = new RegExp(`^(${KNOWN_VARIANTS.join('|')})\\s*:\\s*(.*)$`, 'i');
 
 /** The settings-applicability groups a question variant maps to (see `settingsGroupForVariant`) —
- * the bare/default variant collapses to `'multiple_choice'`, its most permissive sibling (any
- * number of correct options); `single_choice` gets its own group precisely because some settings
- * (`min_answers`/`max_answers`/`partial_credit`) apply to `multiple_choice` but never make sense on
- * `single_choice`, which can only ever have zero or one option selected — there's no "some but not
- * all" or "more than one" for any of those three to mean anything for. `order`/`match`/`categorise`/
- * `fill_in_blanks` each get their own group for the same reason: each has its own shape of "correct
+ * the bare/default variant collapses to `'pick_many'`, its most permissive sibling (any
+ * number of correct options); `pick_one` gets its own group precisely because some settings
+ * (`min_answers`/`max_answers`/`partial_credit`) apply to `pick_many` but never make sense on
+ * `pick_one`, which can only ever have zero or one option selected — there's no "some but not
+ * all" or "more than one" for any of those three to mean anything for. `order_items`/`match_pairs`/`group_items`/
+ * `fill_blanks` each get their own group for the same reason: each has its own shape of "correct
  * answer" (a sequence, a set of pairs, a set of bucket assignments, a set of blank fills) that no
  * existing group's settings were written to describe. */
 export type SettingsGroup =
-  | 'single_choice'
-  | 'multiple_choice'
-  | 'typed'
-  | 'character_input'
-  | 'order'
-  | 'match'
-  | 'categorise'
-  | 'fill_in_blanks';
+  | 'pick_one'
+  | 'pick_many'
+  | 'type_answer'
+  | 'type_pattern'
+  | 'guess_letters'
+  | 'order_items'
+  | 'match_pairs'
+  | 'group_items'
+  | 'fill_blanks';
 
 export interface SettingRule {
   kind: 'number' | 'boolean' | 'enum' | 'string';
@@ -237,11 +271,11 @@ export interface SettingRule {
    * offered). Optional because `QUIZ_SETTING_RULES` shares this same interface for quiz-wide
    * settings, which have no per-question variant to be scoped to — every `SETTING_RULES` (the
    * per-question table) entry always sets it; nothing ever reads it off a `QUIZ_SETTING_RULES`
-   * entry. Replaces what used to be two separate typed-only/choice-only exclusion lists —
+   * entry. Replaces what used to be two separate type_answer-only/choice-only exclusion lists —
    * those couldn't express a setting spanning exactly two of these four groups, a real need once
    * there's more than a binary split (e.g. `options_layout` applies to both choice variants but
-   * neither of the other two; `min_answers` applies to `multiple_choice`+`typed` but not
-   * `single_choice`). */
+   * neither of the other two; `min_answers` applies to `pick_many`+`type_answer` but not
+   * `pick_one`). */
   appliesTo?: readonly SettingsGroup[];
   /** The value a fresh `:key=` line should start out with, for form mode's "pick a key, get a
    * working value" flow (see `settingDefaultValue`) — omitted for settings with no real default
@@ -262,14 +296,15 @@ export const SETTING_RULES: Record<string, SettingRule> = {
     kind: 'number',
     default: 1,
     appliesTo: [
-      'single_choice',
-      'multiple_choice',
-      'typed',
-      'character_input',
-      'order',
-      'match',
-      'categorise',
-      'fill_in_blanks'
+      'pick_one',
+      'pick_many',
+      'type_answer',
+      'type_pattern',
+      'guess_letters',
+      'order_items',
+      'match_pairs',
+      'group_items',
+      'fill_blanks'
     ],
     description:
       "Points awarded for each correct option/pair/placement that doesn't specify its own %N% weight.\n\nAccepted values: any number\nDefault: 1"
@@ -278,14 +313,15 @@ export const SETTING_RULES: Record<string, SettingRule> = {
     kind: 'number',
     default: 0,
     appliesTo: [
-      'single_choice',
-      'multiple_choice',
-      'typed',
-      'character_input',
-      'order',
-      'match',
-      'categorise',
-      'fill_in_blanks'
+      'pick_one',
+      'pick_many',
+      'type_answer',
+      'type_pattern',
+      'guess_letters',
+      'order_items',
+      'match_pairs',
+      'group_items',
+      'fill_blanks'
     ],
     description:
       "Points deducted for each incorrect option/pair/placement that doesn't specify its own %N% weight.\n\nAccepted values: any number\nDefault: 0"
@@ -293,49 +329,57 @@ export const SETTING_RULES: Record<string, SettingRule> = {
   partial_credit: {
     kind: 'boolean',
     default: false,
-    appliesTo: ['multiple_choice', 'typed', 'order', 'match', 'categorise', 'fill_in_blanks'],
+    appliesTo: [
+      'pick_many',
+      'type_answer',
+      'order_items',
+      'match_pairs',
+      'group_items',
+      'fill_blanks'
+    ],
     description:
-      'Whether getting some (not all) of a question right earns partial credit instead of requiring an exact match — e.g. for a typed question with 3 accepted answers, matching only 1 of them awards that one\'s points instead of 0. For order/match/categorise/fill_in_blanks, "some but not all" means some but not all items/pairs/buckets/blanks placed correctly.\n\nNot meaningful for single_choice: with at most one correct option, there\'s never a "some but not all" scenario for it to apply to. Only meaningful for a multi-guess typed question (max_answers > 1) — single-input typed matching has no concept of partial either.\n\nAccepted values: true, false\nDefault: false'
+      'Whether getting some (not all) of a question right earns partial credit instead of requiring an exact match — e.g. for a type_answer question with 3 accepted answers, matching only 1 of them awards that one\'s points instead of 0. For order_items/match_pairs/group_items/fill_blanks, "some but not all" means some but not all items/pairs/buckets/blanks placed correctly.\n\nNot meaningful for pick_one: with at most one correct option, there\'s never a "some but not all" scenario for it to apply to. Only meaningful for a multi-guess type_answer question (max_answers > 1) — single-input typed matching has no concept of partial either.\n\nAccepted values: true, false\nDefault: false'
   },
   options_layout: {
     kind: 'enum',
     values: ['list', 'grid2x2', 'grid3x3'],
     default: 'list',
-    appliesTo: ['single_choice', 'multiple_choice'],
+    appliesTo: ['pick_one', 'pick_many'],
     description:
       'How a choice question\'s options are laid out. "list": one per row. "grid2x2": a fixed 2-column grid. "grid3x3": 2 columns on narrow screens, 3 on wider ones.\n\nAccepted values: list, grid2x2, grid3x3\nDefault: list'
   },
   min_answers: {
     kind: 'number',
-    appliesTo: ['multiple_choice', 'typed'],
+    appliesTo: ['pick_many', 'type_answer'],
     description:
-      'Minimum number of options/answers the player must select or give before they can submit this question. Not meaningful for single_choice, which can only ever have zero or one selected.\n\nAccepted values: any number\nDefault: none — any number given is enough, including zero'
+      'Minimum number of options/answers the player must select or give before they can submit this question. Not meaningful for pick_one, which can only ever have zero or one selected.\n\nAccepted values: any number\nDefault: none — any number given is enough, including zero'
   },
   max_answers: {
     kind: 'number',
-    appliesTo: ['multiple_choice', 'typed'],
+    appliesTo: ['pick_many', 'type_answer'],
     description:
-      'Maximum number of options/answers the player is allowed to select or give for this question. Not meaningful for single_choice, which can only ever have zero or one selected.\n\nAccepted values: any number\nDefault: none — any number is allowed'
+      'Maximum number of options/answers the player is allowed to select or give for this question. Not meaningful for pick_one, which can only ever have zero or one selected.\n\nAccepted values: any number\nDefault: none — any number is allowed'
   },
   shuffle_options: {
     kind: 'boolean',
     default: false,
-    appliesTo: ['single_choice', 'multiple_choice'],
+    appliesTo: ['pick_one', 'pick_many'],
     description:
-      "For a choice question, whether its options are shown in a random order each time it's played. Not meaningful for a typed question.\n\nAccepted values: true, false\nDefault: false"
+      "For a choice question, whether its options are shown in a random order each time it's played. Not meaningful for a type_answer question.\n\nAccepted values: true, false\nDefault: false"
   },
   difficulty: {
     kind: 'enum',
     values: ['easy', 'medium', 'hard'],
     appliesTo: [
-      'single_choice',
-      'multiple_choice',
-      'typed',
-      'character_input',
-      'order',
-      'match',
-      'categorise',
-      'fill_in_blanks'
+      'pick_one',
+      'pick_many',
+      'type_answer',
+      'type_pattern',
+      'guess_letters',
+      'order_items',
+      'match_pairs',
+      'group_items',
+      'fill_blanks'
     ],
     description:
       "How difficult this question is, for organizing or filtering later — purely informational, doesn't affect grading or play.\n\nAccepted values: easy, medium, hard\nDefault: none"
@@ -343,41 +387,53 @@ export const SETTING_RULES: Record<string, SettingRule> = {
   match_case: {
     kind: 'boolean',
     default: false,
-    appliesTo: ['typed', 'order', 'match', 'categorise', 'fill_in_blanks'],
+    appliesTo: [
+      'type_answer',
+      'type_pattern',
+      'order_items',
+      'match_pairs',
+      'group_items',
+      'fill_blanks'
+    ],
     description:
-      "For a typed question (or a fill_in_blanks question with answer_mode=type), whether a player's answer must match an accepted answer's exact letter case instead of being compared case-insensitively. Other normalization (whitespace, punctuation, accents) always applies regardless of this setting. Not meaningful for character_input: the player guesses by clicking a bank letter, not typing text, so there's no \"wrong case\" input to compare against — matching there is always case-insensitive. A no-op on fill_in_blanks when answer_mode=pick, since picking a bank word is never a case mismatch.\n\nAccepted values: true, false\nDefault: false"
+      "For a type_answer or type_pattern question (or a fill_blanks question with answer_mode=type), whether a player's answer must match an accepted answer's exact letter case instead of being compared case-insensitively. Other normalization (whitespace, punctuation, accents) always applies regardless of this setting. Not meaningful for guess_letters: the player guesses by clicking a bank letter, not typing text, so there's no \"wrong case\" input to compare against — matching there is always case-insensitive. A no-op on fill_blanks when answer_mode=pick, since picking a bank word is never a case mismatch.\n\nAccepted values: true, false\nDefault: false"
   },
   number_tolerance: {
     kind: 'number',
-    appliesTo: ['typed', 'order', 'match', 'categorise', 'fill_in_blanks'],
+    appliesTo: ['type_answer', 'order_items', 'match_pairs', 'group_items', 'fill_blanks'],
     description:
-      'For a typed question (or a fill_in_blanks question with answer_mode=type), the allowed absolute difference between a numeric answer and a numeric response (e.g. 0.5 lets "3.5" match "3"). Falls back to normalized text comparison when either side isn\'t a number. Cannot be combined with typo_tolerance on the same question. A no-op on fill_in_blanks when answer_mode=pick.\n\nAccepted values: any number\nDefault: none — numeric-tolerance matching is off'
+      'For a type_answer question (or a fill_blanks question with answer_mode=type), the allowed absolute difference between a numeric answer and a numeric response (e.g. 0.5 lets "3.5" match "3"). Falls back to normalized text comparison when either side isn\'t a number. Cannot be combined with typo_tolerance on the same question. A no-op on fill_blanks when answer_mode=pick.\n\nAccepted values: any number\nDefault: none — numeric-tolerance matching is off'
   },
   typo_tolerance: {
     kind: 'number',
-    appliesTo: ['typed', 'order', 'match', 'categorise', 'fill_in_blanks'],
+    appliesTo: ['type_answer', 'order_items', 'match_pairs', 'group_items', 'fill_blanks'],
     description:
-      "For a typed question (or a fill_in_blanks question with answer_mode=type), how many typos a response may have and still match, as a percentage of the accepted answer's length (edit distance). Cannot be combined with number_tolerance on the same question. A no-op on fill_in_blanks when answer_mode=pick.\n\nAccepted values: a number from 0 to 100\nDefault: none — fuzzy matching is off"
+      "For a type_answer question (or a fill_blanks question with answer_mode=type), how many typos a response may have and still match, as a percentage of the accepted answer's length (edit distance). Cannot be combined with number_tolerance on the same question. A no-op on fill_blanks when answer_mode=pick.\n\nAccepted values: a number from 0 to 100\nDefault: none — fuzzy matching is off"
   },
   typed_input: {
     kind: 'enum',
-    values: ['field', 'boxes'],
+    // "text", not "field": the default below, this rule's own description, the docs and every
+    // example all say `text`, and nothing reads `field` — `grading.ts` and `QuestionPlayer` only
+    // ever test for `boxes`. As `['field', 'boxes']` the enum didn't contain its own default, so
+    // form mode's "pick a key, get its default value" flow pre-filled `text` and then immediately
+    // flagged it as invalid.
+    values: ['text', 'boxes'],
     default: 'text',
-    appliesTo: ['typed'],
+    appliesTo: ['type_answer'],
     description:
-      "How a typed question's answer field is displayed: a plain text box, or one box per character (grouped by word) sized to the first accepted answer's shape. Works in both single-answer and multi-guess (max_answers > 1) mode.\n\nAccepted values: text, boxes\nDefault: text"
+      "How a type_answer question's answer field is displayed: a plain text box, or one box per character (grouped by word) sized to the first accepted answer's shape. Works in both single-answer and multi-guess (max_answers > 1) mode.\n\nAccepted values: text, boxes\nDefault: text"
   },
   letter_bank: {
     kind: 'enum',
     values: ['alphabet', 'auto', 'fixed'],
     default: 'alphabet',
-    appliesTo: ['character_input'],
+    appliesTo: ['guess_letters'],
     description:
       'Which letters appear in the on-screen letter bank. "alphabet": the full A-Z. "auto": every distinct letter actually in the answer, plus a handful of random decoy letters that aren\'t (so a guess still carries real risk). "fixed": exactly the letters in letter_bank_chars.\n\nAccepted values: alphabet, auto, fixed\nDefault: alphabet'
   },
   letter_bank_chars: {
     kind: 'string',
-    appliesTo: ['character_input'],
+    appliesTo: ['guess_letters'],
     description:
       'The exact letters offered in the bank — only read when letter_bank=fixed. E.g. "abcdefghijklmnop".\n\nAccepted values: any text\nDefault: none'
   },
@@ -385,14 +441,14 @@ export const SETTING_RULES: Record<string, SettingRule> = {
     kind: 'enum',
     values: ['all', 'sequence', 'random'],
     default: 'all',
-    appliesTo: ['character_input'],
+    appliesTo: ['guess_letters'],
     description:
       'How a correct letter guess reveals its occurrences in the answer. "all": every occurrence at once (classic Hangman), and that letter\'s bank button disables immediately. "sequence"/"random": one not-yet-revealed occurrence per guess (next-in-order, or a random remaining one) — the bank button stays clickable until every occurrence of that letter is revealed.\n\nAccepted values: all, sequence, random\nDefault: all'
   },
   letters_shown_at_start: {
     kind: 'number',
     default: 0,
-    appliesTo: ['character_input'],
+    appliesTo: ['guess_letters'],
     description:
       'Additional random characters (on top of any explicit [x] pre-reveal brackets in the answer) revealed from the start, free of charge.\n\nAccepted values: any number\nDefault: 0'
   },
@@ -400,28 +456,35 @@ export const SETTING_RULES: Record<string, SettingRule> = {
     kind: 'enum',
     values: ['pick', 'type'],
     default: 'pick',
-    appliesTo: ['order', 'match', 'categorise', 'fill_in_blanks'],
+    appliesTo: ['order_items', 'match_pairs', 'group_items', 'fill_blanks'],
     description:
-      'How the answer is given, for the four variants that place things rather than select them. "pick": the on-screen board — tap an item then tap its target, or drag it there. "type": no board, just a text field per answer, matched the same way a typed question\'s response is (match_case/number_tolerance/typo_tolerance all apply). What gets typed depends on the variant: for fill_in_blanks each blank\'s word, for order the item belonging at each position, and for match/categorise each item\'s target or bucket.\n\nAccepted values: pick, type\nDefault: pick'
+      'How the answer is given, for the four variants that place things rather than select them. "pick": the on-screen board — tap an item then tap its target, or drag it there. "type": no board, just a text field per answer, matched the same way a type_answer question\'s response is (match_case/number_tolerance/typo_tolerance all apply). What gets typed depends on the variant: for fill_blanks each blank\'s word, for order the item belonging at each position, and for match/group_items each item\'s target or bucket.\n\nAccepted values: pick, type\nDefault: pick'
   }
 };
 
-/** Single source of truth for the key-suggestion list too — see `SETTING_RULES` above. */
-export const SUGGESTED_SETTING_KEYS = Object.keys(SETTING_RULES);
+/** Single source of truth for the key-suggestion list too — see `SETTING_RULES` above.
+ *
+ * Sorted, rather than left in `SETTING_RULES` declaration order: the table above is grouped by
+ * topic (scoring, then choice display, then the typed-matching tolerances, then guess_letters's
+ * own cluster), which reads well as documentation but gives an author scanning a dropdown for one
+ * remembered name no idea where to look. The table keeps its grouping; only what's OFFERED is
+ * alphabetical. */
+export const SUGGESTED_SETTING_KEYS = Object.keys(SETTING_RULES).sort();
 
 /** Maps a question's raw `variant` string to the settings-applicability group it behaves as —
- * the bare/default variant collapses to `'multiple_choice'` (any number of correct options).
- * `single_choice` gets its own group since a few settings apply to `multiple_choice` but not it —
+ * the bare/default variant collapses to `'pick_many'` (any number of correct options).
+ * `pick_one` gets its own group since a few settings apply to `pick_many` but not it —
  * see `SettingsGroup`'s own doc comment. */
 function settingsGroupForVariant(variant: string): SettingsGroup {
-  if (variant === 'single_choice') return 'single_choice';
-  if (variant === 'typed') return 'typed';
-  if (variant === 'character_input') return 'character_input';
-  if (variant === 'order') return 'order';
-  if (variant === 'match') return 'match';
-  if (variant === 'categorise') return 'categorise';
-  if (variant === 'fill_in_blanks') return 'fill_in_blanks';
-  return 'multiple_choice';
+  if (variant === 'pick_one') return 'pick_one';
+  if (variant === 'type_answer') return 'type_answer';
+  if (variant === 'type_pattern') return 'type_pattern';
+  if (variant === 'guess_letters') return 'guess_letters';
+  if (variant === 'order_items') return 'order_items';
+  if (variant === 'match_pairs') return 'match_pairs';
+  if (variant === 'group_items') return 'group_items';
+  if (variant === 'fill_blanks') return 'fill_blanks';
+  return 'pick_many';
 }
 
 /** Which of `SUGGESTED_SETTING_KEYS` actually apply to a question of this variant — the list a
@@ -546,14 +609,17 @@ export const QUIZ_FRONTMATTER_RULES: Record<string, SettingRule> = {
   ...Object.fromEntries(INHERITABLE_SETTING_KEYS.map((key) => [key, SETTING_RULES[key]]))
 };
 
-export const QUIZ_SUGGESTED_SETTING_KEYS = Object.keys(QUIZ_FRONTMATTER_RULES);
+/** Alphabetical for the same reason as `SUGGESTED_SETTING_KEYS` — and doubly so here, since the
+ * unsorted order would be "every quiz-only setting, then every inherited per-question one", a split
+ * that means nothing to an author who just wants to find `shuffle_questions`. */
+export const QUIZ_SUGGESTED_SETTING_KEYS = Object.keys(QUIZ_FRONTMATTER_RULES).sort();
 
 /** A question's effective settings: the quiz-wide defaults it inherits, with its OWN settings
  * layered on top so anything written on the question always wins.
  *
  * Only inheritable keys (see `INHERITABLE_SETTING_KEYS`) are considered, and only when they apply
- * to this question's variant — so a quiz-wide `:letter_bank=auto` reaches the character_input
- * questions and is silently irrelevant to the rest, rather than landing on a `typed` question as a
+ * to this question's variant — so a quiz-wide `:letter_bank=auto` reaches the guess_letters
+ * questions and is silently irrelevant to the rest, rather than landing on a `type_answer` question as a
  * setting that variant would have rejected if authored there directly.
  *
  * Resolved once per run, in `buildPlayRun`, so everything downstream (grading, the boards, the
@@ -617,7 +683,7 @@ export function parseOptionContent(text: string): QuizScriptOptionContent {
   return { kind: 'text', text };
 }
 
-/** `character_input`-only: strips `[X]` pre-reveal markers from a raw accepted-answer line,
+/** `guess_letters`-only: strips `[X]` pre-reveal markers from a raw accepted-answer line,
  * returning the plain text plus the (stripped-text-relative) index of each marked character —
  * e.g. `"[P]a[r]is"` → `{ text: "Paris", prerevealed: [0, 2] }`. Only a single character inside
  * the brackets is recognized (`[Pa]` isn't treated specially — its brackets stay as literal
@@ -640,7 +706,7 @@ function parsePrerevealedText(raw: string): { text: string; prerevealed: number[
 }
 
 /** Inverse of `parsePrerevealedText` — re-inserts `[X]` markers at the given (text-relative)
- * indices, so a `character_input` option round-trips through serialization unchanged. */
+ * indices, so a `guess_letters` option round-trips through serialization unchanged. */
 function insertPrerevealMarkers(text: string, prerevealed: number[] | undefined): string {
   if (!prerevealed || prerevealed.length === 0) return text;
   const marked = new Set(prerevealed);
@@ -1066,13 +1132,13 @@ function parseQuestionBlock(block: SourceLine[], errors: QuizScriptError[]): Qui
 
   const firstLine = block[0]?.num ?? 0;
 
-  // A typed question's options are accepted answers, not right/wrong choices — every one of
+  // A type_answer question's options are accepted answers, not right/wrong choices — every one of
   // them is implicitly correct regardless of its `=`/`~` marker, so this is a hard, self-healing
   // invariant rather than something grading/UI code ever has to check for. Image/video content
   // isn't meaningful for an accepted answer (it's compared as typed text), so that's a real parse
-  // error instead of being silently dropped — a hand-edited `=![...]` under `typed` is far more
+  // error instead of being silently dropped — a hand-edited `=![...]` under `type_answer` is far more
   // likely a mistake than something an author wants ignored.
-  if (question.variant === 'typed') {
+  if (question.variant === 'type_answer') {
     for (const option of question.options) {
       if (option.content.kind !== 'text') {
         errors.push({
@@ -1085,17 +1151,55 @@ function parseQuestionBlock(block: SourceLine[], errors: QuizScriptError[]): Qui
     question.options = question.options.map((o) => ({ ...o, correct: true }));
   }
 
-  // Same "every option is an accepted answer, forced correct" invariant as `typed` above, plus
-  // stripping this variant's own `[X]` pre-reveal marker syntax out of the answer text (see
-  // `parsePrerevealedText`) — only meaningful/parsed for `character_input`, so a literal `[P]aris`
-  // typed into a `choice`/`typed` option stays exactly that: plain text, brackets included.
-  if (question.variant === 'character_input') {
+  // A type_pattern question's options are regular expressions, not literal answers — and unlike
+  // every other typed variant, its `=`/`~` markers are LOAD-BEARING rather than decorative: `=`
+  // patterns describe what counts as right, `~` patterns describe responses the author wants to
+  // explicitly mark wrong (a common misconception, a near-miss spelling). So no `correct: true`
+  // normalization here, deliberately.
+  //
+  // An uncompilable pattern is a parse error rather than a pattern that silently never matches:
+  // an author who typed `(a|b` wrote a bug, and a question whose answer key can't ever fire looks
+  // identical to one the player simply keeps getting wrong.
+  if (question.variant === 'type_pattern') {
     for (const option of question.options) {
       if (option.content.kind !== 'text') {
         errors.push({
           line: firstLine,
           message:
-            "character_input options must be plain text — an image/video accepted answer isn't meaningful here."
+            "type_pattern options must be plain text — an image/video pattern isn't meaningful here."
+        });
+        continue;
+      }
+      try {
+        new RegExp(option.content.text);
+      } catch {
+        errors.push({
+          line: firstLine,
+          message: `"${option.content.text}" isn't a valid regular expression.`
+        });
+      }
+    }
+    // Without one, nothing the player types could ever be right — the `~` patterns alone only
+    // describe ways to be wrong.
+    if (!question.options.some((o) => o.correct)) {
+      errors.push({
+        line: firstLine,
+        message: 'A type_pattern question needs at least one "=" pattern that counts as correct.'
+      });
+    }
+  }
+
+  // Same "every option is an accepted answer, forced correct" invariant as `type_answer` above, plus
+  // stripping this variant's own `[X]` pre-reveal marker syntax out of the answer text (see
+  // `parsePrerevealedText`) — only meaningful/parsed for `guess_letters`, so a literal `[P]aris`
+  // typed into a `choice`/`type_answer` option stays exactly that: plain text, brackets included.
+  if (question.variant === 'guess_letters') {
+    for (const option of question.options) {
+      if (option.content.kind !== 'text') {
+        errors.push({
+          line: firstLine,
+          message:
+            "guess_letters options must be plain text — an image/video accepted answer isn't meaningful here."
         });
       }
     }
@@ -1132,45 +1236,41 @@ function parseQuestionBlock(block: SourceLine[], errors: QuizScriptError[]): Qui
 
   // order has no right/wrong item, only a right/wrong POSITION — every listed item is
   // implicitly correct by construction, same "hard, self-healing invariant" as typed above.
-  // Unlike typed/character_input, image/video content is left alone: ordering pictures
+  // Unlike typed/guess_letters, image/video content is left alone: ordering pictures
   // chronologically is a perfectly sensible use of this variant, and nothing here needs to
-  // string-compare an item's content the way typed/character_input matching does.
-  if (question.variant === 'order') {
+  // string-compare an item's content the way typed/guess_letters matching does.
+  if (question.variant === 'order_items') {
     question.options = question.options.map((o) => ({ ...o, correct: true }));
     if (question.options.length < 2) {
       errors.push({
         line: firstLine,
-        message: '"order" needs at least 2 items — a single item has no meaningful order.'
+        message: '"order_items" needs at least 2 items — a single item has no meaningful order.'
       });
     }
   }
 
-  // match/categorise share the same `item -> target` option syntax (see `OPTION_TARGET`) — every
+  // match/group_items share the same `item -> target` option syntax (see `OPTION_TARGET`) — every
   // listed pair is implicitly correct by construction, same invariant as order/typed/
-  // character_input above. Only plain text is supported on either side for now (matching typed/
-  // character_input's own "must be plain text" restriction) — image/video items are a real,
-  // deferred enhancement, not something this parser silently mishandles.
-  if (question.variant === 'match' || question.variant === 'categorise') {
-    for (const option of question.options) {
-      if (option.content.kind !== 'text') {
-        errors.push({
-          line: firstLine,
-          message: `"${question.variant}" options must be plain text — an image/video item isn't meaningful here.`
-        });
-      }
-    }
+  // guess_letters above.
+  //
+  // Both halves go back through `parseOptionContent` AFTER the split, which is what lets either
+  // side be a picture: `=![Eiffel](…) -> France` reaches here as one text option, because
+  // IMAGE_LINE/VIDEO_LINE are end-anchored and the ` -> France` tail stops them matching the whole
+  // line. Splitting first and re-parsing each half is the only order that works — parsing first
+  // would classify the pair as text and never look again.
+  if (question.variant === 'match_pairs' || question.variant === 'group_items') {
     question.options = question.options.map((o) => {
       if (o.content.kind !== 'text') return { ...o, correct: true };
       const targetMatch = OPTION_TARGET.exec(o.content.text);
       if (!targetMatch) return { ...o, correct: true };
       return {
         ...o,
-        content: { kind: 'text' as const, text: targetMatch[1].trim() },
+        content: parseOptionContent(targetMatch[1].trim()),
         correct: true,
-        target: targetMatch[2].trim()
+        target: parseOptionContent(targetMatch[2].trim())
       };
     });
-    if (question.options.some((o) => o.content.kind === 'text' && o.target === undefined)) {
+    if (question.options.some((o) => o.target === undefined)) {
       errors.push({
         line: firstLine,
         message: `Every "${question.variant}" option needs a "-> target" pairing, e.g. "=Paris -> France".`
@@ -1182,35 +1282,59 @@ function parseQuestionBlock(block: SourceLine[], errors: QuizScriptError[]): Qui
         message: `"${question.variant}" needs at least 2 items.`
       });
     }
+    // A bucket label is what several items are compared against and deduplicated by (see
+    // `categoriseBuckets`), so it has to read as one name — a picture has no stable identity to
+    // group by. match_pairs has no such constraint: its right column is one entry per option.
+    if (question.variant === 'group_items') {
+      for (const option of question.options) {
+        if (option.target && option.target.kind !== 'text') {
+          errors.push({
+            line: firstLine,
+            message:
+              '"group_items" buckets must be plain text — an image/video names no group for its items to share. The items themselves can be pictures.'
+          });
+        }
+      }
+    }
     // Only meaningful for match: a duplicated target would make more than one left-side item
     // "correctly" pair with the same right-side entry, which the 1-to-1 pairing this variant
-    // renders (one right-column slot per target) can't actually represent. categorise has no such
+    // renders (one right-column slot per target) can't actually represent. group_items has no such
     // constraint — many items sharing one target/bucket is the entire point of that variant.
-    if (question.variant === 'match') {
-      const targets = question.options.map((o) => o.target).filter((t) => t !== undefined);
+    if (question.variant === 'match_pairs') {
+      const targets = question.options
+        .map((o) => o.target)
+        .filter((t) => t !== undefined)
+        .map(optionContentKey);
       const duplicates = targets.filter((t, i) => targets.indexOf(t) !== i);
       if (duplicates.length > 0) {
         errors.push({
           line: firstLine,
-          message: `"match" targets must be unique — "${duplicates[0]}" is paired with more than one item.`
+          message: `"match_pairs" targets must be unique — "${duplicates[0]}" is paired with more than one item.`
         });
       }
     }
   }
 
-  // fill_in_blanks' `text` embeds its blanks as `___` tokens, filled left-to-right by this
-  // question's correct ("=") options in order — unlike typed/character_input/order/match/
-  // categorise, the `=`/`~` marker stays meaningful here: `~` options are distractor words added
-  // to the word bank with no blank of their own, exactly mirroring how `typed`'s own marker
+  // fill_blanks' `text` embeds its blanks as `___` tokens, filled left-to-right by this
+  // question's correct ("=") options in order — unlike typed/guess_letters/order/match/
+  // group_items, the `=`/`~` marker stays meaningful here: `~` options are distractor words added
+  // to the word bank with no blank of their own, exactly mirroring how `type_answer`'s own marker
   // convention would work if typed didn't force every option correct.
-  if (question.variant === 'fill_in_blanks') {
-    for (const option of question.options) {
-      if (option.content.kind !== 'text') {
-        errors.push({
-          line: firstLine,
-          message:
-            "fill_in_blanks options must be plain text — an image/video blank answer isn't meaningful here."
-        });
+  if (question.variant === 'fill_blanks') {
+    // A bank word can be a picture — "which of these photographs goes in the gap" is a real cloze
+    // question — because picking one records WHICH option went where rather than the word's text
+    // (see grading.ts's `blankPicks`). Under `answer_mode=type` there's no bank to pick from and a
+    // picture has to be typed as its alt text instead (see `typedSlotExpectations`), so this only
+    // objects when the question asks for typing AND leaves a picture with nothing to type.
+    if (question.settings.answer_mode === 'type') {
+      for (const option of question.options) {
+        if (option.correct && option.content.kind !== 'text' && option.content.alt.trim() === '') {
+          errors.push({
+            line: firstLine,
+            message:
+              'A "fill_blanks" blank answered by typing (answer_mode=type) needs words to type — give this image/video alt text, or drop answer_mode=type to pick it off a word bank instead.'
+          });
+        }
       }
     }
     const blankCount = (question.text.match(/___/g) ?? []).length;
@@ -1218,12 +1342,12 @@ function parseQuestionBlock(block: SourceLine[], errors: QuizScriptError[]): Qui
     if (blankCount === 0) {
       errors.push({
         line: firstLine,
-        message: 'fill_in_blanks needs at least one "___" blank in the question text.'
+        message: 'fill_blanks needs at least one "___" blank in the question text.'
       });
     } else if (blankCount !== answerCount) {
       errors.push({
         line: firstLine,
-        message: `fill_in_blanks has ${blankCount} blank(s) in the text but ${answerCount} correct ("=") option(s) — these must match, one answer per blank in order.`
+        message: `fill_blanks has ${blankCount} blank(s) in the text but ${answerCount} correct ("=") option(s) — these must match, one answer per blank in order.`
       });
     }
   }
@@ -1233,19 +1357,19 @@ function parseQuestionBlock(block: SourceLine[], errors: QuizScriptError[]): Qui
   } else if (!question.options.some((o) => o.correct)) {
     errors.push({ line: firstLine, message: 'Question has no option marked correct ("=").' });
   } else if (
-    question.variant === 'single_choice' &&
+    question.variant === 'pick_one' &&
     question.options.filter((o) => o.correct).length > 1
   ) {
     errors.push({
       line: firstLine,
       message:
-        '"single_choice" requires exactly one correct option ("=") — use "multiple_choice" for more than one.'
+        '"pick_one" requires exactly one correct option ("=") — use "pick_many" for more than one.'
     });
-  } else if (question.variant === 'character_input' && question.options.length > 1) {
+  } else if (question.variant === 'guess_letters' && question.options.length > 1) {
     errors.push({
       line: firstLine,
       message:
-        '"character_input" allows exactly one accepted answer ("=") — the guess mechanic is one fixed board of boxes/pre-reveals, so a second answer would have nothing to represent it. Remove the extra line(s).'
+        '"guess_letters" allows exactly one accepted answer ("=") — the guess mechanic is one fixed board of boxes/pre-reveals, so a second answer would have nothing to represent it. Remove the extra line(s).'
     });
   }
 
@@ -1264,8 +1388,8 @@ function parseQuestionBlock(block: SourceLine[], errors: QuizScriptError[]): Qui
   // Every setting declares which variant group(s) it's meaningful for (`SettingRule.appliesTo`) —
   // a key set outside its own group(s) is always a mistake, not just a no-op, so it's a parse
   // error rather than something silently ignored. A single pass covers every group uniformly
-  // (this used to be two separate typed-only/choice-only checks, which couldn't express a setting
-  // like `match_case` applying to typed AND character_input but not choice). Unrecognized keys
+  // (this used to be two separate type_answer-only/choice-only checks, which couldn't express a setting
+  // like `match_case` applying to typed AND guess_letters but not choice). Unrecognized keys
   // aren't checked here — `validateSettingValue` already flagged those separately. Same "no
   // leading `Setting "`" wording rule as the check above, for the same reason.
   {
@@ -1283,7 +1407,7 @@ function parseQuestionBlock(block: SourceLine[], errors: QuizScriptError[]): Qui
   }
 
   // `min_answers`/`max_answers` bound how many options a choice question's player can select, or how
-  // many guesses a multi-guess typed question's player can give — either way, neither can
+  // many guesses a multi-guess type_answer question's player can give — either way, neither can
   // meaningfully exceed how many options/accepted answers actually exist (e.g. a single accepted
   // answer with `max_answers=2` promises a second guess slot that can never correspond to anything),
   // and a min above a max is simply an unsatisfiable range. Checked purely against declared values
@@ -1476,8 +1600,12 @@ function escapeIfNeeded(text: string, context: 'line' | 'option'): string {
   return needsEscape(text, context) ? `\\${text}` : text;
 }
 
-function formatOptionContent(content: QuizScriptOptionContent): string {
-  if (content.kind === 'text') return escapeIfNeeded(content.text, 'option');
+/** `escape` guards the leading `=`/`~` that would otherwise re-read as an option marker — only the
+ * first thing on the line can be mistaken for one, so it applies to an option's own content and
+ * never to a `-> target`, where a leading `=` is just a character. Escaping there would break the
+ * round trip outright: `-> \=France` parses back as the literal text `\=France`. */
+function formatOptionContent(content: QuizScriptOptionContent, escape = true): string {
+  if (content.kind === 'text') return escape ? escapeIfNeeded(content.text, 'option') : content.text;
   if (content.kind === 'image') return `![${content.alt}](${content.url})`;
   return `!<youtube>[${content.alt}](${content.url})`;
 }
@@ -1489,7 +1617,8 @@ function formatOption(option: QuizScriptOption): string {
     option.content.kind === 'text' && option.prerevealed
       ? { kind: 'text', text: insertPrerevealMarkers(option.content.text, option.prerevealed) }
       : option.content;
-  const target = option.target === undefined ? '' : ` -> ${option.target}`;
+  const target =
+    option.target === undefined ? '' : ` -> ${formatOptionContent(option.target, false)}`;
   return `${marker}${formatOptionContent(content)}${target}${points}`;
 }
 

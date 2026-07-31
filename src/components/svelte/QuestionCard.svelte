@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Code, Copy, Play, Square } from '@lucide/svelte';
+  import { Code, Copy, Play, Square, TriangleAlert } from '@lucide/svelte';
   import {
     parseQuizScriptQuestion,
     resolveQuestionSettings,
@@ -13,7 +13,7 @@
   import QuestionForm from './QuestionForm.svelte';
   import QuestionPlayer from './QuestionPlayer.svelte';
   import CodeFrame from './CodeFrame.svelte';
-  import SettingHelp from './SettingHelp.svelte';
+  import SettingsLegend from './SettingsLegend.svelte';
   import ConfirmDeleteButton from './ConfirmDeleteButton.svelte';
 
   let {
@@ -54,9 +54,15 @@
     return { ...parsed, settings: resolveQuestionSettings(parsed, quizSettings) };
   });
   const draftErrors = $derived(mode === 'code' ? parseQuizScriptQuestion(draft).errors : []);
+  // The SAVED question's own errors, in every mode — a question really can be saved broken, since
+  // form mode commits on every keystroke (see QuestionForm's `emit`) rather than only once it's
+  // valid, which is what makes a half-finished question survive a reload at all. Before this the
+  // card said nothing about it outside code mode, so a stack of questions gave no sign which one
+  // was wrong.
+  const savedErrorCount = $derived(parseQuizScriptQuestion(question.code).errors.length);
   // The legend below the code textarea only offers keys that actually apply to whatever variant
   // is currently written in `draft` (see `suggestedSettingKeysForVariant`) — re-parsed live so
-  // switching a question's variant mid-edit (e.g. `multiple_choice:` -> `typed:`) updates it
+  // switching a question's variant mid-edit (e.g. `pick_many:` -> `type_answer:`) updates it
   // immediately.
   const draftSuggestedKeys = $derived(
     mode === 'code'
@@ -151,6 +157,20 @@
   </div>
 
   {#if mode === 'view'}
+    <!-- View mode only: form mode already lists these in full via ErrorList, and code mode anchors
+         each one to its own line via CodeFrame. Here it's a count, not the messages — the card is
+         something you scan down a page of, and the messages are one click away in the mode built
+         to show them, which is why the pill IS that click rather than sitting beside it. -->
+    {#if savedErrorCount > 0}
+      <button
+        type="button"
+        class="mb-3 flex items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100"
+        onclick={onEnterCode}
+      >
+        <TriangleAlert size={13} class="shrink-0" />
+        {savedErrorCount === 1 ? '1 error' : `${savedErrorCount} errors`}
+      </button>
+    {/if}
     <QuestionView question={parsedSaved} onFocus={onEnterForm} />
   {:else if mode === 'code'}
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -161,15 +181,7 @@
           {rows}
           value={draft}
           oninput={(e) => onDraftChange(e.currentTarget.value)}></textarea>
-        <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-slate-500">
-          <span>Settings:</span>
-          {#each draftSuggestedKeys as key (key)}
-            <span class="inline-flex items-center gap-0.5">
-              {key}
-              <SettingHelp {key} />
-            </span>
-          {/each}
-        </div>
+        <SettingsLegend keys={draftSuggestedKeys} />
         {#each draftErrors as error, index (index)}
           <CodeFrame {error} source={draft} />
         {/each}

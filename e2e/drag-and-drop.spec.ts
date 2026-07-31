@@ -14,7 +14,7 @@ test.beforeEach(async ({ page }) => {
   await resetStorage(page);
 });
 
-test('order: dragging items into slots wins full credit, same as tapping them', async ({
+test('order_items: dragging items into slots wins full credit, same as tapping them', async ({
   page
 }) => {
   const quiz = buildOrderQuiz();
@@ -45,7 +45,9 @@ test('order: dragging items into slots wins full credit, same as tapping them', 
   await expect(page.getByText('3 / 3 points')).toBeVisible();
 });
 
-test('order: dragging a placed item onto an occupied slot swaps the two', async ({ page }) => {
+test('order_items: dragging a placed item onto an occupied slot swaps the two', async ({
+  page
+}) => {
   const quiz = buildOrderQuiz();
   await seedQuizzes(page, [quiz]);
 
@@ -80,7 +82,7 @@ test('order: dragging a placed item onto an occupied slot swaps the two', async 
   await expect(page.getByText('3 / 3 points')).toBeVisible();
 });
 
-test('order: dragging a placed item back to the bank empties its slot', async ({ page }) => {
+test('order_items: dragging a placed item back to the bank empties its slot', async ({ page }) => {
   const quiz = buildOrderQuiz();
   await seedQuizzes(page, [quiz]);
 
@@ -102,7 +104,7 @@ test('order: dragging a placed item back to the bank empties its slot', async ({
   await expect(page.getByRole('button', { name: /Position 1, empty/ })).toBeVisible();
 });
 
-test('order: a tap is still a tap — a press that barely moves does not start a drag', async ({
+test('order_items: a tap is still a tap — a press that barely moves does not start a drag', async ({
   page
 }) => {
   const quiz = buildOrderQuiz();
@@ -125,7 +127,7 @@ test('order: a tap is still a tap — a press that barely moves does not start a
   await expect(page.getByRole('button', { name: /Position 1, filled/ })).toBeVisible();
 });
 
-test('match: dragging a left item onto a right target pairs them', async ({ page }) => {
+test('match_pairs: dragging a left item onto a right target pairs them', async ({ page }) => {
   const quiz = buildMatchQuiz();
   await seedQuizzes(page, [quiz]);
 
@@ -147,7 +149,9 @@ test('match: dragging a left item onto a right target pairs them', async ({ page
   await expect(page.getByText('2 / 2 points')).toBeVisible();
 });
 
-test('categorise: dragging items into bucket trays, and back out to the pool', async ({ page }) => {
+test('group_items: dragging items into bucket trays, and back out to the pool', async ({
+  page
+}) => {
   const quiz = buildCategoriseQuiz();
   await seedQuizzes(page, [quiz]);
 
@@ -176,7 +180,7 @@ test('categorise: dragging items into bucket trays, and back out to the pool', a
   await expect(page.getByText('3 / 3 points')).toBeVisible();
 });
 
-test('fill_in_blanks: dragging bank words into blanks, and dragging one back out', async ({
+test('fill_blanks: dragging bank words into blanks, and dragging one back out', async ({
   page
 }) => {
   const quiz = buildFillInBlanksQuiz();

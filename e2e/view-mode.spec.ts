@@ -16,25 +16,27 @@ function buildAllVariantsQuiz(): Quiz {
     questions: [
       {
         id: 'q1',
-        code: ['single_choice: Capital of France?', '{', '=Paris', '~Lyon', '}'].join('\n')
+        code: ['pick_one: Capital of France?', '{', '=Paris', '~Lyon', '}'].join('\n')
       },
-      { id: 'q2', code: ['typed: Capital of Italy?', '{', '=Rome', '=Roma', '}'].join('\n') },
+      { id: 'q2', code: ['type_answer: Capital of Italy?', '{', '=Rome', '=Roma', '}'].join('\n') },
       {
         id: 'q3',
-        code: ['character_input: Capital of France', '{', '=[P]aris', '}'].join('\n')
+        code: ['guess_letters: Capital of France', '{', '=[P]aris', '}'].join('\n')
       },
       {
         id: 'q4',
-        code: ['order: Order these', '{', '=Alpha', '=Beta', '=Gamma', '}'].join('\n')
+        code: ['order_items: Order these', '{', '=Alpha', '=Beta', '=Gamma', '}'].join('\n')
       },
       {
         id: 'q5',
-        code: ['match: Match capitals', '{', '=Paris -> France', '=Tokyo -> Japan', '}'].join('\n')
+        code: ['match_pairs: Match capitals', '{', '=Paris -> France', '=Tokyo -> Japan', '}'].join(
+          '\n'
+        )
       },
       {
         id: 'q6',
         code: [
-          'categorise: Sort animals',
+          'group_items: Sort animals',
           '{',
           '=Fish -> Water',
           '=Frog -> Water',
@@ -45,7 +47,7 @@ function buildAllVariantsQuiz(): Quiz {
       {
         id: 'q7',
         code: [
-          'fill_in_blanks: The ___ is the powerhouse of the ___.',
+          'fill_blanks: The ___ is the powerhouse of the ___.',
           '{',
           '=mitochondria',
           '=cell',
@@ -86,7 +88,7 @@ test('order previews the authored sequence as a numbered answer key, not a list 
   const builder = new BuilderPage(page);
   await builder.gotoEdit(quiz.id);
 
-  // Every item in an `order` question is "correct" — the sequence is the answer — so a per-item
+  // Every item in an `order_items` question is "correct" — the sequence is the answer — so a per-item
   // Correct/Incorrect verdict (which is what this used to render) says nothing.
   await expect(page.getByText('Correct order')).toBeVisible();
   const orderCard = page.locator('[data-question-id="q4"]');
@@ -97,7 +99,7 @@ test('order previews the authored sequence as a numbered answer key, not a list 
   }
 });
 
-test('match previews each pair, and categorise groups items under their bucket', async ({
+test('match previews each pair, and group_items groups items under their bucket', async ({
   page
 }) => {
   const quiz = buildAllVariantsQuiz();
@@ -121,7 +123,7 @@ test('match previews each pair, and categorise groups items under their bucket',
   await expect(waterGroup).not.toContainText('Lion');
 });
 
-test('fill_in_blanks previews the sentence with its answers in place, decoys listed apart', async ({
+test('fill_blanks previews the sentence with its answers in place, decoys listed apart', async ({
   page
 }) => {
   const quiz = buildAllVariantsQuiz();
@@ -137,7 +139,7 @@ test('fill_in_blanks previews the sentence with its answers in place, decoys lis
   await expect(card.getByText('nucleus')).toBeVisible();
 });
 
-test('character_input previews the answer with its authored pre-reveals already showing', async ({
+test('guess_letters previews the answer with its authored pre-reveals already showing', async ({
   page
 }) => {
   const quiz = buildAllVariantsQuiz();
@@ -167,7 +169,7 @@ test('clicking a previewed option still opens the form focused on that option', 
   await builder.gotoEdit(quiz.id);
 
   // Click-to-edit is the whole point of view mode, and it has to survive the previews being
-  // regrouped — categorise renders items under bucket headings rather than in authored order, so a
+  // regrouped — group_items renders items under bucket headings rather than in authored order, so a
   // preview row's position no longer matches its option index.
   const categoriseCard = page.locator('[data-question-id="q6"]');
   await categoriseCard.getByRole('button', { name: /Lion/ }).click();

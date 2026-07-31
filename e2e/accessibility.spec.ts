@@ -38,7 +38,7 @@ test('the play screen has no serious accessibility violations', async ({ page })
   await expectNoSeriousA11yViolations(page);
 });
 
-test('a character_input question (letter bank + answer row) has no serious accessibility violations', async ({
+test('a guess_letters question (letter bank + answer row) has no serious accessibility violations', async ({
   page
 }) => {
   const quiz = buildCharacterInputQuiz();
@@ -65,7 +65,7 @@ test('a match question (two-column board) has no serious accessibility violation
   await expectNoSeriousA11yViolations(page);
 });
 
-test('a categorise question (bucket board) has no serious accessibility violations', async ({
+test('a group_items question (bucket board) has no serious accessibility violations', async ({
   page
 }) => {
   const quiz = buildCategoriseQuiz();
@@ -74,7 +74,7 @@ test('a categorise question (bucket board) has no serious accessibility violatio
   await expectNoSeriousA11yViolations(page);
 });
 
-test('a fill_in_blanks question (bank mode) has no serious accessibility violations', async ({
+test('a fill_blanks question (bank mode) has no serious accessibility violations', async ({
   page
 }) => {
   const quiz = buildFillInBlanksQuiz();
@@ -83,7 +83,7 @@ test('a fill_in_blanks question (bank mode) has no serious accessibility violati
   await expectNoSeriousA11yViolations(page);
 });
 
-test('a fill_in_blanks question (type mode) has no serious accessibility violations', async ({
+test('a fill_blanks question (type mode) has no serious accessibility violations', async ({
   page
 }) => {
   const quiz = buildFillInBlanksQuiz({
@@ -91,7 +91,7 @@ test('a fill_in_blanks question (type mode) has no serious accessibility violati
       {
         id: 'q1',
         code: [
-          'fill_in_blanks: The ___ is the powerhouse of the ___.',
+          'fill_blanks: The ___ is the powerhouse of the ___.',
           '{',
           '=mitochondria',
           '=cell',

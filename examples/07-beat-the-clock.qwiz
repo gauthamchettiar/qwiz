@@ -16,7 +16,7 @@ tags: [timer, speed, random]
 :shuffle_options=true
 ---
 
-single_choice: How many sides does a hexagon have?
+pick_one: How many sides does a hexagon have?
 {
 =6
 ~5
@@ -24,7 +24,7 @@ single_choice: How many sides does a hexagon have?
 ~8
 }
 
-single_choice: Which gas do plants absorb from the air?
+pick_one: Which gas do plants absorb from the air?
 {
 =Carbon dioxide
 ~Oxygen
@@ -32,7 +32,7 @@ single_choice: Which gas do plants absorb from the air?
 ~Hydrogen
 }
 
-single_choice: What is 15% of 200?
+pick_one: What is 15% of 200?
 {
 =30
 ~15
@@ -40,7 +40,7 @@ single_choice: What is 15% of 200?
 ~20
 }
 
-single_choice: Which ocean is the largest?
+pick_one: Which ocean is the largest?
 {
 =Pacific
 ~Atlantic
@@ -48,7 +48,7 @@ single_choice: Which ocean is the largest?
 ~Arctic
 }
 
-single_choice: How many minutes are in a quarter of an hour?
+pick_one: How many minutes are in a quarter of an hour?
 {
 =15
 ~10
@@ -56,7 +56,7 @@ single_choice: How many minutes are in a quarter of an hour?
 ~25
 }
 
-single_choice: Which of these is a prime number?
+pick_one: Which of these is a prime number?
 {
 =17
 ~21
@@ -64,7 +64,7 @@ single_choice: Which of these is a prime number?
 ~33
 }
 
-single_choice: What colour do you get mixing blue and yellow?
+pick_one: What colour do you get mixing blue and yellow?
 {
 =Green
 ~Purple
@@ -72,7 +72,7 @@ single_choice: What colour do you get mixing blue and yellow?
 ~Brown
 }
 
-single_choice: How many continents are there?
+pick_one: How many continents are there?
 {
 =7
 ~5

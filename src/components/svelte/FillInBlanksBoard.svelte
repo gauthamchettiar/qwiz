@@ -1,13 +1,18 @@
 <script lang="ts">
   import { CircleCheck, CircleX, GripVertical } from '@lucide/svelte';
-  import type { QuizScriptOption } from '@/lib/utils/quizScript';
+  import {
+    optionContentKey,
+    optionLabelText,
+    type QuizScriptOption
+  } from '@/lib/utils/quizScript';
   import { draggable, type DragState } from '@/lib/utils/dragDrop';
+  import OptionContent from './OptionContent.svelte';
 
-  // Presentation-only fill_in_blanks board: the question text split on "___" with an interactive
+  // Presentation-only fill_blanks board: the question text split on "___" with an interactive
   // blank widget dropped in at each split point — all fill/pick logic lives in the caller
   // (QuestionPlayer.svelte), same division of responsibility as OrderBoard.svelte/etc. In
   // `mode="pick"`, blanks are picked-and-placed the same tap-then-tap way as order/match/
-  // categorise (or dragged — see lib/utils/dragDrop.ts); in `mode="type"` each blank is a plain
+  // group_items (or dragged — see lib/utils/dragDrop.ts); in `mode="type"` each blank is a plain
   // inline text input, no bank involved.
   //
   // Two drop groups rather than one, because the two directions move different things: a BANK WORD
@@ -16,16 +21,16 @@
   // group would make a blank both a valid source and a valid target for itself, and the two carry
   // unrelated ids — an option index versus a blank index.
   //
-  // Known limitation: a bank word currently occupying a blank is matched back to its bank button
-  // by TEXT (see `usedTexts`/`isBankIndexUsed`), not by original index — two distractor options
-  // sharing identical text would both show "used" once only one is actually placed. Rare enough
-  // in practice not to be worth tracking a multiset for; grading itself is unaffected either way
-  // (see `gradeFillInBlanksQuestion`, which only ever compares text).
+  // A bank word is tracked by its original OPTION INDEX (`blankPicks`), not by the text it happens
+  // to show. That's what lets a word be a picture, and it also makes "which bank buttons are used
+  // up" exact for two words spelled the same — matching back by text could only ever guess, and
+  // used to mark both of them used when one was placed.
   let {
     text,
     options,
     bankOrder,
     blankAnswers,
+    blankPicks,
     answerOptions,
     picked,
     mode,
@@ -41,9 +46,11 @@
     options: QuizScriptOption[];
     /** Display order for the word bank (bank mode only), as indices into `options`. */
     bankOrder: number[];
-    /** One entry per blank, in left-to-right order — the literal text currently filling it, or
-     * `''` while empty. */
+    /** `mode="type"` only: one entry per blank, in left-to-right order — the text typed there. */
     blankAnswers: string[];
+    /** `mode="pick"` only: one entry per blank, in left-to-right order — the original option index
+     * of the bank word placed there, or `null` while empty. */
+    blankPicks: (number | null)[];
     /** The blank-answer options, in blank order — used to check correctness once locked. */
     answerOptions: QuizScriptOption[];
     /** bank mode only: the original option index of the bank word currently picked up. */
@@ -65,17 +72,29 @@
   const SOURCE_ZONE = -1;
 
   const segments = $derived(text.split('___'));
-  const usedTexts = $derived(new Set(blankAnswers.filter((a) => a !== '')));
+  const usedOptions = $derived(new Set(blankPicks.filter((p) => p !== null)));
+
+  /** The option currently sitting in blank `i`, or `null` while it's empty. */
+  function placedIn(blankIndex: number): QuizScriptOption | null {
+    const optionIndex = blankPicks[blankIndex];
+    return optionIndex === null || optionIndex === undefined
+      ? null
+      : (options[optionIndex] ?? null);
+  }
 
   let wordDrag = $state<DragState | null>(null);
   let blankDrag = $state<DragState | null>(null);
   const placing = $derived(picked !== null || wordDrag !== null);
 
+  /** Locked AND revealing — gates both the green/red tinting and the answer key beside it. */
+  const showing = $derived(locked && revealAnswers);
+
   /** A blank's border+background as a SINGLE mutually-exclusive class string — see
    * QuestionPlayer's `choiceOptionTone` for why a "base plus reveal override" pair of class strings
    * silently resolves the wrong way. */
   function blankTone(blankIndex: number): string {
-    if (locked && revealAnswers && blankAnswers[blankIndex]) {
+    const filled = placedIn(blankIndex) !== null;
+    if (showing && filled) {
       return isBlankCorrect(blankIndex)
         ? 'border-green-400 bg-green-50'
         : 'border-red-400 bg-red-50';
@@ -84,13 +103,13 @@
       return 'border-indigo-500 bg-indigo-100 ring-2 ring-indigo-200';
     }
     if (placing) return 'border-indigo-300 bg-indigo-50/50 hover:bg-indigo-50';
-    if (blankAnswers[blankIndex]) return 'border-slate-300 bg-slate-50';
+    if (filled) return 'border-slate-300 bg-slate-50';
     return 'border-dashed border-slate-300';
   }
 
   /** Same, for `answer_mode=type`'s inline text inputs. */
   function typedBlankTone(blankIndex: number): string {
-    if (locked && revealAnswers) {
+    if (showing) {
       return isBlankCorrect(blankIndex)
         ? 'border-green-400 bg-green-50'
         : 'border-red-400 bg-red-50';
@@ -98,10 +117,28 @@
     return 'border-slate-300 focus:border-slate-400 disabled:bg-slate-100';
   }
 
-  function isBlankCorrect(blankIndex: number): boolean {
+  /** The words this blank was authored to hold — what the review screen reveals for one the player
+   * got wrong or never filled in, and what a `mode="type"` blank is matched against. A picture
+   * answer contributes its alt text, the only words it has (see `optionLabelText`). */
+  function expectedText(blankIndex: number): string {
     const answer = answerOptions[blankIndex];
-    const expected = answer?.content.kind === 'text' ? answer.content.text : '';
-    return blankAnswers[blankIndex] !== '' && blankAnswers[blankIndex] === expected;
+    return answer ? optionLabelText(answer) : '';
+  }
+
+  /** Display only, but through the same `optionContentKey` grading compares by
+   * (`gradeFillInBlanksQuestion`) rather than a second rule that could drift from it: what the
+   * placed word IS decides, not which button it came from, so two bank words spelled the same are
+   * interchangeable to a player who cannot tell them apart. */
+  function isBlankCorrect(blankIndex: number): boolean {
+    if (mode === 'type') {
+      return (
+        blankAnswers[blankIndex] !== '' && blankAnswers[blankIndex] === expectedText(blankIndex)
+      );
+    }
+    const placed = placedIn(blankIndex);
+    const answer = answerOptions[blankIndex];
+    if (!placed || !answer) return false;
+    return optionContentKey(placed.content) === optionContentKey(answer.content);
   }
 </script>
 
@@ -113,16 +150,28 @@
   <p class="whitespace-pre-wrap text-base font-medium text-slate-900">
     {#each segments as segment, i (i)}{segment}{#if i < segments.length - 1}
         {#if mode === 'type'}
-          <input
-            class="mx-0.5 w-28 rounded-md border px-1.5 py-0.5 text-sm text-slate-900 focus:outline-none {typedBlankTone(
-              i
-            )}"
-            value={blankAnswers[i] ?? ''}
-            disabled={locked}
-            oninput={(e) => onTypeBlank(i, e.currentTarget.value)}
-            aria-label={`Blank ${i + 1}`}
-          />
+          <!-- Field and its revealed answer share one inline-flex wrapper so the answer can never
+               introduce whitespace into the sentence's own running text (see the comment on this
+               <p>) — the gap between them is layout, not a text node. -->
+          <span class="mx-0.5 inline-flex items-baseline gap-1 align-middle">
+            <input
+              class="w-28 rounded-md border px-1.5 py-0.5 text-sm text-slate-900 focus:outline-none {typedBlankTone(
+                i
+              )}"
+              value={blankAnswers[i] ?? ''}
+              disabled={locked}
+              oninput={(e) => onTypeBlank(i, e.currentTarget.value)}
+              aria-label={showing && !isBlankCorrect(i)
+                ? `Blank ${i + 1} — the answer was ${expectedText(i)}`
+                : `Blank ${i + 1}`}
+            />
+            {#if showing && !isBlankCorrect(i)}
+              <span class="text-sm font-medium text-green-700">{expectedText(i)}</span>
+            {/if}
+          </span>
         {:else}
+          {@const placed = placedIn(i)}
+          {@const placedWords = placed ? optionLabelText(placed) : ''}
           <button
             type="button"
             data-drop-group={WORD_GROUP}
@@ -130,7 +179,7 @@
             use:draggable={{
               id: i,
               group: BLANK_GROUP,
-              disabled: locked || !blankAnswers[i],
+              disabled: locked || !placed,
               onDragChange: (state) => (blankDrag = state),
               onDrop: onDropBlankBack
             }}
@@ -139,21 +188,37 @@
             )} {blankDrag?.id === i ? 'opacity-40' : ''}"
             disabled={locked}
             onclick={() => onClickBlank(i)}
-            aria-label={blankAnswers[i]
-              ? `Blank ${i + 1}, filled with ${blankAnswers[i]}`
-              : `Blank ${i + 1}, empty`}
+            aria-label={showing && !isBlankCorrect(i)
+              ? `Blank ${i + 1}, ${placed ? `filled with ${placedWords}` : 'empty'} — the answer was ${expectedText(i)}`
+              : placed
+                ? `Blank ${i + 1}, filled with ${placedWords}`
+                : `Blank ${i + 1}, empty`}
           >
             <!-- The visible face is the word (or "___"), but the accessible NAME is the aria-label
                  above: "underscore underscore underscore, button" tells a screen reader user
                  nothing about which blank they're on or whether it's already answered. Matches how
-                 `answer_mode=type` labels its inputs "Blank N". -->
-            {blankAnswers[i] || '___'}
-            {#if locked && revealAnswers && blankAnswers[i]}
+                 `answer_mode=type` labels its inputs "Blank N". That aria-label is also what makes
+                 the revealed answer below safe to render INSIDE the button — it can't leak into the
+                 accessible name — and inside is the only place it can go without putting a stray
+                 space into the sentence's running text.
+                 A picture sits in the sentence at `max-h-8`, tall enough to recognize and short
+                 enough not to break the line it's part of. -->
+            {#if placed}
+              <span class="inline-block max-h-8 [&_img]:max-h-8">
+                <OptionContent content={placed.content} />
+              </span>
+            {:else}
+              ___
+            {/if}
+            {#if showing && placed}
               {#if isBlankCorrect(i)}
                 <CircleCheck size={13} class="shrink-0 text-green-600" />
               {:else}
                 <CircleX size={13} class="shrink-0 text-red-500" />
               {/if}
+            {/if}
+            {#if showing && !isBlankCorrect(i)}
+              <span class="shrink-0 font-medium text-green-700">{expectedText(i)}</span>
             {/if}
           </button>
         {/if}{/if}{/each}
@@ -174,9 +239,7 @@
       </p>
       <div class="flex flex-wrap gap-1.5">
         {#each bankOrder as optionIndex (optionIndex)}
-          {@const optionText =
-            options[optionIndex].content.kind === 'text' ? options[optionIndex].content.text : ''}
-          {@const used = usedTexts.has(optionText)}
+          {@const used = usedOptions.has(optionIndex)}
           <button
             type="button"
             use:draggable={{
@@ -201,7 +264,12 @@
             {#if !locked && !used}
               <GripVertical size={13} class="shrink-0 text-slate-400" />
             {/if}
-            {optionText}
+            <!-- Bank pictures are capped shorter than a choice option's (`max-h-56` in
+                 OptionContent) so a bank of them stays one scannable strip rather than a column
+                 of full-size images. -->
+            <span class="[&_img]:max-h-20">
+              <OptionContent content={options[optionIndex].content} />
+            </span>
           </button>
         {/each}
       </div>

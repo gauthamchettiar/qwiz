@@ -54,11 +54,11 @@ test('pre-reveal letters can be authored from form mode, and only one accepted a
   await builder.gotoCreate();
   await builder.titleInput.fill('Hangman Quiz');
   await builder.addQuestion();
-  await page.getByLabel('Variant', { exact: true }).selectOption('character_input');
+  await page.getByLabel('Variant', { exact: true }).selectOption('guess_letters');
   await builder.questionTextInput().fill('Guess the capital of France');
   await page.getByPlaceholder('Answer', { exact: true }).fill('Paris');
 
-  // character_input allows exactly one accepted answer — form mode never offers a way to add a
+  // guess_letters allows exactly one accepted answer — form mode never offers a way to add a
   // second one (the parser would reject it anyway).
   await expect(page.getByRole('button', { name: 'Add accepted answer' })).not.toBeVisible();
 

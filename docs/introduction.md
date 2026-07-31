@@ -9,8 +9,8 @@ recovery beyond a `.qwiz` file you've exported yourself (see [Import & export](#
 
 - **A quiz** is a title, description, category, tags, a list of questions, and a set of scoring
   settings (win threshold, shuffling, reveal timing, etc.).
-- **A question** is `single_choice` (pick exactly one option), `multiple_choice` (pick one or
-  more), `typed` (type a free-text answer), or `character_input` (guess a word letter-by-letter
+- **A question** is `pick_one` (pick exactly one option), `pick_many` (pick one or
+  more), `type_answer` (type a free-text answer), or `guess_letters` (guess a word letter-by-letter
   from an on-screen bank, Hangman-style) — see [the format reference](./qwiz-format.md) for the
   full syntax of all four.
 - **Everything round-trips through one format**: the `.qwiz` plain-text format is both what you

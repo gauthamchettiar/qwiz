@@ -18,30 +18,32 @@ function buildEveryVariantQuiz(): Quiz {
     title: 'Every variant',
     questions: [
       { id: 'q1', code: ['What is 2 + 2?', '{', '=4', '~5', '}'].join('\n') },
-      { id: 'q2', code: ['typed: Capital of Italy?', '{', '=Rome', '}'].join('\n') },
+      { id: 'q2', code: ['type_answer: Capital of Italy?', '{', '=Rome', '}'].join('\n') },
       {
         id: 'q3',
         code: [
-          'character_input: Capital of France',
+          'guess_letters: Capital of France',
           '{',
           '=[P]aris',
           '}',
           ':letter_bank=alphabet'
         ].join('\n')
       },
-      { id: 'q4', code: ['order: Arrange them', '{', '=First', '=Second', '}'].join('\n') },
+      { id: 'q4', code: ['order_items: Arrange them', '{', '=First', '=Second', '}'].join('\n') },
       {
         id: 'q5',
-        code: ['match: Match capitals', '{', '=Paris -> France', '=Tokyo -> Japan', '}'].join('\n')
+        code: ['match_pairs: Match capitals', '{', '=Paris -> France', '=Tokyo -> Japan', '}'].join(
+          '\n'
+        )
       },
       {
         id: 'q6',
-        code: ['categorise: Sort animals', '{', '=Fish -> Water', '=Lion -> Land', '}'].join('\n')
+        code: ['group_items: Sort animals', '{', '=Fish -> Water', '=Lion -> Land', '}'].join('\n')
       },
       {
         id: 'q7',
         code: [
-          'fill_in_blanks: The ___ is the powerhouse.',
+          'fill_blanks: The ___ is the powerhouse.',
           '{',
           '=mitochondria',
           '~nucleus',
@@ -73,7 +75,7 @@ test('Review answers renders every question variant, not just choice and typed',
       await play.typedAnswerInput.fill('Rome');
     },
     async () => {
-      // character_input is submittable at any point, so one guess is enough.
+      // guess_letters is submittable at any point, so one guess is enough.
       await page.getByRole('button', { name: 'a', exact: true }).click();
     },
     async () => {
@@ -146,7 +148,7 @@ test('a partly-placed order answer keeps its empty slots on the Review screen', 
       {
         id: 'q1',
         code: [
-          'order: Arrange them',
+          'order_items: Arrange them',
           '{',
           '=First',
           '=Second',
@@ -202,7 +204,7 @@ test('an option the player got right is tinted correct, not merely selected', as
     questions: [
       {
         id: 'q1',
-        code: ['multiple_choice: Which are prime?', '{', '=2', '=3', '~4', '}'].join('\n')
+        code: ['pick_many: Which are prime?', '{', '=2', '=3', '~4', '}'].join('\n')
       }
     ]
   });

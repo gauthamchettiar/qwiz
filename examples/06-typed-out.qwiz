@@ -9,21 +9,21 @@ tags: [typed, spelling, recall]
 :match_case=false
 ---
 
-typed: What is the capital of Australia?
+type_answer: What is the capital of Australia?
 !<reveal>[Not the obvious one](It isn't Sydney, and it isn't Melbourne. It was purpose-built as a compromise between them.) %-1%
 {
 =Canberra
 }
 :points_correct=2
 
-typed: Which planet is closest to the Sun?
+type_answer: Which planet is closest to the Sun?
 {
 =Mercury
 }
 :typo_tolerance=30
 :points_correct=2
 
-typed: Roughly how tall is Mount Everest, in metres?
+type_answer: Roughly how tall is Mount Everest, in metres?
 !<analysis>[Why?](number_tolerance=50 accepts anything within 50 m of 8849, so 8800 and 8850 both count — useful whenever the exact figure is disputed or often rounded.)
 {
 =8849
@@ -31,7 +31,7 @@ typed: Roughly how tall is Mount Everest, in metres?
 :number_tolerance=50
 :points_correct=2
 
-typed: Name three of the five Great Lakes of North America.
+type_answer: Name three of the five Great Lakes of North America.
 {
 =Superior
 =Michigan
@@ -45,7 +45,7 @@ typed: Name three of the five Great Lakes of North America.
 :points_correct=2
 :points_wrong=-1
 
-typed: One letter per box — the largest desert in the world by area.
+type_answer: One letter per box — the largest desert in the world by area.
 {
 =Antarctica
 }

@@ -13,6 +13,11 @@ export class BuilderPage {
   readonly deleteQuizButton: Locator;
   readonly confirmDeleteQuizButton: Locator;
   readonly notFoundMessage: Locator;
+  /** The page-level whole-document editor beside Play. `exact` matters: the metadata card and every
+   * question card have their own "Edit quiz code"/"Edit question code" buttons, which a substring
+   * match on "Code" also picks up. */
+  readonly fileCodeButton: Locator;
+  readonly fileSourceInput: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -25,6 +30,8 @@ export class BuilderPage {
     this.deleteQuizButton = page.getByRole('button', { name: 'Delete quiz' });
     this.confirmDeleteQuizButton = page.getByRole('button', { name: 'Confirm delete quiz?' });
     this.notFoundMessage = page.getByText("That quiz couldn't be found.");
+    this.fileCodeButton = page.getByRole('button', { name: 'Code', exact: true });
+    this.fileSourceInput = page.getByLabel('Quiz .qwiz source');
   }
 
   // Both wait for hydration: the builder is an island, and a test that starts typing into
@@ -45,11 +52,11 @@ export class BuilderPage {
     return this.page.getByLabel('Question', { exact: true });
   }
 
-  /** The Nth option row's text input within whichever question card is currently in form mode. */
+  /** The Nth option row's text input within whichever question card is currently in form mode.
+   * `exact`, because an image option's own fields ("alt text", "url") share this list and a
+   * substring match on a shorter placeholder could reach them. */
   optionTextInput(index: number): Locator {
-    return this.page
-      .getByPlaceholder('Option text (or paste ![alt](image url) / ~[alt](video url))')
-      .nth(index);
+    return this.page.getByPlaceholder('Option text', { exact: true }).nth(index);
   }
 
   correctCheckbox(index: number): Locator {
@@ -72,8 +79,27 @@ export class BuilderPage {
     await this.optionTextInput(1).fill(wrongOption);
   }
 
-  /** "Add setting" buttons, in DOM order — index 0 is always the quiz metadata card's own (it
-   * renders before any question card), index 1+ are each open question form's, in order. */
+  /** The "Settings" disclosure toggles, in the same DOM order as `addSettingButton` — index 0 is
+   * the quiz metadata card's, 1+ each open question form's. */
+  settingsToggle(index: number): Locator {
+    return this.page.getByRole('button', { name: /^Settings/ }).nth(index);
+  }
+
+  /** Opens a settings disclosure if it isn't already open. Every settings control below lives
+   * inside that panel, and it starts collapsed on a quiz/question that has no settings yet — so
+   * arranging any settings state has to go through here first. Idempotent, because a card whose
+   * quiz already HAS settings renders it open. */
+  async openSettings(index: number): Promise<void> {
+    const toggle = this.settingsToggle(index);
+    if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+  }
+
+  /** "Add setting" buttons, in DOM order — but counting only panels that are OPEN. A collapsed
+   * disclosure's contents are out of the accessibility tree entirely, so they don't occupy an
+   * index here: with only a question's settings expanded, that question's button is index 0, not
+   * 1. Open what you need via `openSettings` (whose own indices ARE stable, since every toggle is
+   * always rendered) and count from there. The same rule applies to `settingKeySelect`,
+   * `settingValueInput` and `settingHelpButton`. */
   addSettingButton(index: number): Locator {
     return this.page.getByRole('button', { name: 'Add setting' }).nth(index);
   }
