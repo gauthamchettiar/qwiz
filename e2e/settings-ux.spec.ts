@@ -119,7 +119,7 @@ test('a long question, its options, settings, and elements never overflow the vi
   expect(overflow).toBeLessThanOrEqual(0);
 });
 
-test('an option row keeps its text field usable, wrapping it below the row when space runs out', async ({
+test('an option row stays on one line at every width, shrinking its field rather than reflowing', async ({
   page
 }) => {
   const builder = new BuilderPage(page);
@@ -134,16 +134,18 @@ test('an option row keeps its text field usable, wrapping it below the row when 
   expect(fieldBox).not.toBeNull();
   expect(pointsBox).not.toBeNull();
 
-  // Whatever the viewport, the field never gets squeezed below a width that shows only a few
-  // characters — the row sheds its trailing controls onto a second line before that happens (see
-  // QuestionForm's ROW_TRAILING). 11rem is the floor those thresholds are set to preserve.
-  expect(fieldBox!.width).toBeGreaterThanOrEqual(176);
+  // One line: `pts` sits beside the field, not under it. Two earlier layouts wrapped one or the
+  // other onto a second line when space ran short, and both read worse than a cramped field —
+  // whichever half stayed behind was left next to a stretch of whitespace.
+  expect(Math.abs(fieldBox!.y - pointsBox!.y)).toBeLessThan(pointsBox!.height);
 
-  // When the row does wrap it's `pts` that drops BELOW the field, not the other way round: the
-  // field leads the row, so the first line is never left holding a grip, a checkbox and a gap.
-  const wrapped = pointsBox!.y > fieldBox!.y + fieldBox!.height / 2;
-  const sameLine = Math.abs(fieldBox!.y - pointsBox!.y) < pointsBox!.height;
-  expect(wrapped || sameLine).toBe(true);
+  // Shrinking, not overflowing: the field gives up width down to nothing, so even the mobile
+  // project's viewport doesn't push the row (or the page) sideways.
+  expect(fieldBox!.width).toBeGreaterThan(0);
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - window.innerWidth
+  );
+  expect(overflow).toBeLessThanOrEqual(0);
 });
 
 test("an open setting description never widens the page, whatever it's anchored to", async ({

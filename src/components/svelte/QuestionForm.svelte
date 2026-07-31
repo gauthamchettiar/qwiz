@@ -57,11 +57,10 @@
   // The choices each KindPicker offers — see that component for why these are an icon dropdown
   // rather than a native <select> or a row of visible buttons.
   //
-  // OPTION_KINDS drives two: the "Add option" menu at the end of the list, and a `match_pairs`
-  // row's TARGET side. An option's own content kind is settled when it's added rather than
-  // switched per row afterwards — one fewer control in every row, and one fewer thing that can
-  // change under the author after the fact. A target has no add-time moment of its own to inherit
-  // a kind from (it's the other half of a row that already exists), so it keeps a picker.
+  // OPTION_KINDS drives both halves of an option row: its own content, and — on `match_pairs` —
+  // the target it pairs with. Adding a row always makes a text one; the picker is how it becomes
+  // a picture, which keeps that a reversible choice rather than one made before there's anything
+  // to look at.
   const OPTION_KINDS = [
     { value: 'text', label: 'Text', icon: Type },
     { value: 'image', label: 'Image', icon: Image },
@@ -78,52 +77,34 @@
    * control precisely because "they all match" is the entire point — a control that opts out is a
    * bug, and this makes that visible in the diff. */
   const ROW_CONTROL = 'h-9 shrink-0';
+  /** The same height for a row's text FIELDS, but shrinkable — `shrink-0` on these is what would
+   * push a nowrap row wider than its card. `min-w-0` because a flex item's default minimum is its
+   * content width, which for an input is its `size` attribute, not zero. */
+  const ROW_FIELD = 'h-9 min-w-0';
   const ROW_ICON_BUTTON = `${ROW_CONTROL} w-9 flex items-center justify-center rounded-md`;
   /** A checkbox/radio can't be stretched to the row height without distorting the control itself,
    * so it gets a same-height box to sit centred in instead — which also gives the 16px control a
    * 36px hit area. */
   const ROW_CHECK_SLOT = `${ROW_CONTROL} w-6 flex items-center justify-center`;
 
-  /** A row's content fields, grouped so they stay together rather than each being squeezed to
-   * nothing in place. The row's fixed chrome (grip, checkbox, `pts`, remove) is ~13rem, so on a
-   * phone a single field was down to around 7rem — a text box showing four or five characters.
-   *
-   * When a row runs out of width it's the TRAILING controls that drop to a second line, not the
-   * fields (`ROW_TRAILING` below). Wrapping the fields instead — which is what this did first —
-   * left a first line holding a grip, a checkbox and then nothing but whitespace before `pts`,
-   * and nothing tying that stray `pts` to the field underneath it. Leading with the content is
-   * both denser and unambiguous about what belongs to what.
-   *
-   * `grow basis-0` rather than `flex-1`: those mean the same thing, but `flex-1` sets the `flex`
-   * shorthand while the container query overrides `flex-basis`, and which of two different
-   * properties wins is decided by stylesheet order (see CLAUDE.md §5). Same property both times,
-   * and Tailwind always sorts a variant after its unprefixed form, so this resolves the one way. */
+  /** A row's content fields. `grow basis-0 min-w-0` so they take whatever space the row's fixed
+   * controls leave and give it all back when there isn't any. */
   const ROW_FIELDS = 'flex min-w-0 grow basis-0 items-center gap-1.5';
-  const ROW_FIELDS_WIDE = 'flex min-w-0 grow basis-0 flex-wrap items-center gap-1.5';
-  /** The `pts` + remove pair every row ends with, right-aligned whether it's sharing the row or
-   * has dropped below it.
-   *
-   * The two thresholds match the two field groups above, since what's left for the fields is what
-   * decides when to wrap: one field needs ~11rem to be usable, which an `@md` (28rem) row leaves
-   * it; a row carrying two (alt + url, or item → target) needs roughly twice that, hence `@xl`
-   * (36rem). `basis-full` rather than `w-full` because flex-basis is what line-breaking measures. */
-  const ROW_TRAILING = 'ml-auto flex shrink-0 items-center justify-end gap-1.5 @max-md:basis-full';
-  const ROW_TRAILING_WIDE =
-    'ml-auto flex shrink-0 items-center justify-end gap-1.5 @max-xl:basis-full';
-
-  /** Whether one option row carries two or more fields — a media option's alt + url, or a
-   * match/group row's item → target. Its field group and its trailing controls have to agree on
-   * that, or the two would wrap at different widths and briefly leave the row in a shape neither
-   * was designed for. */
-  function isWideRow(content: QuizScriptOptionContent): boolean {
-    return usesTargetRows || content.kind !== 'text';
-  }
+  /** The `pts` + remove pair every row ends with, pinned to the right. */
+  const ROW_TRAILING = 'ml-auto flex shrink-0 items-center gap-1.5';
 
   /** Every row in a list — an option, an accepted answer, an element — is its own tinted card.
    * As bare controls on the page background they ran together: on a `match_pairs` row that's six
-   * controls with nothing saying where one pair ends and the next begins, and the wrapped layout
-   * on a phone made that worse by putting two lines where there had been one. */
-  const ROW_CARD = '@container flex flex-wrap items-center gap-1.5 rounded-md border p-1.5';
+   * controls with nothing saying where one pair ends and the next begins.
+   *
+   * `flex-nowrap`: a row is ONE line at every width, and its fields shrink as far as they have to
+   * — a narrow text box is better than a reflowed row. Both ways of wrapping were tried and both
+   * looked worse than a cramped field: dropping the fields below left a first line holding a grip,
+   * a checkbox and a stretch of whitespace, and dropping `pts`/`×` below left the same whitespace
+   * on the second line instead. The fixed controls come to ~16rem on the widest row, so even a
+   * phone leaves the fields something; they can't push the card wide either, since every one of
+   * them is `min-w-0`. */
+  const ROW_CARD = 'flex flex-nowrap items-center gap-1.5 rounded-md border p-1.5';
   const ROW_CARD_RESTING = 'border-slate-200 bg-slate-50/70';
 
   /** One option row's card colours as a SINGLE mutually-exclusive class string — see
@@ -601,39 +582,39 @@
             onSelect={(kind) => setElementKind(item._key, kind)}
           />
           {#if item.kind === 'reveal'}
-            <div class={ROW_FIELDS_WIDE}>
+            <div class={ROW_FIELDS}>
               <input
                 bind:this={elementRefs[index]}
-                class="{ROW_CONTROL} w-28 rounded-md border border-slate-300 px-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
+                class="{ROW_FIELD} grow basis-0 rounded-md border border-slate-300 px-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
                 placeholder="button label"
                 bind:value={item.label}
                 oninput={emit}
               />
               <input
-                class="{ROW_CONTROL} min-w-[8rem] flex-1 rounded-md border border-slate-300 px-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
+                class="{ROW_FIELD} grow-[2] basis-0 rounded-md border border-slate-300 px-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
                 placeholder="hint text"
                 bind:value={item.content}
                 oninput={emit}
               />
             </div>
           {:else}
-            <div class={ROW_FIELDS_WIDE}>
+            <div class={ROW_FIELDS}>
               <input
                 bind:this={elementRefs[index]}
-                class="{ROW_CONTROL} w-24 rounded-md border border-slate-300 px-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
+                class="{ROW_FIELD} grow basis-0 rounded-md border border-slate-300 px-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
                 placeholder="alt text"
                 bind:value={item.alt}
                 oninput={emit}
               />
               <input
-                class="{ROW_CONTROL} min-w-[8rem] flex-1 rounded-md border border-slate-300 px-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
+                class="{ROW_FIELD} grow-[2] basis-0 rounded-md border border-slate-300 px-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
                 placeholder="url"
                 bind:value={item.url}
                 oninput={emit}
               />
             </div>
           {/if}
-          <div class={ROW_TRAILING_WIDE}>
+          <div class={ROW_TRAILING}>
             {#if item.kind === 'reveal'}
               <input
                 type="text"
@@ -707,7 +688,7 @@
     {#if content.kind === 'text'}
       <input
         bind:this={optionRefs[index]}
-        class="{ROW_CONTROL} min-w-0 flex-1 rounded-md border border-slate-300 px-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none {monospace
+        class="{ROW_FIELD} grow basis-0 rounded-md border border-slate-300 px-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none {monospace
           ? 'font-mono'
           : ''}"
         {placeholder}
@@ -717,13 +698,13 @@
     {:else}
       <input
         bind:this={optionRefs[index]}
-        class="{ROW_CONTROL} w-24 rounded-md border border-slate-300 px-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
+        class="{ROW_FIELD} grow basis-0 rounded-md border border-slate-300 px-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
         placeholder="alt text"
         bind:value={content.alt}
         oninput={emit}
       />
       <input
-        class="{ROW_CONTROL} min-w-[8rem] flex-1 rounded-md border border-slate-300 px-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
+        class="{ROW_FIELD} grow-[2] basis-0 rounded-md border border-slate-300 px-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
         placeholder="url"
         bind:value={content.url}
         oninput={emit}
@@ -763,7 +744,7 @@
         </button>
         {#if usesTargetRows}
           {@const target = option.target}
-          <div class={ROW_FIELDS_WIDE}>
+          <div class={ROW_FIELDS}>
             {@render contentFields(option.content, index, 'Item')}
             <span class="shrink-0 text-sm text-slate-500">→</span>
             <!-- Only match_pairs offers a kind here: a group_items target NAMES the bucket its
@@ -778,20 +759,20 @@
             {/if}
             {#if !target || target.kind === 'text'}
               <input
-                class="{ROW_CONTROL} min-w-0 flex-1 rounded-md border border-slate-300 px-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
+                class="{ROW_FIELD} grow basis-0 rounded-md border border-slate-300 px-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
                 placeholder={isMatch ? 'Matches with' : 'Bucket'}
                 value={target?.text ?? ''}
                 oninput={(e) => setOptionTarget(option._key, e.currentTarget.value)}
               />
             {:else}
               <input
-                class="{ROW_CONTROL} w-24 rounded-md border border-slate-300 px-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
+                class="{ROW_FIELD} grow basis-0 rounded-md border border-slate-300 px-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
                 placeholder="alt text"
                 bind:value={target.alt}
                 oninput={emit}
               />
               <input
-                class="{ROW_CONTROL} min-w-[8rem] flex-1 rounded-md border border-slate-300 px-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
+                class="{ROW_FIELD} grow-[2] basis-0 rounded-md border border-slate-300 px-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
                 placeholder="url"
                 bind:value={target.url}
                 oninput={emit}
@@ -834,7 +815,7 @@
               aria-label="Correct"
             />
           </span>
-          <div class={isWideRow(option.content) ? ROW_FIELDS_WIDE : ROW_FIELDS}>
+          <div class={ROW_FIELDS}>
             {@render contentFields(
               option.content,
               index,
@@ -868,11 +849,11 @@
               />
             </span>
           {/if}
-          <div class={isWideRow(option.content) ? ROW_FIELDS_WIDE : ROW_FIELDS}>
+          <div class={ROW_FIELDS}>
             {@render contentFields(option.content, index, 'Option text')}
           </div>
         {/if}
-        <div class={isWideRow(option.content) ? ROW_TRAILING_WIDE : ROW_TRAILING}>
+        <div class={ROW_TRAILING}>
           <input
             type="text"
             inputmode="decimal"
