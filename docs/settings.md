@@ -9,6 +9,22 @@ This is the single dedicated reference for what each setting does. [`qwiz-format
 covers the surrounding authoring syntax (variants, options, media, hints); this file covers
 settings in depth, including how they behave _together_, not just individually.
 
+## In the builder
+
+You don't have to write `:key=value` by hand. Both the quiz card and every question card carry a
+collapsed **Settings** block; opening it lists the keys that apply here (a question's list is
+scoped to its variant, so a `pick_one` question is never offered `letter_bank`), and each row is a
+key dropdown plus a value field validated as you type:
+
+![The settings block, open](./screenshots/settings-block.png)
+
+Every key in that list is also its own explanation — click one for what it does, what values it
+accepts, and what it defaults to. It's the same text as the tables below:
+
+![A setting's description](./screenshots/setting-help.png)
+
+The `↗` beside the Settings toggle opens this page.
+
 ## Quiz-wide settings
 
 Written inside the frontmatter block.
