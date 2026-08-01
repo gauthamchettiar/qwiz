@@ -32,6 +32,7 @@ test('deleting a quiz from the edit page returns to the home page', async ({ pag
 
   const builder = new BuilderPage(page);
   await builder.gotoEdit(quiz.id);
+  await builder.openMoreActions();
   await builder.deleteQuizButton.click();
   await builder.confirmDeleteQuizButton.click();
 

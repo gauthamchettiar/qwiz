@@ -23,7 +23,7 @@
   <!-- Tight vertical gap because each key is now barely taller than its own text (see SettingHelp)
        — the loose `gap-y-1` this used to need was compensating for 32px icon buttons stacked
        beside 16px of text. -->
-  <div class="flex flex-wrap items-center gap-x-1 gap-y-0.5 text-xs text-slate-500">
+  <div class="flex flex-wrap items-center gap-x-1 gap-y-0.5 text-xs text-ink-subtle">
     <span class="mr-0.5">Settings:</span>
     {#each keys as key (key)}
       <SettingHelp {key} {rules} />

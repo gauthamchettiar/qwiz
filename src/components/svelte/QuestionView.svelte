@@ -103,7 +103,7 @@
 {#snippet focusableRow(extraClass: string, onActivate: () => void, children: Snippet)}
   {#if interactive}
     <div
-      class="{extraClass} cursor-pointer hover:ring-2 hover:ring-slate-300"
+      class="{extraClass} cursor-pointer hover:ring-2 hover:ring-line"
       role="button"
       tabindex="0"
       onclick={onActivate}
@@ -126,15 +126,15 @@
     <img
       src={media.url}
       alt={media.alt}
-      class="rounded-md border border-slate-200 object-contain {size === 'question'
+      class="rounded-md border border-line-subtle object-contain {size === 'question'
         ? 'max-h-80'
         : 'max-h-40'}"
     />
   {:else}
     <div
-      class="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600"
+      class="flex items-center gap-2 rounded-md border border-line-subtle bg-surface px-3 py-2 text-sm text-ink-soft"
     >
-      <Video size={15} class="shrink-0 text-slate-400" />
+      <Video size={15} class="shrink-0 text-ink-faint" />
       <span class="truncate">{media.alt || media.url}</span>
     </div>
   {/if}
@@ -145,7 +145,7 @@
      of the row — renders through it too. -->
 {#snippet contentBody(content: QuizScriptOptionContent)}
   {#if content.kind === 'text'}
-    <p class="text-sm text-slate-900">{content.text}</p>
+    <p class="text-sm text-ink">{content.text}</p>
   {:else}
     {@render mediaBlock(content, 'option')}
   {/if}
@@ -153,7 +153,7 @@
 
 {#snippet weightBadge(option: QuizScriptOption)}
   {#if option.points !== undefined}
-    <span class="shrink-0 text-xs font-semibold text-slate-500">
+    <span class="shrink-0 text-xs font-semibold text-ink-subtle">
       {option.points >= 0 ? '+' : ''}{option.points} pts
     </span>
   {/if}
@@ -163,16 +163,16 @@
      variant — an authored sequence, a set of pairs, a partition. Without it, `order_items`'s numbered list
      is indistinguishable from a list that merely happens to be numbered. -->
 {#snippet answerKeyLabel(text: string)}
-  <p class="text-xs font-medium uppercase tracking-wide text-slate-500">{text}</p>
+  <p class="text-xs font-medium uppercase tracking-wide text-ink-subtle">{text}</p>
 {/snippet}
 
 <div class="space-y-3">
   {#if variantMeta}
     {@const Icon = variantMeta.icon}
     <span
-      class="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-600"
+      class="inline-flex items-center gap-1.5 rounded-md border border-line-subtle bg-surface px-2 py-0.5 text-xs font-medium text-ink-soft"
     >
-      <Icon size={13} class="shrink-0 text-indigo-500" />
+      <Icon size={13} class="shrink-0 text-accent-ink-soft" />
       {variantMeta.label}
     </span>
   {/if}
@@ -181,7 +181,7 @@
        be a duplicate of it. -->
   {#if question.variant !== 'fill_blanks' && (question.text || question.media.length === 0)}
     {#snippet textRow()}
-      <p class="whitespace-pre-wrap text-slate-900">{question.text || 'Untitled question'}</p>
+      <p class="whitespace-pre-wrap text-ink">{question.text || 'Untitled question'}</p>
     {/snippet}
     {@render focusableRow('rounded-md p-2', () => onFocus?.({ field: 'text' }), textRow)}
   {/if}
@@ -195,23 +195,23 @@
 
   {#each question.extras as extra, index (index)}
     {#snippet extraRow()}
-      <p class="flex items-center gap-1 text-xs font-medium text-slate-500">
+      <p class="flex items-center gap-1 text-xs font-medium text-ink-subtle">
         <Eye size={12} />
         {extra.label || 'Hint'}
       </p>
-      <p class="mt-0.5 whitespace-pre-wrap text-sm text-slate-900">{extra.content}</p>
+      <p class="mt-0.5 whitespace-pre-wrap text-sm text-ink">{extra.content}</p>
       {#if extra.points !== 0}
         <span
           class="mt-1 inline-block text-xs font-semibold {extra.points > 0
-            ? 'text-green-700'
-            : 'text-red-600'}"
+            ? 'text-positive-ink'
+            : 'text-negative-ink'}"
         >
           {extra.points >= 0 ? '+' : ''}{extra.points} pts
         </span>
       {/if}
     {/snippet}
     {@render focusableRow(
-      'rounded-md border border-dashed border-slate-300 bg-slate-50 p-2',
+      'rounded-md border border-dashed border-line bg-surface p-2',
       () => onFocus?.({ field: 'extra', index }),
       extraRow
     )}
@@ -226,7 +226,7 @@
         {#snippet orderRow()}
           <div class="flex items-center gap-2">
             <span
-              class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-600 text-xs font-semibold text-white"
+              class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-surface-inverse text-xs font-semibold text-ink-on-inverse"
             >
               {index + 1}
             </span>
@@ -235,7 +235,7 @@
           </div>
         {/snippet}
         {@render focusableRow(
-          'rounded-md border border-slate-200 p-2.5',
+          'rounded-md border border-line-subtle p-2.5',
           () => onFocus?.({ field: 'option', index }),
           orderRow
         )}
@@ -248,7 +248,7 @@
         {#snippet matchRow()}
           <div class="flex items-center gap-2">
             <div class="min-w-0 flex-1">{@render contentBody(option.content)}</div>
-            <ArrowRight size={14} class="shrink-0 text-indigo-500" />
+            <ArrowRight size={14} class="shrink-0 text-accent-ink-soft" />
             <div class="min-w-0 flex-1">
               {#if option.target}{@render contentBody(option.target)}{/if}
             </div>
@@ -256,7 +256,7 @@
           </div>
         {/snippet}
         {@render focusableRow(
-          'rounded-md border border-slate-200 p-2.5',
+          'rounded-md border border-line-subtle p-2.5',
           () => onFocus?.({ field: 'option', index }),
           matchRow
         )}
@@ -275,9 +275,9 @@
           <div
             role="group"
             aria-label={bucket}
-            class="rounded-lg border border-slate-200 bg-slate-50/50 p-2"
+            class="rounded-lg border border-line-subtle bg-surface/50 p-2"
           >
-            <p class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600">
+            <p class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">
               {bucket}
             </p>
             <div class="space-y-1">
@@ -289,7 +289,7 @@
                   </div>
                 {/snippet}
                 {@render focusableRow(
-                  'rounded-md border border-slate-200 bg-white p-1.5',
+                  'rounded-md border border-line-subtle bg-surface-raised p-1.5',
                   () => onFocus?.({ field: 'option', index }),
                   categoriseItem
                 )}
@@ -313,7 +313,7 @@
              the answer without taking it out of the line. The segments already carry whatever
              spacing the author wrote. -->
         <!-- prettier-ignore -->
-        <p class="whitespace-pre-wrap text-slate-900">{#each segments as segment, i (i)}{segment}{#if i < segments.length - 1}{@const answer = blankAnswers[i]}<span class="border-b-2 border-green-500 font-semibold text-green-800">{answer ? optionLabelText(answer.option) : '___'}</span>{/if}{/each}</p>
+        <p class="whitespace-pre-wrap text-ink">{#each segments as segment, i (i)}{segment}{#if i < segments.length - 1}{@const answer = blankAnswers[i]}<span class="border-b-2 border-positive-line-strong font-semibold text-positive-ink-strong">{answer ? optionLabelText(answer.option) : '___'}</span>{/if}{/each}</p>
       {/snippet}
       {@render focusableRow('rounded-md p-2', () => onFocus?.({ field: 'text' }), blanksText)}
 
@@ -323,10 +323,10 @@
           <div class="flex flex-wrap gap-1.5">
             {#each blankDistractors as { option, index } (index)}
               {#snippet distractorChip()}
-                <span class="text-xs font-medium text-slate-600">{optionLabelText(option)}</span>
+                <span class="text-xs font-medium text-ink-soft">{optionLabelText(option)}</span>
               {/snippet}
               {@render focusableRow(
-                'rounded-md border border-slate-300 bg-white px-2 py-1',
+                'rounded-md border border-line bg-surface-raised px-2 py-1',
                 () => onFocus?.({ field: 'option', index }),
                 distractorChip
               )}
@@ -346,7 +346,7 @@
         <div class="flex flex-wrap items-center gap-1">
           {#each answerText.split('') as char, i (i)}
             {#if !isGuessableChar(char)}
-              <span class="flex h-8 w-3 items-center justify-center text-sm text-slate-500"
+              <span class="flex h-8 w-3 items-center justify-center text-sm text-ink-subtle"
                 >{char}</span
               >
             {:else}
@@ -354,20 +354,20 @@
                 class="flex h-8 w-7 items-center justify-center rounded border text-sm font-semibold {prerevealed.has(
                   i
                 )
-                  ? 'border-green-400 bg-green-50 text-green-800'
-                  : 'border-slate-300 bg-white text-slate-900'}"
+                  ? 'border-positive-line bg-positive-surface text-positive-ink-strong'
+                  : 'border-line bg-surface-raised text-ink'}"
               >
                 {char}
               </span>
             {/if}
           {/each}
         </div>
-        <p class="mt-1.5 text-xs text-slate-500">
+        <p class="mt-1.5 text-xs text-ink-subtle">
           Green letters are revealed before the player starts.
         </p>
       {/snippet}
       {@render focusableRow(
-        'rounded-md border border-slate-200 p-2.5',
+        'rounded-md border border-line-subtle p-2.5',
         () => onFocus?.({ field: 'option', index: 0 }),
         characterRow
       )}
@@ -383,18 +383,18 @@
         {#snippet patternRow()}
           <div class="flex items-start gap-2">
             {#if option.correct}
-              <CircleCheck size={14} class="mt-0.5 shrink-0 text-green-600" />
+              <CircleCheck size={14} class="mt-0.5 shrink-0 text-positive-ink-soft" />
             {:else}
-              <CircleX size={14} class="mt-0.5 shrink-0 text-red-500" />
+              <CircleX size={14} class="mt-0.5 shrink-0 text-negative-ink-soft" />
             {/if}
-            <code class="min-w-0 flex-1 break-all font-mono text-sm text-slate-900"
+            <code class="min-w-0 flex-1 break-all font-mono text-sm text-ink"
               >{optionLabelText(option)}</code
             >
             {@render weightBadge(option)}
           </div>
         {/snippet}
         {@render focusableRow(
-          `rounded-md border p-2.5 ${option.correct ? 'border-green-300' : 'border-red-300'}`,
+          `rounded-md border p-2.5 ${option.correct ? 'border-positive-line-subtle' : 'border-negative-line-subtle'}`,
           () => onFocus?.({ field: 'option', index }),
           patternRow
         )}
@@ -410,7 +410,9 @@
           {#snippet acceptedChip()}
             <div class="flex items-center gap-1.5">
               {#if option.content.kind === 'text'}
-                <span class="text-sm font-medium text-green-800">{option.content.text}</span>
+                <span class="text-sm font-medium text-positive-ink-strong"
+                  >{option.content.text}</span
+                >
               {:else}
                 {@render mediaBlock(option.content, 'option')}
               {/if}
@@ -418,7 +420,7 @@
             </div>
           {/snippet}
           {@render focusableRow(
-            'rounded-md border border-green-300 bg-green-50 px-2 py-1',
+            'rounded-md border border-positive-line-subtle bg-positive-surface px-2 py-1',
             () => onFocus?.({ field: 'option', index }),
             acceptedChip
           )}
@@ -437,22 +439,22 @@
                  carried by the dashed green border and the verdict line below, so tinting this
                  green as well would be the same fact stated three times. -->
             {#if question.variant === 'pick_one'}
-              <CircleDot size={15} class="mt-0.5 shrink-0 text-slate-400" />
+              <CircleDot size={15} class="mt-0.5 shrink-0 text-ink-faint" />
             {:else}
-              <SquareCheck size={15} class="mt-0.5 shrink-0 text-slate-400" />
+              <SquareCheck size={15} class="mt-0.5 shrink-0 text-ink-faint" />
             {/if}
             <div class="min-w-0 flex-1">
               {@render contentBody(option.content)}
               {#if option.correct}
                 <span
-                  class="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-green-700"
+                  class="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-positive-ink"
                 >
                   <CircleCheck size={13} />
                   {pointsLabel(option)}
                 </span>
               {:else}
                 <span
-                  class="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-red-600"
+                  class="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-negative-ink"
                 >
                   <CircleX size={13} />
                   {pointsLabel(option)}
@@ -462,7 +464,7 @@
           </div>
         {/snippet}
         {@render focusableRow(
-          `rounded-md border p-3 ${option.correct ? 'border-green-400 border-dashed' : 'border-slate-200'}`,
+          `rounded-md border p-3 ${option.correct ? 'border-positive-line border-dashed' : 'border-line-subtle'}`,
           () => onFocus?.({ field: 'option', index }),
           choiceOptionRow
         )}
@@ -473,7 +475,7 @@
   {#if settingsEntries.length > 0}
     {#snippet settingsRow()}
       {#each settingsEntries as [key, value] (key)}
-        <span class="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600"
+        <span class="rounded-md bg-surface-hover px-2 py-0.5 text-xs font-medium text-ink-soft"
           >{key}: {String(value)}</span
         >
       {/each}

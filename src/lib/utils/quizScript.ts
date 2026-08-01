@@ -283,8 +283,50 @@ export interface SettingRule {
    * there's nothing sensible to pre-fill. Always matches the "Default: ..." line in `description`
    * below — kept as a separate structured field rather than parsed out of that prose. */
   default?: string | number | boolean;
-  /** Shown in the "?" hover hint next to this key, in both code and form mode. */
+  /** Which heading this key sits under in the key dropdown (see `groupSettingKeys`). Required, so
+   * a new setting can't quietly land in an ungrouped "everything else" bucket — the compiler asks
+   * where it belongs at the moment it's added. */
+  group: string;
+  /** Shown in the description panel opened from this key, in both code and form mode. */
   description: string;
+}
+
+/** Group headings in the order the dropdown shows them, most-reached-for first. Both tables draw
+ * from this one list — a quiz-wide block simply has no keys in some of them. Anything a rule names
+ * that isn't listed here still appears, after these, so a typo degrades to a stray heading rather
+ * than a silently missing key. */
+export const SETTING_GROUP_ORDER = [
+  'Scoring',
+  'Answering',
+  'Matching',
+  'Presentation',
+  'Letter guessing',
+  'Run',
+  'Reveal',
+  'Timing'
+] as const;
+
+/** Splits a flat key list into the dropdown's `<optgroup>`s. Empty groups are dropped, so a
+ * variant that can only use four settings gets however few headings those four span rather than
+ * eight mostly-empty ones. */
+export function groupSettingKeys(
+  keys: readonly string[],
+  rules: Record<string, SettingRule> = SETTING_RULES
+): { label: string; keys: string[] }[] {
+  const byGroup = new Map<string, string[]>();
+  for (const key of keys) {
+    const group = rules[key]?.group ?? 'Other';
+    const bucket = byGroup.get(group);
+    if (bucket) bucket.push(key);
+    else byGroup.set(group, [key]);
+  }
+  const ordered = [
+    ...SETTING_GROUP_ORDER,
+    ...[...byGroup.keys()].filter((g) => !(SETTING_GROUP_ORDER as readonly string[]).includes(g))
+  ];
+  return ordered
+    .filter((label) => byGroup.has(label))
+    .map((label) => ({ label, keys: byGroup.get(label)! }));
 }
 
 /** Known settings with a constrained value — checked in addition to the generic `:key=value`
@@ -293,6 +335,7 @@ export interface SettingRule {
  * parse error, not a freeform pass-through (see `validateSettingValue`). */
 export const SETTING_RULES: Record<string, SettingRule> = {
   points_correct: {
+    group: 'Scoring',
     kind: 'number',
     default: 1,
     appliesTo: [
@@ -310,6 +353,7 @@ export const SETTING_RULES: Record<string, SettingRule> = {
       "Points awarded for each correct option/pair/placement that doesn't specify its own %N% weight.\n\nAccepted values: any number\nDefault: 1"
   },
   points_wrong: {
+    group: 'Scoring',
     kind: 'number',
     default: 0,
     appliesTo: [
@@ -327,6 +371,7 @@ export const SETTING_RULES: Record<string, SettingRule> = {
       "Points deducted for each incorrect option/pair/placement that doesn't specify its own %N% weight.\n\nAccepted values: any number\nDefault: 0"
   },
   partial_credit: {
+    group: 'Scoring',
     kind: 'boolean',
     default: false,
     appliesTo: [
@@ -341,6 +386,7 @@ export const SETTING_RULES: Record<string, SettingRule> = {
       'Whether getting some (not all) of a question right earns partial credit instead of requiring an exact match — e.g. for a type_answer question with 3 accepted answers, matching only 1 of them awards that one\'s points instead of 0. For order_items/match_pairs/group_items/fill_blanks, "some but not all" means some but not all items/pairs/buckets/blanks placed correctly.\n\nNot meaningful for pick_one: with at most one correct option, there\'s never a "some but not all" scenario for it to apply to. Only meaningful for a multi-guess type_answer question (max_answers > 1) — single-input typed matching has no concept of partial either.\n\nAccepted values: true, false\nDefault: false'
   },
   options_layout: {
+    group: 'Presentation',
     kind: 'enum',
     values: ['list', 'grid2x2', 'grid3x3'],
     default: 'list',
@@ -349,18 +395,21 @@ export const SETTING_RULES: Record<string, SettingRule> = {
       'How a choice question\'s options are laid out. "list": one per row. "grid2x2": a fixed 2-column grid. "grid3x3": 2 columns on narrow screens, 3 on wider ones.\n\nAccepted values: list, grid2x2, grid3x3\nDefault: list'
   },
   min_answers: {
+    group: 'Answering',
     kind: 'number',
     appliesTo: ['pick_many', 'type_answer'],
     description:
       'Minimum number of options/answers the player must select or give before they can submit this question. Not meaningful for pick_one, which can only ever have zero or one selected.\n\nAccepted values: any number\nDefault: none — any number given is enough, including zero'
   },
   max_answers: {
+    group: 'Answering',
     kind: 'number',
     appliesTo: ['pick_many', 'type_answer'],
     description:
       'Maximum number of options/answers the player is allowed to select or give for this question. Not meaningful for pick_one, which can only ever have zero or one selected.\n\nAccepted values: any number\nDefault: none — any number is allowed'
   },
   shuffle_options: {
+    group: 'Presentation',
     kind: 'boolean',
     default: false,
     appliesTo: ['pick_one', 'pick_many'],
@@ -368,6 +417,7 @@ export const SETTING_RULES: Record<string, SettingRule> = {
       "For a choice question, whether its options are shown in a random order each time it's played. Not meaningful for a type_answer question.\n\nAccepted values: true, false\nDefault: false"
   },
   difficulty: {
+    group: 'Presentation',
     kind: 'enum',
     values: ['easy', 'medium', 'hard'],
     appliesTo: [
@@ -385,6 +435,7 @@ export const SETTING_RULES: Record<string, SettingRule> = {
       "How difficult this question is, for organizing or filtering later — purely informational, doesn't affect grading or play.\n\nAccepted values: easy, medium, hard\nDefault: none"
   },
   match_case: {
+    group: 'Matching',
     kind: 'boolean',
     default: false,
     appliesTo: [
@@ -399,18 +450,21 @@ export const SETTING_RULES: Record<string, SettingRule> = {
       "For a type_answer or type_pattern question (or a fill_blanks question with answer_mode=type), whether a player's answer must match an accepted answer's exact letter case instead of being compared case-insensitively. Other normalization (whitespace, punctuation, accents) always applies regardless of this setting. Not meaningful for guess_letters: the player guesses by clicking a bank letter, not typing text, so there's no \"wrong case\" input to compare against — matching there is always case-insensitive. A no-op on fill_blanks when answer_mode=pick, since picking a bank word is never a case mismatch.\n\nAccepted values: true, false\nDefault: false"
   },
   number_tolerance: {
+    group: 'Matching',
     kind: 'number',
     appliesTo: ['type_answer', 'order_items', 'match_pairs', 'group_items', 'fill_blanks'],
     description:
       'For a type_answer question (or a fill_blanks question with answer_mode=type), the allowed absolute difference between a numeric answer and a numeric response (e.g. 0.5 lets "3.5" match "3"). Falls back to normalized text comparison when either side isn\'t a number. Cannot be combined with typo_tolerance on the same question. A no-op on fill_blanks when answer_mode=pick.\n\nAccepted values: any number\nDefault: none — numeric-tolerance matching is off'
   },
   typo_tolerance: {
+    group: 'Matching',
     kind: 'number',
     appliesTo: ['type_answer', 'order_items', 'match_pairs', 'group_items', 'fill_blanks'],
     description:
       "For a type_answer question (or a fill_blanks question with answer_mode=type), how many typos a response may have and still match, as a percentage of the accepted answer's length (edit distance). Cannot be combined with number_tolerance on the same question. A no-op on fill_blanks when answer_mode=pick.\n\nAccepted values: a number from 0 to 100\nDefault: none — fuzzy matching is off"
   },
   typed_input: {
+    group: 'Answering',
     kind: 'enum',
     // "text", not "field": the default below, this rule's own description, the docs and every
     // example all say `text`, and nothing reads `field` — `grading.ts` and `QuestionPlayer` only
@@ -424,6 +478,7 @@ export const SETTING_RULES: Record<string, SettingRule> = {
       "How a type_answer question's answer field is displayed: a plain text box, or one box per character (grouped by word) sized to the first accepted answer's shape. Works in both single-answer and multi-guess (max_answers > 1) mode.\n\nAccepted values: text, boxes\nDefault: text"
   },
   letter_bank: {
+    group: 'Letter guessing',
     kind: 'enum',
     values: ['alphabet', 'auto', 'fixed'],
     default: 'alphabet',
@@ -432,12 +487,14 @@ export const SETTING_RULES: Record<string, SettingRule> = {
       'Which letters appear in the on-screen letter bank. "alphabet": the full A-Z. "auto": every distinct letter actually in the answer, plus a handful of random decoy letters that aren\'t (so a guess still carries real risk). "fixed": exactly the letters in letter_bank_chars.\n\nAccepted values: alphabet, auto, fixed\nDefault: alphabet'
   },
   letter_bank_chars: {
+    group: 'Letter guessing',
     kind: 'string',
     appliesTo: ['guess_letters'],
     description:
       'The exact letters offered in the bank — only read when letter_bank=fixed. E.g. "abcdefghijklmnop".\n\nAccepted values: any text\nDefault: none'
   },
   letter_reveal: {
+    group: 'Letter guessing',
     kind: 'enum',
     values: ['all', 'sequence', 'random'],
     default: 'all',
@@ -446,6 +503,7 @@ export const SETTING_RULES: Record<string, SettingRule> = {
       'How a correct letter guess reveals its occurrences in the answer. "all": every occurrence at once (classic Hangman), and that letter\'s bank button disables immediately. "sequence"/"random": one not-yet-revealed occurrence per guess (next-in-order, or a random remaining one) — the bank button stays clickable until every occurrence of that letter is revealed.\n\nAccepted values: all, sequence, random\nDefault: all'
   },
   letters_shown_at_start: {
+    group: 'Letter guessing',
     kind: 'number',
     default: 0,
     appliesTo: ['guess_letters'],
@@ -453,6 +511,7 @@ export const SETTING_RULES: Record<string, SettingRule> = {
       'Additional random characters (on top of any explicit [x] pre-reveal brackets in the answer) revealed from the start, free of charge.\n\nAccepted values: any number\nDefault: 0'
   },
   answer_mode: {
+    group: 'Answering',
     kind: 'enum',
     values: ['pick', 'type'],
     default: 'pick',
@@ -525,28 +584,33 @@ export const INHERITABLE_SETTING_KEYS: readonly string[] = SUGGESTED_SETTING_KEY
  * one validation path instead of two drifting copies. */
 export const QUIZ_SETTING_RULES: Record<string, SettingRule> = {
   points_to_win: {
+    group: 'Scoring',
     kind: 'number',
     description:
       'Total points a player must reach to "win" this quiz.\n\nAccepted values: any number\nDefault: none — no win threshold (percent_to_win is used instead)'
   },
   percent_to_win: {
+    group: 'Scoring',
     kind: 'number',
     default: 75,
     description:
       'Percentage of the quiz\'s maximum possible score a player must reach to "win".\n\nAccepted values: any number\nDefault: 75'
   },
   shuffle_questions: {
+    group: 'Run',
     kind: 'boolean',
     default: true,
     description:
       "Whether this quiz's questions are shown in a random order each run.\n\nAccepted values: true, false\nDefault: true"
   },
   questions_per_run: {
+    group: 'Run',
     kind: 'number',
     description:
       'Maximum number of questions shown per run, picked from the question bank when it holds more than this.\n\nAccepted values: any number\nDefault: none — every question is shown'
   },
   reveal_answers: {
+    group: 'Reveal',
     kind: 'enum',
     values: ['after_every_question', 'at_end', 'never'],
     default: 'after_every_question',
@@ -554,6 +618,7 @@ export const QUIZ_SETTING_RULES: Record<string, SettingRule> = {
       'When correct answers are revealed to the player during a run. "after_every_question" reveals them the moment each question is submitted, and locks that question — no going back. "at_end" holds every answer back until the whole quiz is submitted, and lets the player move freely between questions (with a confirmation before the final submit) until then. "never" reveals nothing, even in the end-of-quiz review.\n\nAccepted values: after_every_question, at_end, never\nDefault: after_every_question'
   },
   reveal_scores: {
+    group: 'Reveal',
     kind: 'enum',
     values: ['after_every_question', 'at_end', 'never'],
     default: 'after_every_question',
@@ -561,18 +626,21 @@ export const QUIZ_SETTING_RULES: Record<string, SettingRule> = {
       'When points earned are revealed to the player, independently of reveal_answers (e.g. show a running score without spoiling which options were correct). "after_every_question" shows each question\'s points the moment it\'s submitted — like reveal_answers, this alone is enough to lock that question with no going back. "at_end" only shows the total (and any per-question breakdown) once the quiz is submitted. "never" never shows any point value.\n\nAccepted values: after_every_question, at_end, never\nDefault: after_every_question'
   },
   show_running_score: {
+    group: 'Reveal',
     kind: 'boolean',
     default: true,
     description:
       'Whether a persistent "earned / total" score is shown at the top of the screen throughout the run, updating as questions are answered. The total is always the quiz\'s full achievable points (knowable upfront, regardless of progress); the earned side follows reveal_scores — shown live when reveal_scores=after_every_question, otherwise masked as "? / total" until the quiz is submitted, so this never reveals anything reveal_scores is holding back.\n\nAccepted values: true, false\nDefault: true'
   },
   show_reveal_screen: {
+    group: 'Reveal',
     kind: 'boolean',
     default: true,
     description:
       'Whether answering a question pauses on its own reveal screen (with a "Next question" button) before moving on, when something is revealed live (reveal_answers or reveal_scores set to after_every_question). Set to false to skip that pause and jump straight to the next question instead — the earned points for that question flash briefly next to the top score (show_running_score) rather than getting a full screen.\n\nCannot be false when reveal_answers=after_every_question — showing which options were correct needs a real screen, not just a flash; reveal_scores=after_every_question alone is unaffected either way.\n\nAccepted values: true, false\nDefault: true'
   },
   timer_mode: {
+    group: 'Timing',
     kind: 'enum',
     values: ['off', 'per_question', 'per_quiz'],
     default: 'off',
@@ -580,11 +648,13 @@ export const QUIZ_SETTING_RULES: Record<string, SettingRule> = {
       'Whether answering is under a time limit, and how it\'s scoped. "off": no timer. "per_question": timer_seconds seconds per question, resetting for each one. "per_quiz": one timer_seconds-second budget shared across the whole run. Requires timer_seconds to be set. "per_question" additionally requires reveal_answers or reveal_scores set to after_every_question — a per-question time limit only makes sense alongside "answering this locks it in immediately", which is exactly what that combination already means.\n\nAccepted values: off, per_question, per_quiz\nDefault: off'
   },
   timer_seconds: {
+    group: 'Timing',
     kind: 'number',
     description:
       'Seconds on the clock — per question (timer_mode=per_question) or for the whole run (timer_mode=per_quiz). Only read when timer_mode isn\'t "off".\n\nAccepted values: any number\nDefault: none'
   },
   on_timeout: {
+    group: 'Timing',
     kind: 'enum',
     values: ['auto_submit', 'lock_zero'],
     default: 'auto_submit',
@@ -592,6 +662,7 @@ export const QUIZ_SETTING_RULES: Record<string, SettingRule> = {
       'What happens to a question still being answered when its clock reaches zero (a per_question timer running out, or a per_quiz budget running out while a question is live). "auto_submit": whatever\'s currently selected/typed is submitted and graded as-is, same as clicking Submit. "lock_zero": the question locks with no credit, regardless of any partial selection/input.\n\nAccepted values: auto_submit, lock_zero\nDefault: auto_submit'
   },
   reveal_screen_seconds: {
+    group: 'Reveal',
     kind: 'number',
     description:
       'Seconds the post-answer reveal screen waits before automatically advancing to the next question (or to results, on the last one) — a live countdown is shown next to the "Next question"/"See results" button. Unset: no auto-advance, the player clicks through manually. Requires show_reveal_screen to not be false — there\'s no screen to auto-advance from otherwise.\n\nAccepted values: any number\nDefault: none — no auto-advance'

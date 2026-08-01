@@ -126,8 +126,8 @@
   <button
     bind:this={triggerEl}
     type="button"
-    class="cursor-help rounded px-1 py-0.5 font-mono text-slate-500 underline decoration-slate-400 decoration-dotted underline-offset-4 hover:bg-slate-100 hover:text-slate-700 {open
-      ? 'bg-slate-100 text-slate-700'
+    class="cursor-help rounded px-1 py-0.5 font-mono text-ink-subtle underline decoration-ink-faint decoration-dotted underline-offset-4 hover:bg-surface-hover hover:text-ink-muted {open
+      ? 'bg-surface-hover text-ink-muted'
       : ''}"
     aria-expanded={open}
     aria-controls={panelId}
@@ -139,17 +139,17 @@
     <div
       id={panelId}
       role="note"
-      class="z-30 border border-slate-200 bg-white text-xs font-normal normal-case leading-relaxed text-slate-600 shadow-lg {isSheet
+      class="z-30 border border-line-subtle bg-surface-raised text-xs font-normal normal-case leading-relaxed text-ink-soft shadow-lg {isSheet
         ? 'fixed inset-x-0 bottom-0 max-h-[60vh] overflow-y-auto rounded-t-xl border-b-0 p-4 pb-6'
         : 'fixed rounded-md p-2.5'}"
       style={panelStyle}
     >
       {#if isSheet}
         <div class="mb-2 flex items-start justify-between gap-3">
-          <p class="font-mono text-xs font-semibold text-slate-900">{key}</p>
+          <p class="font-mono text-xs font-semibold text-ink">{key}</p>
           <button
             type="button"
-            class="-mr-1 -mt-1 rounded p-1 text-slate-500 hover:bg-slate-100"
+            class="-mr-1 -mt-1 rounded p-1 text-ink-subtle hover:bg-surface-hover"
             aria-label="Close description"
             onclick={close}
           >
@@ -162,7 +162,7 @@
           <div class="h-2"></div>
         {:else if line.startsWith('Accepted values:') || line.startsWith('Default:')}
           {@const [label, ...rest] = line.split(':')}
-          <p><span class="font-semibold text-slate-700">{label}:</span>{rest.join(':')}</p>
+          <p><span class="font-semibold text-ink-muted">{label}:</span>{rest.join(':')}</p>
         {:else}
           <p>{line}</p>
         {/if}

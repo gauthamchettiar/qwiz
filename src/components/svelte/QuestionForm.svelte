@@ -18,6 +18,7 @@
     serializeQuizScriptQuestion,
     settingDefaultValue,
     settingValueSuggestions,
+    groupSettingKeys,
     suggestedSettingKeysForVariant,
     validateSettingValue,
     type QuizScriptOptionContent,
@@ -105,14 +106,15 @@
    * phone leaves the fields something; they can't push the card wide either, since every one of
    * them is `min-w-0`. */
   const ROW_CARD = 'flex flex-nowrap items-center gap-1.5 rounded-md border p-1.5';
-  const ROW_CARD_RESTING = 'border-slate-200 bg-slate-50/70';
+  const ROW_CARD_RESTING = 'border-line-subtle bg-surface/70';
 
   /** One option row's card colours as a SINGLE mutually-exclusive class string — see
    * QuestionPlayer's `choiceOptionTone` for why layering a base and an override silently resolves
    * whichever way Tailwind happened to order the two utilities. */
   function optionRowTone(index: number): string {
-    if (optionDrag?.id === index) return 'border-indigo-300 bg-indigo-50/50 opacity-40';
-    if (optionDrag?.overZone === index) return 'border-indigo-400 bg-indigo-50';
+    if (optionDrag?.id === index)
+      return 'border-accent-line-subtle bg-accent-surface/50 opacity-40';
+    if (optionDrag?.overZone === index) return 'border-accent-line bg-accent-surface';
     return ROW_CARD_RESTING;
   }
 
@@ -534,9 +536,9 @@
 {#snippet sectionLabel(text: string, hint?: string)}
   <!-- `{text}` and the hint on separate lines so the space between them survives: Svelte trims
        leading whitespace inside an element, so a `<span> — …` written inline renders as "Options—". -->
-  <p class="text-xs font-medium text-slate-500">
+  <p class="text-xs font-medium text-ink-subtle">
     {text}
-    {#if hint}<span class="font-normal text-slate-500">— {hint}</span>{/if}
+    {#if hint}<span class="font-normal text-ink-subtle">— {hint}</span>{/if}
   </p>
 {/snippet}
 
@@ -544,10 +546,10 @@
   <ErrorList errors={formErrors} />
 
   <div class="space-y-1.5">
-    <label for="variant" class="block text-xs font-medium text-slate-500">Variant</label>
+    <label for="variant" class="block text-xs font-medium text-ink-subtle">Variant</label>
     <select
       id="variant"
-      class="rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+      class="rounded-md border border-line px-2 py-1 text-sm text-ink focus:border-line-strong focus:outline-none focus:ring-2 focus:ring-line-subtle"
       bind:value={variant}
       onchange={onVariantChange}
     >
@@ -559,11 +561,11 @@
 
   <div class="space-y-1">
     <div class="space-y-1.5">
-      <label for="question-text" class="block text-xs font-medium text-slate-500">Question</label>
+      <label for="question-text" class="block text-xs font-medium text-ink-subtle">Question</label>
       <textarea
         id="question-text"
         bind:this={textRef}
-        class="w-full resize-y rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+        class="w-full resize-y rounded-md border border-line px-3 py-2 text-sm text-ink focus:border-line-strong focus:outline-none focus:ring-2 focus:ring-line-subtle"
         rows="2"
         bind:value={text}
         oninput={emit}></textarea>
@@ -585,13 +587,13 @@
             <div class={ROW_FIELDS}>
               <input
                 bind:this={elementRefs[index]}
-                class="{ROW_FIELD} grow basis-0 rounded-md border border-slate-300 px-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
+                class="{ROW_FIELD} grow basis-0 rounded-md border border-line px-2 text-sm text-ink focus:border-line-strong focus:outline-none"
                 placeholder="button label"
                 bind:value={item.label}
                 oninput={emit}
               />
               <input
-                class="{ROW_FIELD} grow-[2] basis-0 rounded-md border border-slate-300 px-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
+                class="{ROW_FIELD} grow-[2] basis-0 rounded-md border border-line px-2 text-sm text-ink focus:border-line-strong focus:outline-none"
                 placeholder="hint text"
                 bind:value={item.content}
                 oninput={emit}
@@ -601,13 +603,13 @@
             <div class={ROW_FIELDS}>
               <input
                 bind:this={elementRefs[index]}
-                class="{ROW_FIELD} grow basis-0 rounded-md border border-slate-300 px-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
+                class="{ROW_FIELD} grow basis-0 rounded-md border border-line px-2 text-sm text-ink focus:border-line-strong focus:outline-none"
                 placeholder="alt text"
                 bind:value={item.alt}
                 oninput={emit}
               />
               <input
-                class="{ROW_FIELD} grow-[2] basis-0 rounded-md border border-slate-300 px-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
+                class="{ROW_FIELD} grow-[2] basis-0 rounded-md border border-line px-2 text-sm text-ink focus:border-line-strong focus:outline-none"
                 placeholder="url"
                 bind:value={item.url}
                 oninput={emit}
@@ -619,7 +621,7 @@
               <input
                 type="text"
                 inputmode="decimal"
-                class="{ROW_CONTROL} w-12 rounded-md border border-slate-300 px-1 text-center text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
+                class="{ROW_CONTROL} w-12 rounded-md border border-line px-1 text-center text-sm text-ink focus:border-line-strong focus:outline-none"
                 placeholder="pts"
                 aria-label="Points"
                 title="Points (usually negative — the cost of revealing this hint)"
@@ -629,7 +631,7 @@
             {/if}
             <button
               type="button"
-              class="{ROW_ICON_BUTTON} text-slate-500 hover:bg-slate-100"
+              class="{ROW_ICON_BUTTON} text-ink-subtle hover:bg-surface-hover"
               onclick={() => removeElement(item._key)}
               aria-label="Remove element"
             >
@@ -641,21 +643,21 @@
       <div class="flex gap-1.5">
         <button
           type="button"
-          class="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+          class="flex items-center gap-1 rounded-md border border-line px-2 py-1 text-xs text-ink-soft hover:bg-surface"
           onclick={() => addElement('image')}
         >
           <Image size={13} /> Add image
         </button>
         <button
           type="button"
-          class="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+          class="flex items-center gap-1 rounded-md border border-line px-2 py-1 text-xs text-ink-soft hover:bg-surface"
           onclick={() => addElement('video')}
         >
           <VideoIcon size={13} /> Add video
         </button>
         <button
           type="button"
-          class="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+          class="flex items-center gap-1 rounded-md border border-line px-2 py-1 text-xs text-ink-soft hover:bg-surface"
           onclick={() => addElement('reveal')}
         >
           <Eye size={13} /> Add reveal
@@ -688,7 +690,7 @@
     {#if content.kind === 'text'}
       <input
         bind:this={optionRefs[index]}
-        class="{ROW_FIELD} grow basis-0 rounded-md border border-slate-300 px-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none {monospace
+        class="{ROW_FIELD} grow basis-0 rounded-md border border-line px-2 text-sm text-ink focus:border-line-strong focus:outline-none {monospace
           ? 'font-mono'
           : ''}"
         {placeholder}
@@ -698,13 +700,13 @@
     {:else}
       <input
         bind:this={optionRefs[index]}
-        class="{ROW_FIELD} grow basis-0 rounded-md border border-slate-300 px-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
+        class="{ROW_FIELD} grow basis-0 rounded-md border border-line px-2 text-sm text-ink focus:border-line-strong focus:outline-none"
         placeholder="alt text"
         bind:value={content.alt}
         oninput={emit}
       />
       <input
-        class="{ROW_FIELD} grow-[2] basis-0 rounded-md border border-slate-300 px-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
+        class="{ROW_FIELD} grow-[2] basis-0 rounded-md border border-line px-2 text-sm text-ink focus:border-line-strong focus:outline-none"
         placeholder="url"
         bind:value={content.url}
         oninput={emit}
@@ -736,7 +738,7 @@
             onDragChange: (state) => (optionDrag = state),
             onDrop: reorderOption
           }}
-          class="{ROW_ICON_BUTTON} cursor-grab text-slate-500 hover:bg-slate-100"
+          class="{ROW_ICON_BUTTON} cursor-grab text-ink-subtle hover:bg-surface-hover"
           aria-label={`Reorder ${rowNoun} ${index + 1} of ${options.length} — press arrow up or arrow down, or drag`}
           onkeydown={(e) => onGripKeydown(e, option._key)}
         >
@@ -746,7 +748,7 @@
           {@const target = option.target}
           <div class={ROW_FIELDS}>
             {@render contentFields(option.content, index, 'Item')}
-            <span class="shrink-0 text-sm text-slate-500">→</span>
+            <span class="shrink-0 text-sm text-ink-subtle">→</span>
             <!-- Only match_pairs offers a kind here: a group_items target NAMES the bucket its
                  items share, and a picture names nothing (see quizScript.ts's own parse rule). -->
             {#if isMatch}
@@ -759,20 +761,20 @@
             {/if}
             {#if !target || target.kind === 'text'}
               <input
-                class="{ROW_FIELD} grow basis-0 rounded-md border border-slate-300 px-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
+                class="{ROW_FIELD} grow basis-0 rounded-md border border-line px-2 text-sm text-ink focus:border-line-strong focus:outline-none"
                 placeholder={isMatch ? 'Matches with' : 'Bucket'}
                 value={target?.text ?? ''}
                 oninput={(e) => setOptionTarget(option._key, e.currentTarget.value)}
               />
             {:else}
               <input
-                class="{ROW_FIELD} grow basis-0 rounded-md border border-slate-300 px-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
+                class="{ROW_FIELD} grow basis-0 rounded-md border border-line px-2 text-sm text-ink focus:border-line-strong focus:outline-none"
                 placeholder="alt text"
                 bind:value={target.alt}
                 oninput={emit}
               />
               <input
-                class="{ROW_FIELD} grow-[2] basis-0 rounded-md border border-slate-300 px-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
+                class="{ROW_FIELD} grow-[2] basis-0 rounded-md border border-line px-2 text-sm text-ink focus:border-line-strong focus:outline-none"
                 placeholder="url"
                 bind:value={target.url}
                 oninput={emit}
@@ -857,7 +859,7 @@
           <input
             type="text"
             inputmode="decimal"
-            class="{ROW_CONTROL} w-12 rounded-md border border-slate-300 px-1 text-center text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
+            class="{ROW_CONTROL} w-12 rounded-md border border-line px-1 text-center text-sm text-ink focus:border-line-strong focus:outline-none"
             placeholder="pts"
             aria-label="Points"
             value={option.points}
@@ -865,7 +867,7 @@
           />
           <button
             type="button"
-            class="{ROW_ICON_BUTTON} text-slate-500 hover:bg-slate-100"
+            class="{ROW_ICON_BUTTON} text-ink-subtle hover:bg-surface-hover"
             onclick={() => removeOption(option._key)}
             aria-label={usesAnswerRows ? 'Remove accepted answer' : 'Remove option'}
           >
@@ -880,7 +882,7 @@
            kind is one click from the right one. -->
       <button
         type="button"
-        class="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+        class="flex items-center gap-1 rounded-md border border-line px-2 py-1 text-xs text-ink-soft hover:bg-surface"
         onclick={() => addOption()}
       >
         <Plus size={13} />
@@ -891,9 +893,9 @@
       {@const answerText = options[0].content.text}
       {@const prerevealedSet = new Set(options[0].prerevealed ?? [])}
       <div class="space-y-1">
-        <p class="text-xs font-medium text-slate-500">
+        <p class="text-xs font-medium text-ink-subtle">
           Pre-revealed letters
-          <span class="font-normal text-slate-400"
+          <span class="font-normal text-ink-faint"
             >— click to reveal a letter for free from the start</span
           >
         </p>
@@ -906,8 +908,8 @@
                 class="flex h-7 w-7 items-center justify-center rounded-md border text-xs font-semibold uppercase transition-colors {prerevealedSet.has(
                   i
                 )
-                  ? 'border-indigo-400 bg-indigo-50 text-indigo-700'
-                  : 'border-slate-300 bg-white text-slate-500 hover:bg-slate-50'}"
+                  ? 'border-accent-line bg-accent-surface text-accent-ink-strong'
+                  : 'border-line bg-surface-raised text-ink-subtle hover:bg-surface'}"
                 onclick={() => togglePrereveal(i)}
                 aria-pressed={prerevealedSet.has(i)}
                 aria-label={`${prerevealedSet.has(i) ? 'Unmark' : 'Mark'} letter "${char}" (position ${i + 1}) as pre-revealed`}
@@ -915,7 +917,7 @@
                 {char}
               </button>
             {:else}
-              <span class="flex h-7 w-7 items-center justify-center text-xs text-slate-300"
+              <span class="flex h-7 w-7 items-center justify-center text-xs text-ink-ghost"
                 >{char}</span
               >
             {/if}
@@ -926,9 +928,9 @@
   </div>
 
   <div class="space-y-1.5">
-    <label for="analysis-content" class="block text-xs font-medium text-slate-500">
+    <label for="analysis-content" class="block text-xs font-medium text-ink-subtle">
       Post-answer analysis
-      <span class="font-normal text-slate-500"
+      <span class="font-normal text-ink-subtle"
         >— shown after this question is answered, right or wrong</span
       >
     </label>
@@ -937,7 +939,7 @@
          sharing a row with the label field gave it a fraction of the card's width to show that in,
          so anything past a few words scrolled out of sight while being written. -->
     <input
-      class="w-full rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+      class="w-full rounded-md border border-line px-2 py-1 text-sm text-ink focus:border-line-strong focus:outline-none focus:ring-2 focus:ring-line-subtle"
       placeholder="label (optional)"
       aria-label="Post-answer analysis label"
       bind:value={analysisLabel}
@@ -945,7 +947,7 @@
     />
     <textarea
       id="analysis-content"
-      class="w-full resize-y rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+      class="w-full resize-y rounded-md border border-line px-2 py-1 text-sm text-ink focus:border-line-strong focus:outline-none focus:ring-2 focus:ring-line-subtle"
       rows="3"
       placeholder="explanation"
       bind:value={analysisContent}
@@ -962,7 +964,7 @@
     <div class="flex items-center gap-1">
       <button
         type="button"
-        class="flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-700"
+        class="flex items-center gap-1 text-xs font-medium text-ink-subtle hover:text-ink-muted"
         aria-expanded={settingsOpen}
         aria-controls={settingsPanelId}
         onclick={() => (settingsOpen = !settingsOpen)}
@@ -974,7 +976,7 @@
         {/if}
         Settings
         {#if settingsList.length > 0}
-          <span class="rounded-full bg-slate-100 px-1.5 py-0.5 font-semibold text-slate-600">
+          <span class="rounded-full bg-surface-hover px-1.5 py-0.5 font-semibold text-ink-soft">
             {settingsList.length}
           </span>
         {/if}
@@ -998,14 +1000,21 @@
              made these rows wrap on a phone. -->
         <div class="flex flex-wrap items-center gap-1.5">
           <select
-            class="w-28 shrink-0 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-900 focus:border-slate-400 focus:outline-none"
+            class="w-28 shrink-0 rounded-md border border-line px-2 py-1 text-xs text-ink focus:border-line-strong focus:outline-none"
             bind:value={setting.key}
             onchange={() => selectSettingKey(setting)}
             aria-label="Setting key"
           >
             <option value="">key</option>
-            {#each suggestedKeys.filter((k) => !usedElsewhere.includes(k)) as k (k)}
-              <option value={k}>{k}</option>
+            <!-- Grouped rather than one alphabetical run: `letter_bank` sitting between
+                 `difficulty` and `match_case` told an author nothing about which of the seventeen
+                 keys were even related to each other. -->
+            {#each groupSettingKeys(suggestedKeys.filter((k) => !usedElsewhere.includes(k))) as group (group.label)}
+              <optgroup label={group.label}>
+                {#each group.keys as k (k)}
+                  <option value={k}>{k}</option>
+                {/each}
+              </optgroup>
             {/each}
           </select>
           <SuggestionInput
@@ -1017,7 +1026,7 @@
           />
           <button
             type="button"
-            class="shrink-0 rounded p-2 text-slate-500 hover:bg-slate-100"
+            class="shrink-0 rounded p-2 text-ink-subtle hover:bg-surface-hover"
             onclick={() => removeSetting(setting._key)}
             aria-label="Remove setting"
           >
@@ -1027,12 +1036,12 @@
         {#if validation?.error}
           <!-- Indented to line up under the value field the message is about: the key select
                (7rem) plus its gap. -->
-          <p class="break-words text-xs text-red-600 sm:pl-[7.375rem]">{validation.error}</p>
+          <p class="break-words text-xs text-negative-ink sm:pl-[7.375rem]">{validation.error}</p>
         {/if}
       {/each}
       <button
         type="button"
-        class="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+        class="flex items-center gap-1 rounded-md border border-line px-2 py-1 text-xs text-ink-soft hover:bg-surface"
         onclick={addSetting}
       >
         <Plus size={13} /> Add setting

@@ -67,12 +67,15 @@
    * correctly-placed locked slot was rendering a green background inside a slate border. */
   function slotTone(slotIndex: number, occupant: number | null): string {
     if (showing && occupant !== null) {
-      return occupant === slotIndex ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50';
+      return occupant === slotIndex
+        ? 'border-positive-line bg-positive-surface'
+        : 'border-negative-line bg-negative-surface';
     }
-    if (isOver(slotIndex)) return 'border-indigo-500 bg-indigo-100 ring-2 ring-indigo-200';
-    if (placing) return 'border-indigo-300 bg-indigo-50/50 hover:bg-indigo-50';
-    if (occupant !== null) return 'border-slate-200 hover:bg-slate-50';
-    return 'border-dashed border-slate-300';
+    if (isOver(slotIndex))
+      return 'border-accent-line-strong bg-accent-surface-strong ring-2 ring-accent-line-faint';
+    if (placing) return 'border-accent-line-subtle bg-accent-surface/50 hover:bg-accent-surface';
+    if (occupant !== null) return 'border-line-subtle hover:bg-surface';
+    return 'border-dashed border-line';
   }
 
   function dragParams(optionIndex: number) {
@@ -88,13 +91,13 @@
 
 <div class="space-y-3">
   <div class="space-y-1.5">
-    <p class="text-xs font-medium text-slate-500">Arrange in the correct order</p>
+    <p class="text-xs font-medium text-ink-subtle">Arrange in the correct order</p>
     <ol class="space-y-1.5">
       {#each placement as occupant, slotIndex (slotIndex)}
         {@const isCorrect = occupant === slotIndex}
         <li class="space-y-1">
           <div class="flex items-center gap-2">
-            <span class="w-5 shrink-0 text-right text-xs font-medium text-slate-500"
+            <span class="w-5 shrink-0 text-right text-xs font-medium text-ink-subtle"
               >{slotIndex + 1}.</span
             >
             <button
@@ -117,21 +120,21 @@
               {#if occupant !== null}
                 <div class="flex items-center gap-2">
                   {#if !locked}
-                    <GripVertical size={14} class="shrink-0 text-slate-400" />
+                    <GripVertical size={14} class="shrink-0 text-ink-faint" />
                   {/if}
                   <div class="min-w-0 flex-1">
                     <OptionContent content={options[occupant].content} />
                   </div>
                   {#if showing}
                     {#if isCorrect}
-                      <CircleCheck size={16} class="shrink-0 text-green-600" />
+                      <CircleCheck size={16} class="shrink-0 text-positive-ink-soft" />
                     {:else}
-                      <CircleX size={16} class="shrink-0 text-red-500" />
+                      <CircleX size={16} class="shrink-0 text-negative-ink-soft" />
                     {/if}
                   {/if}
                 </div>
               {:else}
-                <p class="text-sm text-slate-500">Empty</p>
+                <p class="text-sm text-ink-subtle">Empty</p>
               {/if}
             </button>
           </div>
@@ -142,8 +145,8 @@
                correcting. Same shape and indent as TypedSlotsBoard's, which answer_mode=type
                already showed for exactly this reason. -->
           {#if showing && !isCorrect}
-            <p class="pl-7 text-xs text-slate-500">
-              Answer: <span class="font-medium text-green-700"
+            <p class="pl-7 text-xs text-ink-subtle">
+              Answer: <span class="font-medium text-positive-ink"
                 >{optionLabelText(options[slotIndex])}</span
               >
             </p>
@@ -161,10 +164,10 @@
       data-drop-group={DROP_GROUP}
       data-drop-zone={SOURCE_ZONE}
       class="space-y-1.5 rounded-md border border-dashed p-2 transition-colors {isOver(SOURCE_ZONE)
-        ? 'border-indigo-400 bg-indigo-50'
+        ? 'border-accent-line bg-accent-surface'
         : 'border-transparent'}"
     >
-      <p class="text-xs font-medium text-slate-500">
+      <p class="text-xs font-medium text-ink-subtle">
         {#if placing}
           Drop it on a position above, or tap one
         {:else if bankIndices.length === 0}
@@ -180,8 +183,8 @@
             use:draggable={dragParams(optionIndex)}
             class="flex items-center gap-1.5 rounded-md border p-2 text-left transition-colors disabled:cursor-not-allowed {picked ===
             optionIndex
-              ? 'border-indigo-400 bg-indigo-50'
-              : 'border-slate-300 bg-white hover:bg-slate-50'} {isLifted(optionIndex)
+              ? 'border-accent-line bg-accent-surface'
+              : 'border-line bg-surface-raised hover:bg-surface'} {isLifted(optionIndex)
               ? 'opacity-40'
               : ''}"
             disabled={locked}
@@ -189,7 +192,7 @@
             aria-pressed={picked === optionIndex}
           >
             {#if !locked}
-              <GripVertical size={14} class="shrink-0 text-slate-400" />
+              <GripVertical size={14} class="shrink-0 text-ink-faint" />
             {/if}
             <OptionContent content={options[optionIndex].content} />
           </button>

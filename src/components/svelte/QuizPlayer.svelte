@@ -426,12 +426,12 @@
      the post-answer screen and the end-of-run Review screen, so it lives in one snippet. -->
 {#snippet analysisNote(question: QuizScriptQuestion)}
   {#if question.analysis}
-    <div class="rounded-md border border-dashed border-indigo-200 bg-indigo-50 p-3">
-      <p class="flex items-center gap-1 text-xs font-medium text-indigo-700">
+    <div class="rounded-md border border-dashed border-accent-line-faint bg-accent-surface p-3">
+      <p class="flex items-center gap-1 text-xs font-medium text-accent-ink-strong">
         <Lightbulb size={13} />
         {question.analysis.label || 'Why?'}
       </p>
-      <p class="mt-0.5 whitespace-pre-wrap text-sm text-slate-900">
+      <p class="mt-0.5 whitespace-pre-wrap text-sm text-ink">
         {question.analysis.content}
       </p>
     </div>
@@ -440,7 +440,7 @@
 
 <div class="space-y-6">
   {#if run.length === 0}
-    <p class="rounded-lg border border-slate-200 p-6 text-center text-sm text-slate-500">
+    <p class="rounded-lg border border-line-subtle p-6 text-center text-sm text-ink-subtle">
       This quiz has no questions yet — nothing to play.
     </p>
   {:else if finished && summary && reviewing}
@@ -448,13 +448,13 @@
       <div class="flex items-center justify-between gap-3">
         <button
           type="button"
-          class="flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-slate-900"
+          class="flex items-center gap-1 text-sm font-medium text-ink-soft hover:text-ink"
           onclick={() => (reviewing = false)}
         >
           <ChevronLeft size={15} /> Back to summary
         </button>
         {#if showScoresAtEnd}
-          <p class="text-sm font-medium text-slate-500">{summary.earned} / {summary.max} points</p>
+          <p class="text-sm font-medium text-ink-subtle">{summary.earned} / {summary.max} points</p>
         {/if}
       </div>
       <!-- Each already-graded question is replayed through the very same `<QuestionPlayer>` that
@@ -466,8 +466,8 @@
       {#each run as playQuestion, i (i)}
         {@const answer = answers[i]}
         {#if answer}
-          <div class="space-y-4 rounded-lg border border-slate-200 bg-white p-6">
-            <p class="text-xs font-medium text-slate-500">Question {i + 1} of {run.length}</p>
+          <div class="space-y-4 rounded-lg border border-line-subtle bg-surface-raised p-6">
+            <p class="text-xs font-medium text-ink-subtle">Question {i + 1} of {run.length}</p>
             <QuestionPlayer
               question={playQuestion.question}
               {playQuestion}
@@ -481,51 +481,51 @@
       {/each}
     </div>
   {:else if finished && summary}
-    <div class="space-y-4 rounded-lg border border-slate-200 bg-white p-6 text-center">
+    <div class="space-y-4 rounded-lg border border-line-subtle bg-surface-raised p-6 text-center">
       {#if showScoresAtEnd}
         <div class="flex justify-center">
           <div
             class="rounded-full p-3 {summary.won
-              ? 'bg-green-50 text-green-600'
-              : 'bg-slate-100 text-slate-400'}"
+              ? 'bg-positive-surface text-positive-ink-soft'
+              : 'bg-surface-hover text-ink-faint'}"
           >
             <Trophy size={28} />
           </div>
         </div>
-        <h2 class="text-xl font-bold text-slate-900">
+        <h2 class="text-xl font-bold text-ink">
           {summary.won ? 'You won!' : 'Quiz complete'}
         </h2>
-        <p class="text-sm text-slate-500">
+        <p class="text-sm text-ink-subtle">
           {summary.earned} / {summary.max} points ({Math.round(summary.percentage)}%)
         </p>
         <div class="mx-auto max-w-xs space-y-1">
           {#each results as result, i (i)}
-            <div class="flex items-center justify-between text-xs text-slate-500">
+            <div class="flex items-center justify-between text-xs text-ink-subtle">
               <span>Question {i + 1}</span>
               <span>{result.earned} / {result.max}</span>
             </div>
           {/each}
         </div>
       {:else}
-        <h2 class="text-xl font-bold text-slate-900">Quiz complete</h2>
+        <h2 class="text-xl font-bold text-ink">Quiz complete</h2>
       {/if}
       <div class="flex flex-wrap items-center justify-center gap-3 pt-2">
         <a
           href="/"
-          class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          class="rounded-md border border-line bg-surface-raised px-4 py-2 text-sm font-medium text-ink-muted hover:bg-surface"
         >
           Back to quizzes
         </a>
         <button
           type="button"
-          class="flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          class="flex items-center gap-1.5 rounded-md border border-line bg-surface-raised px-4 py-2 text-sm font-medium text-ink-muted hover:bg-surface"
           onclick={() => (reviewing = true)}
         >
           <ListChecks size={15} /> Review answers
         </button>
         <button
           type="button"
-          class="flex items-center gap-1.5 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          class="flex items-center gap-1.5 rounded-md bg-accent px-4 py-2 text-sm font-medium text-ink-inverse hover:bg-accent-hover"
           onclick={playAgain}
         >
           <RotateCcw size={15} /> Play again
@@ -536,7 +536,7 @@
     <div class="space-y-1">
       <div class="flex items-center justify-between gap-3">
         <div class="flex items-center gap-2">
-          <p class="text-xs font-medium text-slate-500">
+          <p class="text-xs font-medium text-ink-subtle">
             Question {currentIndex + 1} of {run.length}
           </p>
           {#if questionSecondsLeft !== null || quizSecondsLeft !== null}
@@ -544,8 +544,8 @@
             <span
               class="flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold {secondsLeft <=
               10
-                ? 'bg-red-100 text-red-700'
-                : 'bg-slate-100 text-slate-600'}"
+                ? 'bg-negative-surface-strong text-negative-ink-strong'
+                : 'bg-surface-hover text-ink-soft'}"
             >
               <Timer size={11} />
               {formatSeconds(secondsLeft)}
@@ -553,13 +553,13 @@
           {/if}
         </div>
         {#if showScoreHeader}
-          <p class="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+          <p class="flex items-center gap-1.5 text-xs font-medium text-ink-subtle">
             {#if scoreFlash}
               <span
                 transition:fade={{ duration: 250 }}
                 class="rounded-full px-1.5 py-0.5 text-[10px] font-semibold {scoreFlash.points > 0
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-slate-200 text-slate-600'}"
+                  ? 'bg-positive-surface-strong text-positive-ink'
+                  : 'bg-surface-sunken text-ink-soft'}"
               >
                 {scoreFlash.points > 0 ? '+' : ''}{scoreFlash.points}
               </span>
@@ -568,15 +568,15 @@
           </p>
         {/if}
       </div>
-      <div class="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+      <div class="h-1.5 w-full overflow-hidden rounded-full bg-surface-hover">
         <div
-          class="h-full bg-indigo-600 transition-all"
+          class="h-full bg-accent transition-all"
           style={`width: ${((currentIndex + (locksAnswerImmediately && locked ? 1 : 0)) / run.length) * 100}%`}
         ></div>
       </div>
     </div>
 
-    <div class="space-y-4 rounded-lg border border-slate-200 bg-white p-6">
+    <div class="space-y-4 rounded-lg border border-line-subtle bg-surface-raised p-6">
       {#key `${currentIndex}-${questionResetNonce}`}
         <QuestionPlayer
           question={current.question}
@@ -597,7 +597,7 @@
         {#if !locksAnswerImmediately}
           <button
             type="button"
-            class="flex items-center gap-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            class="flex items-center gap-1 rounded-md border border-line bg-surface-raised px-3 py-2 text-sm font-medium text-ink-soft hover:bg-surface disabled:cursor-not-allowed disabled:opacity-40"
             disabled={currentIndex === 0}
             onclick={() => goToQuestion(currentIndex - 1)}
           >
@@ -611,7 +611,7 @@
           {#if !locked}
             <button
               type="button"
-              class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+              class="rounded-md bg-accent px-4 py-2 text-sm font-medium text-ink-inverse hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-surface-strong"
               disabled={!canSubmit}
               onclick={submitAnswer}
             >
@@ -620,14 +620,14 @@
           {:else}
             <div class="flex items-center gap-2">
               {#if intermediateSecondsLeft !== null}
-                <span class="flex items-center gap-1 text-xs font-medium text-slate-500">
+                <span class="flex items-center gap-1 text-xs font-medium text-ink-subtle">
                   <Timer size={12} />
                   {formatSeconds(intermediateSecondsLeft)}
                 </span>
               {/if}
               <button
                 type="button"
-                class="flex items-center gap-1.5 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+                class="flex items-center gap-1.5 rounded-md bg-accent px-4 py-2 text-sm font-medium text-ink-inverse hover:bg-accent-hover"
                 onclick={nextQuestion}
               >
                 {isLast ? 'See results' : 'Next question'}
@@ -639,7 +639,7 @@
           {#if !confirmingSubmit}
             <button
               type="button"
-              class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+              class="rounded-md bg-accent px-4 py-2 text-sm font-medium text-ink-inverse hover:bg-accent-hover"
               onclick={startConfirmSubmit}
             >
               Submit quiz
@@ -647,7 +647,7 @@
           {:else}
             <button
               type="button"
-              class="rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
+              class="rounded-md bg-warning px-4 py-2 text-sm font-medium text-ink-inverse hover:bg-warning-hover"
               onclick={confirmSubmitQuiz}
             >
               Are you sure? Submit quiz
@@ -656,7 +656,7 @@
         {:else}
           <button
             type="button"
-            class="flex items-center gap-1.5 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+            class="flex items-center gap-1.5 rounded-md bg-accent px-4 py-2 text-sm font-medium text-ink-inverse hover:bg-accent-hover"
             onclick={() => goToQuestion(currentIndex + 1)}
           >
             Next question <ChevronRight size={15} />
@@ -669,7 +669,7 @@
 
 <Dialog bind:this={leaveDialog} title="Leave this quiz?">
   {#snippet body()}
-    <p class="text-sm text-slate-500">
+    <p class="text-sm text-ink-subtle">
       Your progress on this run won't be saved. Are you sure you want to leave?
     </p>
   {/snippet}

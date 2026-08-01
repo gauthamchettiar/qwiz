@@ -7,7 +7,7 @@
        read in passing — this list is often far from the button that produced it. -->
   <ul
     role="alert"
-    class="space-y-1 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+    class="space-y-1 rounded-lg border border-negative-line-faint bg-negative-surface p-4 text-sm text-negative-ink-strong"
   >
     {#each errors as error (error)}
       <li class="break-words">{error}</li>

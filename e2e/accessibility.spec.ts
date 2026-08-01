@@ -106,3 +106,35 @@ test('a fill_blanks question (type mode) has no serious accessibility violations
   await page.goto(`/local/play?id=${quiz.id}`);
   await expectNoSeriousA11yViolations(page);
 });
+
+// Every theme is its own colour contract, and a token set that reads fine in the default light
+// theme can fail outright in another — a muted ink that clears 4.5:1 on white can land at 3:1 on
+// a dark surface. So the contrast suite runs per theme rather than once: this is the check that
+// makes adding a theme a bounded piece of work instead of an open risk.
+//
+// Two screens each rather than all of them: the builder is the densest arrangement of text on
+// tinted surfaces in the app (settings rows, option cards, the error pill), and a revealed answer
+// is where the positive/negative tokens are actually used as text. Between them they touch every
+// token group.
+for (const theme of [
+  'light',
+  'dark',
+  'vscode-light',
+  'vscode-dark',
+  'solarized-light',
+  'solarized-dark'
+]) {
+  test(`the ${theme} theme has no serious accessibility violations`, async ({ page }) => {
+    const quiz = buildQuiz();
+    await seedQuizzes(page, [quiz]);
+    await page.evaluate((t) => localStorage.setItem('qwiz:theme', t), theme);
+
+    await page.goto(`/local/edit?id=${quiz.id}`);
+    await expectNoSeriousA11yViolations(page);
+
+    await page.goto(`/local/play?id=${quiz.id}`);
+    await page.getByLabel('Paris', { exact: true }).check();
+    await page.getByRole('button', { name: 'Submit answer' }).click();
+    await expectNoSeriousA11yViolations(page);
+  });
+}

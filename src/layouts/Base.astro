@@ -1,6 +1,7 @@
 ---
 import '@/styles/global.css';
 import ImportQuizDialog from '@/components/svelte/ImportQuizDialog.svelte';
+import ThemePicker from '@/components/svelte/ThemePicker.svelte';
 import { ArrowLeft } from '@lucide/svelte';
 
 interface Props {
@@ -35,29 +36,49 @@ const {
     <meta property="og:title" content={`${title} · Qwiz`} />
     <meta property="og:description" content={description} />
     <title>{title} · Qwiz</title>
+    <!-- Applies the saved theme BEFORE first paint. It has to be an inline, blocking script in
+         <head>: an island can only run after hydration, by which point the page has already been
+         painted in the default light theme, and a dark-theme visitor would see a white flash on
+         every navigation. Duplicates the few lines of `lib/stores/theme.ts` rather than importing
+         it, because a module import is exactly the thing that would make it non-blocking — kept
+         to the smallest possible restatement of that one rule, with the store as the source of
+         truth for everything else. `is:inline` keeps Astro from bundling it. CSP already allows
+         inline scripts for Astro's own islands runtime (see public/_headers). -->
+    <script is:inline>
+      try {
+        const stored = localStorage.getItem('qwiz:theme');
+        const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.dataset.theme =
+          !stored || stored === 'system' ? (dark ? 'dark' : 'light') : stored;
+      } catch {
+        document.documentElement.dataset.theme = 'light';
+      }
+    </script>
   </head>
   <body class="min-h-screen">
     <div class="mx-auto max-w-3xl px-4 py-8">
       {
         minimal ? (
-          <header class="mb-6">
+          <header class="mb-6 flex items-center justify-between gap-2">
             <a
               href="/"
-              class="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900"
+              class="inline-flex items-center gap-1.5 text-sm font-medium text-ink-soft hover:text-ink"
             >
               <ArrowLeft size={16} /> Back
             </a>
+            <ThemePicker client:load />
           </header>
         ) : (
           <header class="mb-8 flex items-center justify-between">
-            <a href="/" class="text-xl font-bold text-slate-900">
+            <a href="/" class="text-xl font-bold text-ink">
               Qwiz
             </a>
             <div class="flex items-center gap-2">
+              <ThemePicker client:load />
               <ImportQuizDialog client:load />
               <a
                 href="/local/create"
-                class="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700"
+                class="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-ink-inverse hover:bg-accent-hover"
               >
                 + New Quiz
               </a>

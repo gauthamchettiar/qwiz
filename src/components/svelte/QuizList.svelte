@@ -50,7 +50,7 @@
 <ErrorList {errors} />
 
 {#if quizzes.length === 0}
-  <p class="rounded-lg border border-slate-200 p-6 text-center text-sm text-slate-500">
+  <p class="rounded-lg border border-line-subtle p-6 text-center text-sm text-ink-subtle">
     No quizzes yet. Create one to get started.
   </p>
 {:else}
@@ -61,32 +61,33 @@
            handle its click/focus behavior inconsistently, so this also sidesteps ever needing to
            stopPropagation a click meant for one from reaching the other. -->
       <li
-        class="relative rounded-lg border border-slate-200 bg-white transition-colors hover:border-slate-300 hover:shadow-sm"
+        class="relative rounded-lg border border-line-subtle bg-surface-raised transition-colors hover:border-line hover:shadow-sm"
       >
         <a href={`/local/edit?id=${quiz.id}`} class="block p-4 pr-10">
           <div class="flex items-baseline justify-between gap-3">
-            <h2 class="font-semibold text-slate-900">{quiz.title || 'Untitled quiz'}</h2>
+            <h2 class="font-semibold text-ink">{quiz.title || 'Untitled quiz'}</h2>
             {#if quiz.category}
               <span
-                class="shrink-0 rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700"
+                class="shrink-0 rounded-md bg-accent-surface px-2 py-0.5 text-xs font-medium text-accent-ink-strong"
               >
                 {quiz.category}
               </span>
             {/if}
           </div>
           {#if quiz.description}
-            <p class="mt-1 line-clamp-2 text-sm text-slate-500">{quiz.description}</p>
+            <p class="mt-1 line-clamp-2 text-sm text-ink-subtle">{quiz.description}</p>
           {/if}
           {#if quiz.tags.length > 0}
             <div class="mt-2 flex flex-wrap gap-1.5">
               {#each quiz.tags as tag (tag)}
-                <span class="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600"
+                <span
+                  class="rounded-md bg-surface-hover px-2 py-0.5 text-xs font-medium text-ink-soft"
                   >{tag}</span
                 >
               {/each}
             </div>
           {/if}
-          <p class="mt-3 text-xs text-slate-500">
+          <p class="mt-3 text-xs text-ink-subtle">
             {questionCountLabel(quiz)} · updated {new Date(quiz.updatedAt).toLocaleDateString()}
           </p>
         </a>
@@ -98,13 +99,13 @@
             {#snippet children(close)}
               <a
                 href={`/local/play?id=${quiz.id}`}
-                class="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                class="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left text-sm text-ink-muted hover:bg-surface"
               >
                 <Play size={15} /> Play
               </a>
               <button
                 type="button"
-                class="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                class="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left text-sm text-ink-muted hover:bg-surface"
                 onclick={() => {
                   downloadQuiz(quiz);
                   close();
@@ -112,11 +113,11 @@
               >
                 <Download size={15} /> Download .qwiz
               </button>
-              <div class="my-1 border-t border-slate-100"></div>
+              <div class="my-1 border-t border-line-faint"></div>
               {#if confirmingId === quiz.id}
                 <button
                   type="button"
-                  class="flex w-full items-center gap-2 rounded bg-red-600 px-2.5 py-1.5 text-left text-sm font-medium text-white hover:bg-red-700"
+                  class="flex w-full items-center gap-2 rounded bg-negative px-2.5 py-1.5 text-left text-sm font-medium text-ink-inverse hover:bg-negative-hover"
                   onclick={() => {
                     removeQuiz(quiz.id);
                     close();
@@ -127,7 +128,7 @@
               {:else}
                 <button
                   type="button"
-                  class="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left text-sm text-red-600 hover:bg-red-50"
+                  class="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left text-sm text-negative-ink hover:bg-negative-surface"
                   onclick={() => (confirmingId = quiz.id)}
                 >
                   <Trash2 size={15} /> Delete

@@ -9,6 +9,9 @@ export class BuilderPage {
   readonly addQuestionButton: Locator;
   readonly saveButton: Locator;
   readonly downloadButton: Locator;
+  /** Play, Download and Delete moved behind this once the edit screen had five competing
+   * buttons — see QuizBuilder's header. `openMoreActions()` is how a spec reaches them. */
+  readonly moreActionsButton: Locator;
   readonly savedFlash: Locator;
   readonly deleteQuizButton: Locator;
   readonly confirmDeleteQuizButton: Locator;
@@ -24,11 +27,12 @@ export class BuilderPage {
     this.titleInput = page.getByLabel('Title', { exact: true });
     this.descriptionInput = page.getByLabel('Description', { exact: true });
     this.addQuestionButton = page.getByRole('button', { name: 'Add question' });
-    this.saveButton = page.getByRole('button', { name: 'Save to this browser' });
+    this.saveButton = page.getByRole('button', { name: 'Save', exact: true });
     this.downloadButton = page.getByRole('button', { name: 'Download .qwiz' });
+    this.moreActionsButton = page.getByRole('button', { name: 'More quiz actions' });
     this.savedFlash = page.getByText('Saved', { exact: true });
     this.deleteQuizButton = page.getByRole('button', { name: 'Delete quiz' });
-    this.confirmDeleteQuizButton = page.getByRole('button', { name: 'Confirm delete quiz?' });
+    this.confirmDeleteQuizButton = page.getByRole('button', { name: 'Confirm delete?' });
     this.notFoundMessage = page.getByText("That quiz couldn't be found.");
     this.fileCodeButton = page.getByRole('button', { name: 'Code', exact: true });
     this.fileSourceInput = page.getByLabel('Quiz .qwiz source');
@@ -44,6 +48,14 @@ export class BuilderPage {
   async gotoEdit(id: string): Promise<void> {
     await this.page.goto(`/local/edit?id=${id}`);
     await waitForHydration(this.page);
+  }
+
+  /** Opens the header's "⋮" menu, where Play, Download and Delete now live. Idempotent so a spec
+   * can call it before any of the three without tracking whether the menu is already showing. */
+  async openMoreActions(): Promise<void> {
+    if ((await this.moreActionsButton.getAttribute('aria-expanded')) !== 'true') {
+      await this.moreActionsButton.click();
+    }
   }
 
   /** The Nth question card's own text field, once it's open in form mode (true right after

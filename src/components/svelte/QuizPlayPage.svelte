@@ -23,7 +23,7 @@
 {#if quiz}
   <QuizPlayer {quiz} />
 {:else if notFound}
-  <p class="rounded-lg border border-slate-200 p-6 text-center text-sm text-slate-500">
+  <p class="rounded-lg border border-line-subtle p-6 text-center text-sm text-ink-subtle">
     That quiz couldn't be found. It may have been deleted, or the link is wrong.
   </p>
 {/if}

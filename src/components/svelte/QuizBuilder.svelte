@@ -11,6 +11,7 @@
     Play,
     Plus,
     Tag as TagIcon,
+    Trash2,
     X
   } from '@lucide/svelte';
   import { categorySuggestions, tagSuggestions } from '@/lib/utils/suggestions';
@@ -19,6 +20,7 @@
   import {
     QUIZ_FRONTMATTER_RULES,
     QUIZ_SUGGESTED_SETTING_KEYS,
+    groupSettingKeys,
     parseQuizScriptFrontmatter,
     parseQuizScriptQuestion,
     parseQwizFile,
@@ -35,12 +37,12 @@
   import type { FocusTarget } from '@/lib/utils/questionFocus';
   import Button from './Button.svelte';
   import ErrorList from './ErrorList.svelte';
+  import CardMenu from './CardMenu.svelte';
   import CodeFrame from './CodeFrame.svelte';
   import SettingsDocsLink from './SettingsDocsLink.svelte';
   import SettingsLegend from './SettingsLegend.svelte';
   import SuggestionInput from './SuggestionInput.svelte';
   import QuestionCard from './QuestionCard.svelte';
-  import ConfirmDeleteButton from './ConfirmDeleteButton.svelte';
 
   // `initial` present = editing a previously saved quiz (see QuizEditPage.svelte); absent =
   // creating a brand-new one. Every field below is seeded from it once at mount (`untrack`, same
@@ -83,6 +85,9 @@
   // instance, either `initial` was there from the start (editing) or this quiz doesn't exist in
   // the store yet at all (creating, not yet saved). There's no third state where a stale id needs
   // remembering across repeated saves.
+  // Which state the header menu's Delete item is in — reset by CardMenu's onClose, so it can
+  // never linger armed on a menu that was dismissed.
+  let confirmingDelete = $state(false);
   let saveState = $state<'idle' | 'saving' | 'saved'>('idle');
   let saveFlashTimeout: ReturnType<typeof setTimeout> | undefined;
   $effect(() => () => clearTimeout(saveFlashTimeout));
@@ -693,7 +698,7 @@
 
 <div class="space-y-6">
   <div class="flex items-center justify-between gap-3">
-    <h1 class="text-2xl font-bold text-slate-900">{heading}</h1>
+    <h1 class="text-2xl font-bold text-ink">{heading}</h1>
     <div class="flex shrink-0 items-center gap-2">
       <!-- The whole-document editor, alongside Play rather than on a card: unlike the metadata
            card's own <> button (which edits just that card's frontmatter) this one is about the
@@ -702,23 +707,69 @@
         type="button"
         class="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium {fileDraft !==
         null
-          ? 'border-slate-300 bg-slate-100 text-slate-900'
-          : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'}"
+          ? 'border-line bg-surface-hover text-ink'
+          : 'border-line bg-surface-raised text-ink-soft hover:bg-surface'}"
         aria-pressed={fileDraft !== null}
         onclick={enterFileCode}
       >
         <Code size={15} /> Code
       </button>
-      <!-- Not gated on `initial`: Play saves first either way (see `playNow`), so it works on a
-           brand-new quiz too. Hiding it on /local/create left that page showing only the Code
-           button in this slot, which read as Code having replaced Play rather than joined it. -->
-      <button
-        type="button"
-        class="flex items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700"
-        onclick={playNow}
-      >
-        <Play size={15} /> Play
-      </button>
+      <!-- Two visible actions, everything else one tap away. This row had grown to Code + Play up
+           here and Delete + Download + Save along the bottom — five competing buttons for a screen
+           whose job is editing, on which only Save is reached often. Play, Download and Delete are
+           each occasional and none is undoable-by-accident-proof, which is exactly the profile for
+           an overflow menu. Save keeps its own button: it's the one action that shouldn't cost a
+           second click, and burying it would make "did that save?" a question. -->
+      <CardMenu ariaLabel="More quiz actions" onClose={() => (confirmingDelete = false)}>
+        {#snippet children(close)}
+          <button
+            type="button"
+            class="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left text-sm text-ink-muted hover:bg-surface"
+            onclick={() => {
+              close();
+              playNow();
+            }}
+          >
+            <Play size={15} /> Play
+          </button>
+          <button
+            type="button"
+            class="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left text-sm text-ink-muted hover:bg-surface"
+            onclick={() => {
+              downloadQwiz();
+              close();
+            }}
+          >
+            <Download size={15} /> Download .qwiz
+          </button>
+          {#if initial}
+            <div class="my-1 border-t border-line-faint"></div>
+            <!-- Same two-step confirm the quiz list uses, rather than a window.confirm: deleting
+                 is the one item here with nothing to undo it. -->
+            {#if confirmingDelete}
+              <button
+                type="button"
+                class="flex w-full items-center gap-2 rounded bg-negative px-2.5 py-1.5 text-left text-sm font-medium text-ink-inverse hover:bg-negative-hover"
+                onclick={() => {
+                  deleteThisQuiz();
+                  close();
+                }}
+              >
+                <Trash2 size={15} /> Confirm delete?
+              </button>
+            {:else}
+              <button
+                type="button"
+                class="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left text-sm text-negative-ink hover:bg-negative-surface"
+                onclick={() => (confirmingDelete = true)}
+              >
+                <Trash2 size={15} /> Delete quiz
+              </button>
+            {/if}
+          {/if}
+        {/snippet}
+      </CardMenu>
+      <Button variant="primary" onclick={save}>Save</Button>
     </div>
   </div>
 
@@ -730,9 +781,9 @@
     <!-- Replaces the metadata card, every question card and Add question for as long as it's open:
          the document IS all of those, and leaving them on screen would mean two editable copies of
          the same quiz, only one of which is being typed into. -->
-    <div class="space-y-3 rounded-lg border border-slate-200 bg-white p-6">
+    <div class="space-y-3 rounded-lg border border-line-subtle bg-surface-raised p-6">
       <div class="flex flex-wrap items-center justify-between gap-2">
-        <p class="text-xs font-medium text-slate-500">
+        <p class="text-xs font-medium text-ink-subtle">
           The whole quiz as <span class="font-mono">.qwiz</span> source — the details block and every
           question. Same format as Download and Import.
         </p>
@@ -743,7 +794,7 @@
       </div>
       <textarea
         bind:this={fileTextareaEl}
-        class="w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+        class="w-full rounded-md border border-line bg-surface px-3 py-2 font-mono text-xs text-ink-muted focus:border-line-strong focus:outline-none focus:ring-2 focus:ring-line-subtle"
         rows={Math.min(40, Math.max(12, fileDraft.split('\n').length))}
         value={fileDraft}
         aria-label="Quiz .qwiz source"
@@ -751,16 +802,16 @@
       <ErrorList errors={fileDraftErrors} />
     </div>
   {:else}
-    <div class="relative space-y-5 rounded-lg border border-slate-200 bg-white p-6">
+    <div class="relative space-y-5 rounded-lg border border-line-subtle bg-surface-raised p-6">
       <!-- Same `lg:`-gated absolute/in-flow switch as QuestionCard.svelte's button strip — see its
          comment for why: Base.astro's page container leaves no margin outside this card below
          `lg:` (1024px), so the button would otherwise be pushed off-screen on mobile. -->
       <button
         type="button"
-        class="mb-3 rounded-md border border-slate-200 bg-white p-1.5 hover:bg-slate-50 lg:absolute lg:right-full lg:top-0 lg:mb-0 lg:mr-2 {activeEdit?.kind ===
+        class="mb-3 rounded-md border border-line-subtle bg-surface-raised p-1.5 hover:bg-surface lg:absolute lg:right-full lg:top-0 lg:mb-0 lg:mr-2 {activeEdit?.kind ===
         'meta'
-          ? 'bg-slate-100 text-slate-900'
-          : 'text-slate-400'}"
+          ? 'bg-surface-hover text-ink'
+          : 'text-ink-faint'}"
         onclick={enterMetaCode}
         aria-label="Edit quiz code"
         title="Edit quiz code"
@@ -772,7 +823,7 @@
         <div class="space-y-2">
           <textarea
             bind:this={metaTextareaEl}
-            class="w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+            class="w-full rounded-md border border-line bg-surface px-3 py-2 font-mono text-xs text-ink-muted focus:border-line-strong focus:outline-none focus:ring-2 focus:ring-line-subtle"
             rows={Math.min(16, Math.max(6, activeDraft.split('\n').length))}
             value={activeDraft}
             oninput={(e) => (activeDraft = e.currentTarget.value)}></textarea>
@@ -786,15 +837,15 @@
           <input
             bind:this={titleEl}
             type="text"
-            class="w-full rounded-md px-1 py-1 text-2xl font-bold text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-200 {titleInvalid
-              ? 'border border-red-300 ring-1 ring-red-100'
+            class="w-full rounded-md px-1 py-1 text-2xl font-bold text-ink placeholder:text-ink-ghost focus:outline-none focus:ring-2 focus:ring-line-subtle {titleInvalid
+              ? 'border border-negative-line-subtle ring-1 ring-negative-surface-strong'
               : 'border-0 bg-transparent'}"
             placeholder="Untitled quiz"
             aria-label="Title"
             bind:value={title}
           />
           <textarea
-            class="w-full resize-none rounded-md border-0 bg-transparent px-1 py-1 text-sm text-slate-500 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-200"
+            class="w-full resize-none rounded-md border-0 bg-transparent px-1 py-1 text-sm text-ink-subtle placeholder:text-ink-ghost focus:outline-none focus:ring-2 focus:ring-line-subtle"
             rows="2"
             placeholder="Add a description…"
             aria-label="Description"
@@ -803,14 +854,14 @@
            thing distinguishing them, since neither carries a visible label) and a borderless
            input that sits flush with the title/description above. -->
           <div class="flex items-center gap-1.5 px-1">
-            <FolderOpen size={13} class="shrink-0 text-slate-400" />
+            <FolderOpen size={13} class="shrink-0 text-ink-faint" />
             <!-- Free text with suggestions: they're a convenience, not a constraint, so authors can
              group quizzes under anything they like. -->
             <div class="relative min-w-[8rem] flex-1">
               <input
                 id="category"
                 type="text"
-                class="w-full border-0 bg-transparent px-1 py-0.5 text-xs text-slate-600 placeholder:text-slate-300 focus:outline-none"
+                class="w-full border-0 bg-transparent px-1 py-0.5 text-xs text-ink-soft placeholder:text-ink-ghost focus:outline-none"
                 placeholder="Add a category…"
                 aria-label="Category"
                 autocomplete="off"
@@ -827,7 +878,7 @@
                   bind:this={categoryDropdownEl}
                   id={categoryListboxId}
                   role="listbox"
-                  class="absolute inset-x-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-md border border-slate-200 bg-white py-1 shadow-md"
+                  class="absolute inset-x-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-md border border-line-subtle bg-surface-raised py-1 shadow-md"
                 >
                   {#each categoryDropdownOptions as option, i (option)}
                     <button
@@ -837,8 +888,8 @@
                       aria-selected={i === categoryHighlight}
                       class="block w-full truncate px-3 py-1.5 text-left text-xs {i ===
                       categoryHighlight
-                        ? 'bg-slate-100 text-slate-900'
-                        : 'text-slate-600 hover:bg-slate-50'}"
+                        ? 'bg-surface-hover text-ink'
+                        : 'text-ink-soft hover:bg-surface'}"
                       onmousedown={(e) => e.preventDefault()}
                       onclick={() => selectCategory(option)}
                     >
@@ -851,17 +902,17 @@
           </div>
 
           <div class="flex flex-wrap items-center gap-1.5 px-1">
-            <TagIcon size={13} class="shrink-0 text-slate-400" />
+            <TagIcon size={13} class="shrink-0 text-ink-faint" />
             {#each tags as tag (tag)}
               <span
-                class="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600"
+                class="inline-flex items-center gap-1 rounded-md bg-surface-hover px-2 py-0.5 text-xs font-medium text-ink-soft"
               >
                 {tag}
                 <button
                   type="button"
                   onclick={() => removeTag(tag)}
                   aria-label={`Remove tag ${tag}`}
-                  class="hover:text-slate-900"
+                  class="hover:text-ink"
                 >
                   <X size={12} />
                 </button>
@@ -870,7 +921,7 @@
             <div class="relative min-w-[8rem] flex-1">
               <input
                 type="text"
-                class="w-full border-0 bg-transparent px-1 py-0.5 text-xs text-slate-600 placeholder:text-slate-300 focus:outline-none"
+                class="w-full border-0 bg-transparent px-1 py-0.5 text-xs text-ink-soft placeholder:text-ink-ghost focus:outline-none"
                 placeholder={tags.length ? 'Add tag…' : 'Add tags (press Enter)…'}
                 aria-label="Add tag"
                 autocomplete="off"
@@ -890,7 +941,7 @@
                   bind:this={tagDropdownEl}
                   id={tagListboxId}
                   role="listbox"
-                  class="absolute inset-x-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-md border border-slate-200 bg-white py-1 shadow-md"
+                  class="absolute inset-x-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-md border border-line-subtle bg-surface-raised py-1 shadow-md"
                 >
                   {#each tagDropdownOptions as option, i (option)}
                     <button
@@ -899,8 +950,8 @@
                       role="option"
                       aria-selected={i === tagHighlight}
                       class="block w-full truncate px-3 py-1.5 text-left text-xs {i === tagHighlight
-                        ? 'bg-slate-100 text-slate-900'
-                        : 'text-slate-600 hover:bg-slate-50'}"
+                        ? 'bg-surface-hover text-ink'
+                        : 'text-ink-soft hover:bg-surface'}"
                       onmousedown={(e) => e.preventDefault()}
                       onclick={() => selectTagSuggestion(option)}
                     >
@@ -919,7 +970,7 @@
           <div class="flex items-center gap-1">
             <button
               type="button"
-              class="flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-700"
+              class="flex items-center gap-1 text-xs font-medium text-ink-subtle hover:text-ink-muted"
               aria-expanded={settingsOpen}
               aria-controls={settingsPanelId}
               onclick={() => (settingsOpen = !settingsOpen)}
@@ -931,7 +982,9 @@
               {/if}
               Settings
               {#if settingsList.length > 0}
-                <span class="rounded-full bg-slate-100 px-1.5 py-0.5 font-semibold text-slate-600">
+                <span
+                  class="rounded-full bg-surface-hover px-1.5 py-0.5 font-semibold text-ink-soft"
+                >
                   {settingsList.length}
                 </span>
               {/if}
@@ -958,14 +1011,20 @@
                    longer that the row should be laid out differently from the question's. -->
               <div class="flex flex-wrap items-center gap-1.5">
                 <select
-                  class="w-28 max-w-full shrink-0 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-900 focus:border-slate-400 focus:outline-none"
+                  class="w-28 max-w-full shrink-0 rounded-md border border-line px-2 py-1 text-xs text-ink focus:border-line-strong focus:outline-none"
                   bind:value={setting.key}
                   onchange={() => selectSettingKey(setting)}
                   aria-label="Setting key"
                 >
                   <option value="">key</option>
-                  {#each QUIZ_SUGGESTED_SETTING_KEYS.filter((k) => !usedElsewhere.includes(k)) as k (k)}
-                    <option value={k}>{k}</option>
+                  <!-- Grouped, same as a question's — and it matters more here, since the quiz
+                       block offers every key both tables have. -->
+                  {#each groupSettingKeys( QUIZ_SUGGESTED_SETTING_KEYS.filter((k) => !usedElsewhere.includes(k)), QUIZ_FRONTMATTER_RULES ) as group (group.label)}
+                    <optgroup label={group.label}>
+                      {#each group.keys as k (k)}
+                        <option value={k}>{k}</option>
+                      {/each}
+                    </optgroup>
                   {/each}
                 </select>
                 <SuggestionInput
@@ -976,7 +1035,7 @@
                 />
                 <button
                   type="button"
-                  class="shrink-0 rounded p-2 text-slate-500 hover:bg-slate-100"
+                  class="shrink-0 rounded p-2 text-ink-subtle hover:bg-surface-hover"
                   onclick={() => removeSetting(setting._key)}
                   aria-label="Remove setting"
                 >
@@ -985,12 +1044,14 @@
               </div>
               {#if validation?.error}
                 <!-- Lines up under the value field: the key select (7rem) plus its gap. -->
-                <p class="break-words text-xs text-red-600 sm:pl-[7.375rem]">{validation.error}</p>
+                <p class="break-words text-xs text-negative-ink sm:pl-[7.375rem]">
+                  {validation.error}
+                </p>
               {/if}
             {/each}
             <button
               type="button"
-              class="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+              class="flex items-center gap-1 rounded-md border border-line px-2 py-1 text-xs text-ink-soft hover:bg-surface"
               onclick={addSetting}
             >
               <Plus size={13} /> Add setting
@@ -1034,28 +1095,25 @@
 
     <button
       type="button"
-      class="flex items-center gap-1 rounded-lg border border-dashed border-slate-300 px-4 py-3 text-sm font-medium text-slate-500 hover:border-slate-400 hover:text-slate-700"
+      class="flex items-center gap-1 rounded-lg border border-dashed border-line px-4 py-3 text-sm font-medium text-ink-subtle hover:border-line-strong hover:text-ink-muted"
       onclick={addQuestion}
     >
       <Plus size={15} /> Add question
     </button>
   {/if}
 
-  <div class="flex items-center justify-end gap-3 border-t border-slate-200 pt-4">
+  <!-- Only the save confirmation and one Save button now: Delete and Download moved up into the
+       header's overflow menu, and a second Save at the bottom of a long page was the same action
+       twice. Kept so a save made after scrolling doesn't mean scrolling back. -->
+  <div class="flex items-center justify-end gap-3 border-t border-line-subtle pt-4">
     {#if saveState === 'saved'}
       <span
         transition:fade={{ duration: 200 }}
-        class="flex items-center gap-1 text-sm font-medium text-green-600"
+        class="flex items-center gap-1 text-sm font-medium text-positive-ink-soft"
       >
         <Check size={15} /> Saved
       </span>
     {/if}
-    {#if initial}
-      <ConfirmDeleteButton variant="button" label="Delete quiz" onConfirm={deleteThisQuiz} />
-    {/if}
-    <Button onclick={downloadQwiz}>
-      <Download size={15} /> Download .qwiz
-    </Button>
     <Button variant="primary" onclick={save}>Save to this browser</Button>
   </div>
 </div>

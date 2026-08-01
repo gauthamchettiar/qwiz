@@ -187,18 +187,20 @@
    *
    * Deliberately not two class strings layered "base, then a reveal override on top": which of two
    * conflicting utilities wins is decided by their order in the generated stylesheet, not by their
-   * order in the attribute, so `bg-indigo-50 bg-green-50` resolved to indigo (it comes later in
+   * order in the attribute, so `bg-accent-surface bg-positive-surface` resolved to indigo (it comes later in
    * Tailwind's palette) and an option the player got RIGHT rendered as merely "selected" instead of
    * correct — while a correct option they didn't pick rendered green, right next to it. Any place
    * that needs one of several exclusive looks has to pick exactly one, not stack them. */
   function choiceOptionTone(optionIndex: number, correct: boolean): string {
     if (isLocked && revealAnswers) {
-      if (correct) return 'border-green-400 bg-green-50';
-      return selected.has(optionIndex) ? 'border-red-400 bg-red-50' : 'border-slate-200';
+      if (correct) return 'border-positive-line bg-positive-surface';
+      return selected.has(optionIndex)
+        ? 'border-negative-line bg-negative-surface'
+        : 'border-line-subtle';
     }
     return selected.has(optionIndex)
-      ? 'border-indigo-300 bg-indigo-50'
-      : 'border-slate-200 hover:bg-slate-50';
+      ? 'border-accent-line-subtle bg-accent-surface'
+      : 'border-line-subtle hover:bg-surface';
   }
 
   function currentDraft(): QuestionDraft {
@@ -630,7 +632,7 @@
             bind:this={boxRefs[i]}
             type="text"
             maxlength="1"
-            class="h-10 w-8 rounded-md border border-slate-300 text-center text-lg font-medium text-slate-900 focus:border-slate-400 focus:outline-none"
+            class="h-10 w-8 rounded-md border border-line text-center text-lg font-medium text-ink focus:border-line-strong focus:outline-none"
             value={boxChars[i] ?? ''}
             oninput={(e) => {
               if (e.currentTarget.value.slice(-1) === ' ') {
@@ -656,15 +658,15 @@
   <div class="flex flex-wrap items-center gap-1" role="group" aria-label="Answer, revealed so far">
     {#each characterInputText.split('') as char, i (i)}
       {#if !isGuessableChar(char)}
-        <span class="flex h-10 w-4 items-center justify-center text-lg font-medium text-slate-900"
+        <span class="flex h-10 w-4 items-center justify-center text-lg font-medium text-ink"
           >{char}</span
         >
       {:else}
         {@const shown = displayedRevealedPositions.has(i)}
         <span
           class="flex h-10 w-8 items-center justify-center rounded-md border text-lg font-medium {shown
-            ? 'border-slate-300 bg-slate-50 text-slate-900'
-            : 'border-slate-300 bg-white text-slate-300'}"
+            ? 'border-line bg-surface text-ink'
+            : 'border-line bg-surface-raised text-ink-ghost'}"
         >
           {shown ? char : '_'}
         </span>
@@ -675,12 +677,12 @@
 
 {#snippet typedAcceptedAnswers()}
   <div class="mt-2">
-    <p class="text-xs font-medium text-slate-500">Accepted answers</p>
+    <p class="text-xs font-medium text-ink-subtle">Accepted answers</p>
     <div class="mt-1 flex flex-wrap gap-1.5">
       {#each question.options as option, i (i)}
         {#if option.content.kind === 'text'}
           <span
-            class="rounded-md border border-green-300 bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700"
+            class="rounded-md border border-positive-line-subtle bg-positive-surface px-2 py-0.5 text-xs font-medium text-positive-ink"
           >
             {option.content.text}
           </span>
@@ -696,14 +698,14 @@
     {@const matched = typedSingleAnswerMatches(question.options, response, question.settings)}
     <div
       class="rounded-md border p-3 {matched !== null
-        ? 'border-green-400 bg-green-50'
-        : 'border-red-400 bg-red-50'}"
+        ? 'border-positive-line bg-positive-surface'
+        : 'border-negative-line bg-negative-surface'}"
     >
-      <p class="flex items-center gap-1.5 text-sm text-slate-900">
+      <p class="flex items-center gap-1.5 text-sm text-ink">
         {#if matched !== null}<CircleCheck
             size={14}
-            class="shrink-0 text-green-600"
-          />{:else}<CircleX size={14} class="shrink-0 text-red-500" />{/if}
+            class="shrink-0 text-positive-ink-soft"
+          />{:else}<CircleX size={14} class="shrink-0 text-negative-ink-soft" />{/if}
         {response.trim() || '(left blank)'}
       </p>
     </div>
@@ -714,10 +716,10 @@
         {@const status = perGuess[i]?.status}
         <span
           class="rounded-md border px-2 py-0.5 text-xs font-medium {status === 'matched'
-            ? 'border-green-300 bg-green-50 text-green-700'
+            ? 'border-positive-line-subtle bg-positive-surface text-positive-ink'
             : status === 'wrong'
-              ? 'border-red-300 bg-red-50 text-red-700'
-              : 'border-slate-300 bg-slate-50 text-slate-500'}"
+              ? 'border-negative-line-subtle bg-negative-surface text-negative-ink-strong'
+              : 'border-line bg-surface text-ink-subtle'}"
         >
           {guess.trim() || '(blank)'}
         </span>
@@ -737,30 +739,31 @@
   {@const isRight = matched !== null && question.options[matched].correct}
   <div
     class="rounded-md border p-3 {isRight
-      ? 'border-green-400 bg-green-50'
-      : 'border-red-400 bg-red-50'}"
+      ? 'border-positive-line bg-positive-surface'
+      : 'border-negative-line bg-negative-surface'}"
   >
-    <p class="flex items-center gap-1.5 text-sm text-slate-900">
-      {#if isRight}<CircleCheck size={14} class="shrink-0 text-green-600" />{:else}<CircleX
+    <p class="flex items-center gap-1.5 text-sm text-ink">
+      {#if isRight}<CircleCheck size={14} class="shrink-0 text-positive-ink-soft" />{:else}<CircleX
           size={14}
-          class="shrink-0 text-red-500"
+          class="shrink-0 text-negative-ink-soft"
         />{/if}
       {response.trim() || '(left blank)'}
     </p>
   </div>
   <div class="mt-2">
-    <p class="text-xs font-medium text-slate-500">Patterns</p>
+    <p class="text-xs font-medium text-ink-subtle">Patterns</p>
     <div class="mt-1 space-y-1">
       {#each question.options as option, i (i)}
         {#if option.content.kind === 'text'}
           <p class="flex items-start gap-1.5 text-xs">
             <span
-              class="shrink-0 font-semibold {option.correct ? 'text-green-700' : 'text-red-600'}"
-              >{option.correct ? 'correct' : 'wrong'}</span
+              class="shrink-0 font-semibold {option.correct
+                ? 'text-positive-ink'
+                : 'text-negative-ink'}">{option.correct ? 'correct' : 'wrong'}</span
             >
-            <code class="min-w-0 break-all font-mono text-slate-700">{option.content.text}</code>
+            <code class="min-w-0 break-all font-mono text-ink-muted">{option.content.text}</code>
             {#if i === matched}
-              <span class="shrink-0 font-semibold text-slate-500">← matched</span>
+              <span class="shrink-0 font-semibold text-ink-subtle">← matched</span>
             {/if}
           </p>
         {/if}
@@ -772,14 +775,14 @@
 <!-- Locked but NOT revealing correctness (reveal_answers=at_end/never — see QuizPlayer.svelte):
      just what the player typed, with no color/marking and no accepted-answer list yet. -->
 {#snippet typedLockedNeutral(response: string | string[])}
-  <div class="rounded-md border border-slate-200 bg-slate-50 p-3">
+  <div class="rounded-md border border-line-subtle bg-surface p-3">
     {#if typeof response === 'string'}
-      <p class="text-sm text-slate-700">{response.trim() || '(left blank)'}</p>
+      <p class="text-sm text-ink-muted">{response.trim() || '(left blank)'}</p>
     {:else}
       <div class="flex flex-wrap gap-1.5">
         {#each response as guess, i (i)}
           <span
-            class="rounded-md border border-slate-300 bg-white px-2 py-0.5 text-xs font-medium text-slate-700"
+            class="rounded-md border border-line bg-surface-raised px-2 py-0.5 text-xs font-medium text-ink-muted"
           >
             {guess.trim() || '(blank)'}
           </span>
@@ -799,7 +802,7 @@
   {/if}
 
   {#if !isFillInBlanks}
-    <p class="whitespace-pre-wrap text-base font-medium text-slate-900">{question.text}</p>
+    <p class="whitespace-pre-wrap text-base font-medium text-ink">{question.text}</p>
   {/if}
 
   {#each question.media as media, i (i)}
@@ -807,24 +810,24 @@
   {/each}
 
   {#each question.extras as extra, i (i)}
-    <div class="rounded-md border border-dashed border-slate-300 bg-slate-50 p-3">
+    <div class="rounded-md border border-dashed border-line bg-surface p-3">
       {#if revealedHints.has(i)}
-        <p class="flex items-center gap-1 text-xs font-medium text-slate-500">
+        <p class="flex items-center gap-1 text-xs font-medium text-ink-subtle">
           <Eye size={12} />
           {extra.label || 'Hint'}
         </p>
-        <p class="mt-1 text-sm text-slate-700">{extra.content}</p>
+        <p class="mt-1 text-sm text-ink-muted">{extra.content}</p>
       {:else}
         <button
           type="button"
-          class="flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:underline disabled:cursor-not-allowed disabled:text-slate-500 disabled:no-underline"
+          class="flex items-center gap-1.5 text-sm font-medium text-accent-ink hover:underline disabled:cursor-not-allowed disabled:text-ink-subtle disabled:no-underline"
           disabled={isLocked}
           onclick={() => revealHint(i)}
         >
           <Eye size={14} />
           {extra.label || 'Reveal hint'}
           {#if extra.points !== 0}
-            <span class="text-xs text-slate-500"
+            <span class="text-xs text-ink-subtle"
               >({extra.points > 0 ? '+' : ''}{extra.points} pts)</span
             >
           {/if}
@@ -844,7 +847,7 @@
       <input
         bind:this={typedSingleInputRef}
         type="text"
-        class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
+        class="w-full rounded-md border border-line px-3 py-2 text-sm text-ink focus:border-line-strong focus:outline-none"
         placeholder="Type your answer"
         bind:value={typedSingleAnswer}
       />
@@ -866,14 +869,14 @@
         <div class="flex flex-wrap gap-1.5">
           {#each typedGuesses as guess, i (i)}
             <span
-              class="flex items-center gap-1 rounded-md border border-slate-300 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-700"
+              class="flex items-center gap-1 rounded-md border border-line bg-surface px-2 py-0.5 text-xs font-medium text-ink-muted"
             >
               {guess}
               <button
                 type="button"
                 onclick={() => removeGuess(i)}
                 aria-label={`Remove guess "${guess}"`}
-                class="text-slate-400 hover:text-slate-700"
+                class="text-ink-faint hover:text-ink-muted"
               >
                 <X size={12} />
               </button>
@@ -886,7 +889,7 @@
           {@render boxRow()}
           <button
             type="button"
-            class="flex items-center gap-1 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            class="flex items-center gap-1 rounded-md border border-line px-3 py-2 text-sm font-medium text-ink-soft hover:bg-surface disabled:cursor-not-allowed disabled:opacity-50"
             disabled={boxChars.length === 0 ||
               !boxChars.every((c) => c !== '') ||
               (maxAnswers !== undefined && typedGuesses.length >= maxAnswers)}
@@ -900,7 +903,7 @@
           <input
             bind:this={typedGuessInputRef}
             type="text"
-            class="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50"
+            class="flex-1 rounded-md border border-line px-3 py-2 text-sm text-ink focus:border-line-strong focus:outline-none disabled:cursor-not-allowed disabled:bg-surface"
             placeholder="Type a guess and press Enter"
             bind:value={typedGuessDraft}
             disabled={maxAnswers !== undefined && typedGuesses.length >= maxAnswers}
@@ -913,7 +916,7 @@
           />
           <button
             type="button"
-            class="flex items-center gap-1 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            class="flex items-center gap-1 rounded-md border border-line px-3 py-2 text-sm font-medium text-ink-soft hover:bg-surface disabled:cursor-not-allowed disabled:opacity-50"
             disabled={typedGuessDraft.trim() === '' ||
               (maxAnswers !== undefined && typedGuesses.length >= maxAnswers)}
             onclick={bankGuess}
@@ -928,7 +931,7 @@
       <input
         bind:this={typedSingleInputRef}
         type="text"
-        class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
+        class="w-full rounded-md border border-line px-3 py-2 text-sm text-ink focus:border-line-strong focus:outline-none"
         placeholder="Type your answer"
         bind:value={typedSingleAnswer}
       />
@@ -1061,9 +1064,9 @@
           </div>
           {#if isLocked && revealAnswers}
             {#if option.correct}
-              <CircleCheck size={16} class="mt-1 shrink-0 text-green-600" />
+              <CircleCheck size={16} class="mt-1 shrink-0 text-positive-ink-soft" />
             {:else if selected.has(optionIndex)}
-              <CircleX size={16} class="mt-1 shrink-0 text-red-500" />
+              <CircleX size={16} class="mt-1 shrink-0 text-negative-ink-soft" />
             {/if}
           {/if}
         </label>
@@ -1073,7 +1076,7 @@
 
   {#if !isLocked && (!isTyped || isMultiGuess) && (minAnswers > 0 || maxAnswers !== undefined)}
     {@const noun = isTyped ? 'answer' : 'option'}
-    <p class="text-xs text-slate-500">
+    <p class="text-xs text-ink-subtle">
       {#if minAnswers > 0 && maxAnswers !== undefined}
         {isTyped ? 'Give' : 'Select'} between {minAnswers} and {maxAnswers}
         {noun}{maxAnswers === 1 ? '' : 's'}.
@@ -1090,7 +1093,7 @@
       {#if !standaloneLocked}
         <button
           type="button"
-          class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+          class="rounded-md bg-accent px-4 py-2 text-sm font-medium text-ink-inverse hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-surface-strong"
           disabled={!canSubmit}
           onclick={submitAnswer}
         >
@@ -1099,7 +1102,7 @@
       {:else}
         <button
           type="button"
-          class="flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          class="flex items-center gap-1.5 rounded-md border border-line bg-surface-raised px-4 py-2 text-sm font-medium text-ink-muted hover:bg-surface"
           onclick={reset}
         >
           <RotateCcw size={15} /> Try again

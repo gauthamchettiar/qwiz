@@ -206,8 +206,9 @@ State:
   hydrates exactly one top-level island; there's no cross-island communication). If that changes,
   follow the original template's guidance: a module in `src/lib/stores/*.svelte.ts` exporting
   rune-backed state, not DOM/custom-event coupling between islands.
-- Persisted state → `src/lib/stores/quizzes.ts` is the **only** file that calls `localStorage`.
-  Never call `localStorage` from a component — this is enforced by convention, not tooling, so
+- Persisted state → only `src/lib/stores/*` calls `localStorage` (`quizzes.ts` for the quiz
+  library, `theme.ts` for the colour theme, plus the pre-paint theme script in `Base.astro`, which
+  has to be inline to beat first paint). Never call `localStorage` from a component — this is enforced by convention, not tooling, so
   watch for it in review.
 - A writable `$derived` (Svelte 5) is the pattern this app uses for "read once, then let local
   interactions override it" state — see `QuizList.svelte`'s `quizzes` — instead of the
@@ -229,12 +230,12 @@ See §2 for why daisyUI/Bits UI aren't in use. The actual escalation ladder in t
    (variant/size props over a class-string lookup), `Dialog.svelte` (shared modal shell),
    `ConfirmDeleteButton.svelte` (the two-step delete pattern used on both quiz cards and
    questions), `CardMenu.svelte` (the "⋮" overflow menu).
-3. **A design token** added to `@theme` in `src/styles/global.css` — currently just
-   `--font-sans`; the app hasn't needed more.
-4. **Custom CSS** — last resort. `global.css` currently has exactly two: `color-scheme: light`
-   (the app is a fixed light palette, not dark-mode-aware — this prevents the OS's dark-mode UA
-   styles from rendering `<datalist>`-style native chrome unreadably) and a `cursor: pointer`
-   restore on `<button>` (Tailwind's preflight resets it). Both are commented with why.
+3. **A design token** added to `@theme` in `src/styles/global.css` — every colour in the app is
+   one (see "Colour and themes" below), plus `--font-sans`.
+4. **Custom CSS** — last resort. `global.css` currently has exactly two: a `cursor: pointer`
+   restore on `<button>` (Tailwind's preflight resets it) and a 16px floor on form controls at
+   coarse pointers (iOS auto-zoom). Both are commented with why. `color-scheme` is no longer one
+   of them — it's per theme now.
 
 Additional rules:
 
@@ -249,21 +250,56 @@ Additional rules:
   over green). Anything with several mutually-exclusive looks picks exactly one via a function
   returning a single class string — see `choiceOptionTone` in `QuestionPlayer.svelte` and the
   `slotTone`/`leftTone`/`rightTone`/`itemTone`/`blankTone` helpers in the four boards.
-- Color palette is `slate` (neutral surfaces/text) + `indigo` (the one primary accent) +
-  semantic `red`/`green`/`amber` for destructive/correct/warning states. No daisyUI semantic
-  tokens (`bg-base-200`) since there's no theme-switching to abstract over.
-- **Contrast**: `text-slate-400` on this app's light backgrounds (`slate-50`/white) fails WCAG AA
-  (2.51:1, needs 4.5:1) — confirmed by the Playwright a11y suite. Use `text-slate-500` (4.5–4.8:1)
-  for any text-bearing element that needs a muted look; `slate-400` is only safe on icon-only
+- **Never name a palette shade outside `global.css`.** `bg-slate-50`, `text-indigo-600` and the
+  like don't appear anywhere in `src/` any more — every colour is a semantic token
+  (`bg-surface`, `text-ink-subtle`, `border-line`, `bg-positive-surface`). That's what makes a
+  theme a block of CSS variables instead of a hunt through 34 components, and it's enforced by
+  reading: a `slate-` in a component diff is a bug. See "Colour and themes" below.
+- **Contrast**: `text-ink-faint` fails WCAG AA against this app's surfaces (2.51:1 in the light
+  theme, needs 4.5:1) — confirmed by the Playwright a11y suite. Use `text-ink-subtle` for any
+  text-bearing element that needs a muted look; `ink-faint`/`ink-ghost` are only safe on icon-only
   buttons and purely decorative icons, which convey no text for axe to check.
 - Repeated utility strings across components → extract a component, not an `@apply` block.
   `@apply` is effectively banned (the two `global.css` exceptions above are structural CSS, not
   component styling).
-- Dark mode: explicitly out of scope (`color-scheme: light`) — don't add `dark:` variants without
-  discussing the tradeoff first, since it's a real product decision, not just a CSS change.
+- Never add a `dark:` variant. Dark mode is real now, but it is NOT `dark:` — see below.
 - Keyboard focus must always be visible. Respect `prefers-reduced-motion` for any new animation
   (existing `fade` transitions in `QuizBuilder`/`QuizPlayer` are brief enough not to need a
   reduced-motion fallback, but a longer one would).
+
+### Colour and themes
+
+Every colour is a semantic token defined once in `src/styles/global.css` and overridden per theme:
+
+- `surface` / `surface-raised` / `-hover` / `-sunken` / `-strong` / `-inverse` — things you put
+  content ON.
+- `ink` / `-muted` / `-soft` / `-subtle` / `-faint` / `-ghost` — text, furthest from the
+  background to closest. `ink-inverse` is text on a solid accent/positive/negative/warning fill;
+  `ink-on-inverse` is text on `surface-inverse`. Those two are genuinely different jobs and
+  flip independently per theme — collapsing them is what produced dark-on-mid-tone buttons the
+  first time round.
+- `line` / `-faint` / `-subtle` / `-strong` — borders.
+- `accent`, `positive`, `negative`, `warning`, each with `-surface`, `-ink` and `-line` families.
+
+**Adding a theme is one block of CSS variables** under `:root[data-theme='…']` plus an entry in
+`THEMES` (`lib/stores/theme.ts`). No component changes: Tailwind v4 compiles `bg-surface` to
+`background-color: var(--color-surface)`, so overriding the variable re-skins every usage. This is
+why there are no `dark:` variants — they'd be a second set of class names to keep in sync, and
+they can't express six themes anyway.
+
+Rules that come with it:
+
+- **`color-scheme` per theme is not optional.** It's what makes native chrome (`<select>` popups,
+  scrollbars) legible; a dark theme without it renders the setting-key dropdown unreadably.
+- **Contrast is enforced, not assumed.** `e2e/accessibility.spec.ts` runs axe over the builder and
+  a revealed answer in _every_ theme. Adding a theme means adding it to that loop. Two real
+  pre-existing failures surfaced when this was first added (a white-on-green score badge at
+  3.21:1, and error text on its own tint at 4.36:1) — both invisible to the old suite because no
+  test had ever visited a revealed answer.
+- **The theme is applied before first paint** by a small inline script in `Base.astro`, not by the
+  picker island — an island only runs after hydration, by which point a dark-theme visitor has
+  already seen a white flash. That script deliberately restates a few lines of `lib/stores/theme.ts`
+  rather than importing it, because importing a module is exactly what would make it non-blocking.
 
 ### Security headers (`public/_headers`)
 
@@ -570,16 +606,17 @@ lint`, `pnpm test`, or `pnpm test:e2e`.
 - [ ] No new dependency without prior agreement
 - [ ] `text-slate-400` never used on text-bearing elements (see §5) — `text-slate-500`+ instead
 - [ ] Still fully static: no adapter, no server route, no runtime secret
-- [ ] `localStorage` touched only from `src/lib/stores/quizzes.ts`
+- [ ] `localStorage` touched only from `src/lib/stores/` (`quizzes.ts`, `theme.ts`)
 - [ ] Any new persistence call checks `saveQuiz`/`deleteQuiz`'s boolean return and surfaces a
       failure to the user (see §6) — never assumes a write landed
 - [ ] Works at mobile viewport, keyboard navigable, axe-clean (`pnpm test:e2e` covers all three)
 
 ### Anti-patterns — flag these on sight
 
-Adding an SSR adapter · a new `localStorage` call outside `lib/stores/quizzes.ts` · calling
-`saveQuiz`/`deleteQuiz` without checking the result · `@apply` blocks · `text-slate-400` on real
-text · `waitForTimeout` in tests · CSS-class selectors in tests · duplicated `.qwiz`
+Adding an SSR adapter · a new `localStorage` call outside `lib/stores/` · calling
+`saveQuiz`/`deleteQuiz` without checking the result · `@apply` blocks · naming a palette shade
+(`slate-500`, `indigo-600`) anywhere but `global.css` · a `dark:` variant · `text-ink-faint` on
+real text · `waitForTimeout` in tests · CSS-class selectors in tests · duplicated `.qwiz`
 parsing/validation logic outside `quizScript.ts` · `any` · a component that only renders the
 happy path · e2e tests running against `pnpm dev` instead of the build · re-adopting
 daisyUI/Bits UI wholesale without re-reading §2's reasoning first.

@@ -57,6 +57,7 @@ test('Play on a brand-new quiz saves it first, then plays it', async ({ page }) 
   await builder.addQuestion();
   await builder.fillChoiceQuestion('What is the capital of France?', 'Paris', 'Lyon');
 
+  await builder.openMoreActions();
   await page.getByRole('button', { name: 'Play' }).click();
   await expect(page).toHaveURL(/\/local\/play\?id=.+/);
   await expect(page.getByText('What is the capital of France?')).toBeVisible();

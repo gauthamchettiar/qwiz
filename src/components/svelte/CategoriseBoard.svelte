@@ -81,9 +81,11 @@
    * silently resolves the wrong way. */
   function itemTone(optionIndex: number): string {
     if (showing) {
-      return isCorrect(optionIndex) ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50';
+      return isCorrect(optionIndex)
+        ? 'border-positive-line bg-positive-surface'
+        : 'border-negative-line bg-negative-surface';
     }
-    return 'border-slate-300 bg-white hover:bg-slate-50';
+    return 'border-line bg-surface-raised hover:bg-surface';
   }
 
   function dragParams(optionIndex: number) {
@@ -111,13 +113,13 @@
         data-drop-group={DROP_GROUP}
         data-drop-zone={bucketIndex}
         class="rounded-lg border-2 transition-colors {over
-          ? 'border-indigo-500 bg-indigo-50'
+          ? 'border-accent-line-strong bg-accent-surface'
           : placing
-            ? 'border-indigo-300 bg-indigo-50/30'
-            : 'border-slate-200 bg-slate-50/50'}"
+            ? 'border-accent-line-subtle bg-accent-surface/30'
+            : 'border-line-subtle bg-surface/50'}"
       >
         <div class="flex items-center justify-between gap-2 px-2.5 pb-1 pt-2">
-          <p class="min-w-0 truncate text-xs font-semibold uppercase tracking-wide text-slate-600">
+          <p class="min-w-0 truncate text-xs font-semibold uppercase tracking-wide text-ink-soft">
             {buckets[bucketIndex]}
           </p>
           <!-- Purely a visual tally; `aria-label` on a span with no role is prohibited (and axe
@@ -126,8 +128,8 @@
             aria-hidden="true"
             class="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold {itemsHere.length >
             0
-              ? 'bg-slate-600 text-white'
-              : 'bg-slate-200 text-slate-600'}"
+              ? 'bg-surface-inverse text-ink-on-inverse'
+              : 'bg-surface-sunken text-ink-soft'}"
           >
             {itemsHere.length}
           </span>
@@ -136,8 +138,8 @@
              something things go INTO and visibly has room for more than one of them. -->
         <div
           class="m-1.5 mt-0 flex min-h-16 flex-wrap content-start gap-1.5 rounded-md border border-dashed p-1.5 {over
-            ? 'border-indigo-400 bg-white/80'
-            : 'border-slate-300'}"
+            ? 'border-accent-line bg-surface-raised/80'
+            : 'border-line'}"
         >
           {#each itemsHere as optionIndex (optionIndex)}
             <!-- Chip and its answer key stack as ONE flex item of the well, so a revealed answer
@@ -156,17 +158,17 @@
                   <OptionContent content={options[optionIndex].content} />
                   {#if showing}
                     {#if isCorrect(optionIndex)}
-                      <CircleCheck size={14} class="shrink-0 text-green-600" />
+                      <CircleCheck size={14} class="shrink-0 text-positive-ink-soft" />
                     {:else}
-                      <CircleX size={14} class="shrink-0 text-red-500" />
+                      <CircleX size={14} class="shrink-0 text-negative-ink-soft" />
                     {/if}
                   {/if}
                 </div>
               </button>
               <!-- Outside the button: text inside one becomes part of its accessible name. -->
               {#if showing && !isCorrect(optionIndex)}
-                <p class="px-0.5 text-xs text-slate-500">
-                  Answer: <span class="font-medium text-green-700"
+                <p class="px-0.5 text-xs text-ink-subtle">
+                  Answer: <span class="font-medium text-positive-ink"
                     >{optionTargetText(options[optionIndex])}</span
                   >
                 </p>
@@ -176,14 +178,14 @@
           {#if picked !== null && !locked}
             <button
               type="button"
-              class="rounded-md border border-dashed border-indigo-400 bg-indigo-50 px-2 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
+              class="rounded-md border border-dashed border-accent-line bg-accent-surface px-2 py-1.5 text-xs font-medium text-accent-ink-strong hover:bg-accent-surface-strong"
               onclick={() => onClickBucket(bucketIndex)}
             >
               Place here
             </button>
           {:else if itemsHere.length === 0 && !locked}
-            <p class="flex items-center gap-1 self-center px-1 text-xs text-slate-500">
-              <Inbox size={13} class="shrink-0 text-slate-400" />
+            <p class="flex items-center gap-1 self-center px-1 text-xs text-ink-subtle">
+              <Inbox size={13} class="shrink-0 text-ink-faint" />
               Drop items here
             </p>
           {/if}
@@ -202,10 +204,10 @@
       data-drop-zone={SOURCE_ZONE}
       class="space-y-1.5 rounded-md border border-dashed p-2 transition-colors {drag?.overZone ===
       SOURCE_ZONE
-        ? 'border-indigo-400 bg-indigo-50'
+        ? 'border-accent-line bg-accent-surface'
         : 'border-transparent'}"
     >
-      <p class="text-xs font-medium text-slate-500">
+      <p class="text-xs font-medium text-ink-subtle">
         {#if placing}
           Drop it on a bucket above, or tap one
         {:else if poolIndices.length === 0}
@@ -222,8 +224,8 @@
               use:draggable={dragParams(optionIndex)}
               class="flex items-center gap-1.5 rounded-md border p-2 text-left transition-colors disabled:cursor-not-allowed {picked ===
               optionIndex
-                ? 'border-indigo-400 bg-indigo-50'
-                : 'border-slate-300 bg-white hover:bg-slate-50'} {drag?.id === optionIndex
+                ? 'border-accent-line bg-accent-surface'
+                : 'border-line bg-surface-raised hover:bg-surface'} {drag?.id === optionIndex
                 ? 'opacity-40'
                 : ''}"
               disabled={locked}
@@ -231,7 +233,7 @@
               aria-pressed={picked === optionIndex}
             >
               {#if !locked}
-                <GripVertical size={14} class="shrink-0 text-slate-400" />
+                <GripVertical size={14} class="shrink-0 text-ink-faint" />
               {/if}
               <OptionContent content={options[optionIndex].content} />
             </button>
@@ -239,8 +241,8 @@
                  can reveal where it belonged — without this it's the one item a review screen says
                  nothing about at all. -->
             {#if showing}
-              <p class="px-0.5 text-xs text-slate-500">
-                Answer: <span class="font-medium text-green-700"
+              <p class="px-0.5 text-xs text-ink-subtle">
+                Answer: <span class="font-medium text-positive-ink"
                   >{optionTargetText(options[optionIndex])}</span
                 >
               </p>

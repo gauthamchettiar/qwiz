@@ -42,7 +42,7 @@
   {#if variant === 'icon'}
     <button
       type="button"
-      class="flex items-center justify-center rounded-md bg-red-600 p-1.5 text-white hover:bg-red-700"
+      class="flex items-center justify-center rounded-md bg-negative p-1.5 text-ink-inverse hover:bg-negative-hover"
       onclick={confirmDelete}
       aria-label="Click to confirm delete"
       title="Click to confirm delete"
@@ -52,7 +52,7 @@
   {:else}
     <button
       type="button"
-      class="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+      class="inline-flex items-center gap-1.5 rounded-md bg-negative px-4 py-2 text-sm font-medium text-ink-inverse hover:bg-negative-hover"
       onclick={confirmDelete}
     >
       <Check size={15} /> Confirm {label.toLowerCase()}?
@@ -61,7 +61,7 @@
 {:else if variant === 'icon'}
   <button
     type="button"
-    class="rounded-md border border-slate-200 bg-white p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500"
+    class="rounded-md border border-line-subtle bg-surface-raised p-1.5 text-ink-faint hover:bg-negative-surface hover:text-negative-ink-soft"
     onclick={startConfirm}
     aria-label={ariaLabel ?? label}
     title={ariaLabel ?? label}
@@ -71,7 +71,7 @@
 {:else}
   <button
     type="button"
-    class="inline-flex items-center gap-1.5 rounded-md border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+    class="inline-flex items-center gap-1.5 rounded-md border border-negative-line-faint px-4 py-2 text-sm font-medium text-negative-ink hover:bg-negative-surface"
     onclick={startConfirm}
   >
     <Trash2 size={15} />

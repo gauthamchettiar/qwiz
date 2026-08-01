@@ -80,7 +80,7 @@
   {#snippet titleExtra()}
     <button
       type="button"
-      class="flex items-center gap-1 text-xs text-indigo-600 hover:underline"
+      class="flex items-center gap-1 text-xs text-accent-ink hover:underline"
       onclick={() => sampleDialog.open()}
     >
       <Sparkles size={12} /> Load a sample
@@ -91,19 +91,19 @@
       role="button"
       tabindex="0"
       class="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-md border border-dashed p-6 text-center transition-colors {dragging
-        ? 'border-slate-400 bg-slate-100'
-        : 'border-slate-300 bg-slate-50 hover:border-slate-400'}"
+        ? 'border-line-strong bg-surface-hover'
+        : 'border-line bg-surface hover:border-line-strong'}"
       onclick={() => fileInputEl.click()}
       onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && fileInputEl.click()}
       ondragover={onDragOver}
       ondragleave={onDragLeave}
       ondrop={onDrop}
     >
-      <FileUp size={22} class="text-slate-400" />
-      <p class="text-sm font-medium text-slate-600">Drop a .qwiz file here, or click to browse</p>
+      <FileUp size={22} class="text-ink-faint" />
+      <p class="text-sm font-medium text-ink-soft">Drop a .qwiz file here, or click to browse</p>
       {#if fileName}
-        <p class="text-xs text-slate-500">
-          Selected: <span class="font-medium text-slate-700">{fileName}</span>
+        <p class="text-xs text-ink-subtle">
+          Selected: <span class="font-medium text-ink-muted">{fileName}</span>
         </p>
       {/if}
     </div>
@@ -115,14 +115,14 @@
       class="hidden"
     />
 
-    <div class="flex items-center gap-3 text-xs text-slate-500">
-      <div class="h-px flex-1 bg-slate-200"></div>
+    <div class="flex items-center gap-3 text-xs text-ink-subtle">
+      <div class="h-px flex-1 bg-surface-sunken"></div>
       or write/paste qwiz code
-      <div class="h-px flex-1 bg-slate-200"></div>
+      <div class="h-px flex-1 bg-surface-sunken"></div>
     </div>
 
     <textarea
-      class="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+      class="w-full rounded-md border border-line-subtle bg-surface px-3 py-2 font-mono text-xs text-ink-muted focus:border-line-strong focus:outline-none focus:ring-2 focus:ring-line-subtle"
       rows="10"
       placeholder="---
 title: ...

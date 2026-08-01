@@ -51,7 +51,7 @@
 <div class="relative shrink-0" use:clickOutside={() => (open = false)}>
   <button
     type="button"
-    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-line bg-surface-raised text-ink-soft hover:bg-surface"
     aria-haspopup="menu"
     aria-expanded={open}
     aria-controls={menuId}
@@ -59,7 +59,7 @@
     onclick={() => (open = !open)}
   >
     <TriggerIcon size={16} class="shrink-0" />
-    <ChevronDown size={10} class="-mr-1 shrink-0 text-slate-400" />
+    <ChevronDown size={10} class="-mr-1 shrink-0 text-ink-faint" />
   </button>
 
   {#if open}
@@ -69,7 +69,7 @@
     <div
       id={menuId}
       role="menu"
-      class="absolute left-0 top-full z-20 mt-1 min-w-max rounded-md border border-slate-200 bg-white py-1 shadow-md"
+      class="absolute left-0 top-full z-20 mt-1 min-w-max rounded-md border border-line-subtle bg-surface-raised py-1 shadow-md"
       onkeydown={(e) => {
         if (e.key === 'Escape') {
           e.stopPropagation();
@@ -85,8 +85,8 @@
           aria-checked={isAction ? undefined : kind.value === value}
           class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm {!isAction &&
           kind.value === value
-            ? 'bg-slate-100 font-medium text-slate-900'
-            : 'text-slate-600 hover:bg-slate-50'}"
+            ? 'bg-surface-hover font-medium text-ink'
+            : 'text-ink-soft hover:bg-surface'}"
           onclick={() => choose(kind.value)}
         >
           <Icon size={15} class="shrink-0" />

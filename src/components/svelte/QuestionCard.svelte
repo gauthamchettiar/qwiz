@@ -102,8 +102,8 @@
 <div
   data-question-id={question.id}
   class="relative rounded-lg border p-4 {mode === 'view'
-    ? 'border-slate-200 bg-white'
-    : 'border-slate-400 bg-white'} {mode === 'code' ? 'xl:w-[150%] xl:-mx-[25%]' : ''}"
+    ? 'border-line-subtle bg-surface-raised'
+    : 'border-line-strong bg-surface-raised'} {mode === 'code' ? 'xl:w-[150%] xl:-mx-[25%]' : ''}"
 >
   <!-- `lg:right-full` + `lg:mr-2` (rather than a corner-straddling negative offset) puts the
        button strip entirely outside the card with a real gap, its top aligned exactly with the
@@ -120,9 +120,9 @@
   >
     <button
       type="button"
-      class="rounded-md border border-slate-200 bg-white p-1.5 hover:bg-slate-50 {playing
-        ? 'bg-slate-100 text-slate-900'
-        : 'text-slate-400'}"
+      class="rounded-md border border-line-subtle bg-surface-raised p-1.5 hover:bg-surface {playing
+        ? 'bg-surface-hover text-ink'
+        : 'text-ink-faint'}"
       onclick={() => (playing = !playing)}
       aria-label={playing ? 'Stop testing this question' : 'Try this question'}
       title={playing ? 'Stop testing this question' : 'Try this question'}
@@ -135,9 +135,10 @@
     </button>
     <button
       type="button"
-      class="rounded-md border border-slate-200 bg-white p-1.5 hover:bg-slate-50 {mode === 'code'
-        ? 'bg-slate-100 text-slate-900'
-        : 'text-slate-400'}"
+      class="rounded-md border border-line-subtle bg-surface-raised p-1.5 hover:bg-surface {mode ===
+      'code'
+        ? 'bg-surface-hover text-ink'
+        : 'text-ink-faint'}"
       onclick={onEnterCode}
       aria-label="Edit question code"
       title="Edit question code"
@@ -146,7 +147,7 @@
     </button>
     <button
       type="button"
-      class="rounded-md border border-slate-200 bg-white p-1.5 text-slate-400 hover:bg-slate-50"
+      class="rounded-md border border-line-subtle bg-surface-raised p-1.5 text-ink-faint hover:bg-surface"
       onclick={onClone}
       aria-label="Clone question"
       title="Clone question"
@@ -164,7 +165,7 @@
     {#if savedErrorCount > 0}
       <button
         type="button"
-        class="mb-3 flex items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100"
+        class="mb-3 flex items-center gap-1.5 rounded-md border border-negative-line-faint bg-negative-surface px-2 py-1 text-xs font-medium text-negative-ink-strong hover:bg-negative-surface-strong"
         onclick={onEnterCode}
       >
         <TriangleAlert size={13} class="shrink-0" />
@@ -177,7 +178,7 @@
       <div class="space-y-2">
         <textarea
           bind:this={textareaEl}
-          class="w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+          class="w-full rounded-md border border-line bg-surface px-3 py-2 font-mono text-xs text-ink-muted focus:border-line-strong focus:outline-none focus:ring-2 focus:ring-line-subtle"
           {rows}
           value={draft}
           oninput={(e) => onDraftChange(e.currentTarget.value)}></textarea>
@@ -186,7 +187,7 @@
           <CodeFrame {error} source={draft} />
         {/each}
       </div>
-      <div class="rounded-md border border-slate-100 p-3">
+      <div class="rounded-md border border-line-faint p-3">
         <QuestionView question={parsedSaved} onFocus={onEnterForm} />
       </div>
     </div>
@@ -195,8 +196,10 @@
   {/if}
 
   {#if playing}
-    <div class="mt-4 rounded-md border border-dashed border-indigo-200 bg-indigo-50/40 p-4">
-      <p class="mb-3 flex items-center gap-1 text-xs font-medium text-indigo-600">
+    <div
+      class="mt-4 rounded-md border border-dashed border-accent-line-faint bg-accent-surface/40 p-4"
+    >
+      <p class="mb-3 flex items-center gap-1 text-xs font-medium text-accent-ink">
         <Play size={12} /> Try this question
       </p>
       <QuestionPlayer question={parsedSaved} standalone />

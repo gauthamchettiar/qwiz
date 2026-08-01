@@ -62,24 +62,28 @@
   function leftTone(leftIndex: number): string {
     const paired = pairs.has(leftIndex);
     if (showing && paired) {
-      return isCorrect(leftIndex) ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50';
+      return isCorrect(leftIndex)
+        ? 'border-positive-line bg-positive-surface'
+        : 'border-negative-line bg-negative-surface';
     }
-    if (picked === leftIndex) return 'border-indigo-400 bg-indigo-50';
-    if (paired) return 'border-slate-300 bg-slate-50';
-    return 'border-slate-200 hover:bg-slate-50';
+    if (picked === leftIndex) return 'border-accent-line bg-accent-surface';
+    if (paired) return 'border-line bg-surface';
+    return 'border-line-subtle hover:bg-surface';
   }
 
   function rightTone(rightIndex: number): string {
     const used = [...pairs.values()].includes(rightIndex);
     if (showing && used) {
-      return isCorrect(rightIndex) ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50';
+      return isCorrect(rightIndex)
+        ? 'border-positive-line bg-positive-surface'
+        : 'border-negative-line bg-negative-surface';
     }
     if (drag?.overZone === rightIndex) {
-      return 'border-indigo-500 bg-indigo-100 ring-2 ring-indigo-200';
+      return 'border-accent-line-strong bg-accent-surface-strong ring-2 ring-accent-line-faint';
     }
-    if (placing) return 'border-indigo-300 bg-indigo-50/50 hover:bg-indigo-50';
-    if (used) return 'border-slate-300 bg-slate-50';
-    return 'border-slate-200 hover:bg-slate-50';
+    if (placing) return 'border-accent-line-subtle bg-accent-surface/50 hover:bg-accent-surface';
+    if (used) return 'border-line bg-surface';
+    return 'border-line-subtle hover:bg-surface';
   }
 
   /** Which right-column entry a left item is currently paired with, as its 1-based position in the
@@ -132,14 +136,14 @@
         >
           <div class="flex items-center gap-2">
             {#if !locked}
-              <GripVertical size={14} class="shrink-0 text-slate-400" />
+              <GripVertical size={14} class="shrink-0 text-ink-faint" />
             {/if}
             <div class="min-w-0 flex-1">
               <OptionContent content={options[leftIndex].content} />
             </div>
             {#if position !== null}
               <span
-                class="flex shrink-0 items-center gap-0.5 text-xs font-semibold text-slate-500"
+                class="flex shrink-0 items-center gap-0.5 text-xs font-semibold text-ink-subtle"
                 aria-hidden="true"
               >
                 <ArrowRight size={12} />{position}
@@ -147,9 +151,9 @@
             {/if}
             {#if showing && paired}
               {#if isCorrect(leftIndex)}
-                <CircleCheck size={16} class="shrink-0 text-green-600" />
+                <CircleCheck size={16} class="shrink-0 text-positive-ink-soft" />
               {:else}
-                <CircleX size={16} class="shrink-0 text-red-500" />
+                <CircleX size={16} class="shrink-0 text-negative-ink-soft" />
               {/if}
             {/if}
           </div>
@@ -162,12 +166,14 @@
           <!-- A picture target is shown as the picture, since naming it by alt text alone would
                make the answer key the one place on this board that doesn't look like the column
                it's pointing at. -->
-          <div class="mt-1 flex items-center gap-1 text-xs text-slate-500">
+          <div class="mt-1 flex items-center gap-1 text-xs text-ink-subtle">
             Answer:
             {#if target && target.kind !== 'text'}
               <span class="inline-block max-w-32"><OptionContent content={target} /></span>
             {:else}
-              <span class="font-medium text-green-700">{optionTargetText(options[leftIndex])}</span>
+              <span class="font-medium text-positive-ink"
+                >{optionTargetText(options[leftIndex])}</span
+              >
             {/if}
           </div>
         {/if}
@@ -199,8 +205,8 @@
         <span
           aria-hidden="true"
           class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-semibold {used
-            ? 'bg-slate-600 text-white'
-            : 'bg-slate-100 text-slate-500'}"
+            ? 'bg-surface-inverse text-ink-on-inverse'
+            : 'bg-surface-hover text-ink-subtle'}"
         >
           {position + 1}
         </span>

@@ -1,19 +1,449 @@
 @import 'tailwindcss';
 
+/* Every colour in the app comes from a token defined here, and nothing outside this file names a
+   palette shade (`slate-500`, `indigo-600`, …). That's what makes a theme a self-contained block
+   of variables rather than a hunt through 34 components: adding one means overriding these names
+   under a new `[data-theme]` selector, and every one of the app's ~740 colour utilities follows.
+   Tailwind v4 compiles `bg-surface` to `background-color: var(--color-surface)`, so the override
+   is the whole mechanism — no `dark:` variant to remember on each utility, and no second set of
+   class names that can drift from the first.
+
+   Naming: a `surface` is something you put things ON, `ink` is something you read, a `line` is a
+   border. Suffixes run from faint to strong in the direction of contrast against the page, so
+   `ink-faint` is the closest to the background and `ink` the furthest from it. The LIGHT values
+   below are the exact Tailwind shades this app used before it was themable, so the default theme
+   is unchanged to the pixel. */
 @theme {
   --font-sans: ui-sans-serif, system-ui, sans-serif;
+
+  /* Neutral surfaces */
+  --color-surface: oklch(98.4% 0.003 247.858);
+  --color-surface-raised: #fff;
+  --color-surface-hover: oklch(96.8% 0.007 247.896);
+  --color-surface-sunken: oklch(92.9% 0.013 255.508);
+  --color-surface-strong: oklch(86.9% 0.022 252.894);
+  --color-surface-inverse: oklch(44.6% 0.043 257.281);
+
+  /* Neutral text, furthest from the background to closest */
+  --color-ink: oklch(20.8% 0.042 265.755);
+  --color-ink-muted: oklch(37.2% 0.044 257.287);
+  --color-ink-soft: oklch(44.6% 0.043 257.281);
+  --color-ink-subtle: oklch(55.4% 0.046 257.417);
+  --color-ink-faint: oklch(70.4% 0.04 256.788);
+  --color-ink-ghost: oklch(86.9% 0.022 252.894);
+  --color-ink-inverse: #fff;
+  --color-ink-on-inverse: #fff;
+
+  /* Borders */
+  --color-line-faint: oklch(96.8% 0.007 247.896);
+  --color-line-subtle: oklch(92.9% 0.013 255.508);
+  --color-line: oklch(86.9% 0.022 252.894);
+  --color-line-strong: oklch(70.4% 0.04 256.788);
+
+  /* Accent — the one primary colour */
+  --color-accent: oklch(51.1% 0.262 276.966);
+  --color-accent-hover: oklch(45.7% 0.24 277.023);
+  --color-accent-ink: oklch(51.1% 0.262 276.966);
+  --color-accent-ink-soft: oklch(58.5% 0.233 277.117);
+  --color-accent-ink-strong: oklch(45.7% 0.24 277.023);
+  --color-accent-surface: oklch(96.2% 0.018 272.314);
+  --color-accent-surface-strong: oklch(93% 0.034 272.788);
+  --color-accent-line-faint: oklch(87% 0.065 274.039);
+  --color-accent-line-subtle: oklch(78.5% 0.115 274.713);
+  --color-accent-line: oklch(67.3% 0.182 276.935);
+  --color-accent-line-strong: oklch(58.5% 0.233 277.117);
+
+  /* A right answer */
+  --color-positive: oklch(53.2% 0.194 149.214);
+  --color-positive-surface: oklch(98.2% 0.018 155.826);
+  --color-positive-surface-strong: oklch(96.2% 0.044 156.743);
+  --color-positive-ink-soft: oklch(62.7% 0.194 149.214);
+  --color-positive-ink: oklch(52.7% 0.154 150.069);
+  --color-positive-ink-strong: oklch(44.8% 0.119 151.328);
+  --color-positive-line-subtle: oklch(87.1% 0.15 154.449);
+  --color-positive-line: oklch(79.2% 0.209 151.711);
+  --color-positive-line-strong: oklch(72.3% 0.219 149.579);
+
+  /* A wrong answer, and destructive actions */
+  --color-negative: oklch(57.7% 0.245 27.325);
+  --color-negative-hover: oklch(50.5% 0.213 27.518);
+  --color-negative-surface: oklch(97.1% 0.013 17.38);
+  --color-negative-surface-strong: oklch(93.6% 0.032 17.717);
+  --color-negative-ink-faint: oklch(70.4% 0.191 22.216);
+  --color-negative-ink-soft: oklch(63.7% 0.237 25.331);
+  --color-negative-ink: oklch(54.5% 0.225 27.4);
+  --color-negative-ink-strong: oklch(50.5% 0.213 27.518);
+  --color-negative-ink-deep: oklch(44.4% 0.177 26.899);
+  --color-negative-line-faint: oklch(88.5% 0.062 18.334);
+  --color-negative-line-subtle: oklch(80.8% 0.114 19.571);
+  --color-negative-line: oklch(70.4% 0.191 22.216);
+
+  /* Warnings */
+  --color-warning: oklch(57.6% 0.179 58.318);
+  --color-warning-hover: oklch(55.5% 0.163 48.998);
+  --color-warning-surface: oklch(98.7% 0.022 95.277);
+  --color-warning-ink: oklch(66.6% 0.179 58.318);
+  --color-warning-ink-strong: oklch(47.3% 0.137 46.201);
+  --color-warning-line: oklch(87.9% 0.169 91.605);
 }
 
-/* The app is a fixed light palette, not dark-mode-aware. Without this, a browser/OS in dark
-   mode renders native form-control chrome — including <datalist> dropdowns like the category
-   and tag suggestions — using its own dark heuristics, which can pick text/background colors
-   independently and land on unreadable combinations (e.g. white-on-white). */
-:root {
+/* Themes
+   ---------------------------------------------------------------------------------------------
+   Each block overrides only what differs from the light defaults above; the rest inherits.
+
+   `color-scheme` is not decoration — it tells the browser which way to render native chrome, and
+   this app leans on native chrome in two places that would otherwise be unreadable in a dark
+   theme: the `<select>` popups for setting keys, and the scrollbars. It is the reason the old
+   fixed `color-scheme: light` existed at all.
+
+   Contrast is a requirement, not a preference: e2e/accessibility.spec.ts runs axe over every major
+   screen and fails on any serious violation, and e2e/theme.spec.ts runs it again in each theme.
+   Anything carrying real text sits at 4.5:1 or better against its own surface; `ink-faint` and
+   `ink-ghost` are only ever used on icon-only controls and decorative glyphs, which hold no text
+   for axe to measure (see CLAUDE.md §5). */
+
+/* The app's own dark counterpart — same hues as the light theme, inverted ramps. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-surface: oklch(20.5% 0.015 258);
+  --color-surface-raised: oklch(25.4% 0.017 258);
+  --color-surface-hover: oklch(30.5% 0.02 258);
+  --color-surface-sunken: oklch(34% 0.022 258);
+  --color-surface-strong: oklch(40% 0.024 258);
+  --color-surface-inverse: oklch(75% 0.03 258);
+
+  --color-ink: oklch(96% 0.005 258);
+  --color-ink-muted: oklch(88% 0.008 258);
+  --color-ink-soft: oklch(82% 0.012 258);
+  --color-ink-subtle: oklch(73% 0.018 258);
+  --color-ink-faint: oklch(60% 0.022 258);
+  --color-ink-ghost: oklch(46% 0.022 258);
+  --color-ink-inverse: oklch(98% 0.005 258);
+  --color-ink-on-inverse: oklch(17% 0.015 258);
+
+  --color-line-faint: oklch(29% 0.018 258);
+  --color-line-subtle: oklch(34% 0.02 258);
+  --color-line: oklch(42% 0.024 258);
+  --color-line-strong: oklch(58% 0.03 258);
+
+  --color-accent: oklch(55% 0.22 277);
+  --color-accent-hover: oklch(62% 0.2 277);
+  --color-accent-ink: oklch(80% 0.115 275);
+  --color-accent-ink-soft: oklch(74% 0.14 276);
+  --color-accent-ink-strong: oklch(87% 0.075 274);
+  --color-accent-surface: oklch(30% 0.055 277);
+  --color-accent-surface-strong: oklch(36% 0.08 277);
+  --color-accent-line-faint: oklch(40% 0.09 277);
+  --color-accent-line-subtle: oklch(50% 0.13 277);
+  --color-accent-line: oklch(62% 0.17 277);
+  --color-accent-line-strong: oklch(70% 0.16 277);
+
+  --color-positive: oklch(52% 0.15 149);
+  --color-positive-surface: oklch(28% 0.05 150);
+  --color-positive-surface-strong: oklch(34% 0.07 150);
+  --color-positive-ink-soft: oklch(78% 0.15 151);
+  --color-positive-ink: oklch(85% 0.14 152);
+  --color-positive-ink-strong: oklch(91% 0.1 153);
+  --color-positive-line-subtle: oklch(45% 0.1 151);
+  --color-positive-line: oklch(60% 0.16 151);
+  --color-positive-line-strong: oklch(70% 0.19 150);
+
+  --color-negative: oklch(50% 0.2 27);
+  --color-negative-hover: oklch(57% 0.21 27);
+  --color-negative-surface: oklch(28% 0.06 25);
+  --color-negative-surface-strong: oklch(34% 0.09 25);
+  --color-negative-ink-faint: oklch(70% 0.16 24);
+  --color-negative-ink-soft: oklch(76% 0.15 24);
+  --color-negative-ink: oklch(80% 0.13 23);
+  --color-negative-ink-strong: oklch(86% 0.1 22);
+  --color-negative-ink-deep: oklch(91% 0.07 22);
+  --color-negative-line-faint: oklch(40% 0.1 25);
+  --color-negative-line-subtle: oklch(50% 0.14 25);
+  --color-negative-line: oklch(62% 0.18 25);
+
+  --color-warning: oklch(52% 0.13 58);
+  --color-warning-hover: oklch(59% 0.14 58);
+  --color-warning-surface: oklch(30% 0.05 70);
+  --color-warning-ink: oklch(82% 0.13 75);
+  --color-warning-ink-strong: oklch(90% 0.1 85);
+  --color-warning-line: oklch(50% 0.11 70);
+}
+
+/* VS Code Light+ — the editor default: #f3f3f3 chrome, near-black text, a strong blue accent. */
+:root[data-theme='vscode-light'] {
   color-scheme: light;
+
+  --color-surface: #f3f3f3;
+  --color-surface-raised: #ffffff;
+  --color-surface-hover: #e8e8e8;
+  --color-surface-sunken: #dcdcdc;
+  --color-surface-strong: #c8c8c8;
+  --color-surface-inverse: #3c3c3c;
+
+  --color-ink: #1e1e1e;
+  --color-ink-muted: #333333;
+  --color-ink-soft: #444444;
+  --color-ink-subtle: #5a5a5a;
+  --color-ink-faint: #8c8c8c;
+  --color-ink-ghost: #c8c8c8;
+  --color-ink-inverse: #ffffff;
+  --color-ink-on-inverse: #ffffff;
+
+  --color-line-faint: #ececec;
+  --color-line-subtle: #e0e0e0;
+  --color-line: #c8c8c8;
+  --color-line-strong: #8c8c8c;
+
+  --color-accent: #0057b7;
+  --color-accent-hover: #004494;
+  --color-accent-ink: #0057b7;
+  --color-accent-ink-soft: #0066cc;
+  --color-accent-ink-strong: #004494;
+  --color-accent-surface: #e7f0fb;
+  --color-accent-surface-strong: #cfe2f8;
+  --color-accent-line-faint: #bcd7f5;
+  --color-accent-line-subtle: #8fbcec;
+  --color-accent-line: #4a90d9;
+  --color-accent-line-strong: #0066cc;
+
+  --color-positive: #0b6a0b;
+  --color-positive-surface: #e8f5e9;
+  --color-positive-surface-strong: #cdeacf;
+  --color-positive-ink-soft: #107c10;
+  --color-positive-ink: #0b6a0b;
+  --color-positive-ink-strong: #084d08;
+  --color-positive-line-subtle: #a6d7a8;
+  --color-positive-line: #5aab5c;
+  --color-positive-line-strong: #107c10;
+
+  --color-negative: #c72e2e;
+  --color-negative-hover: #a52424;
+  --color-negative-surface: #fdeaea;
+  --color-negative-surface-strong: #fad4d4;
+  --color-negative-ink-faint: #d96363;
+  --color-negative-ink-soft: #cf3a3a;
+  --color-negative-ink: #c72e2e;
+  --color-negative-ink-strong: #a52424;
+  --color-negative-ink-deep: #7d1b1b;
+  --color-negative-line-faint: #f5c2c2;
+  --color-negative-line-subtle: #eb9a9a;
+  --color-negative-line: #d96363;
+
+  --color-warning: #8a6200;
+  --color-warning-hover: #6f4f00;
+  --color-warning-surface: #fdf6e3;
+  --color-warning-ink: #8a6200;
+  --color-warning-ink-strong: #5c4100;
+  --color-warning-line: #e8c96a;
+}
+
+/* VS Code Dark+ — #1e1e1e chrome, #d4d4d4 body text, the familiar #0e639c button blue. */
+:root[data-theme='vscode-dark'] {
+  color-scheme: dark;
+
+  --color-surface: #1e1e1e;
+  --color-surface-raised: #252526;
+  --color-surface-hover: #2d2d30;
+  --color-surface-sunken: #333334;
+  --color-surface-strong: #3e3e42;
+  --color-surface-inverse: #cccccc;
+
+  --color-ink: #e7e7e7;
+  --color-ink-muted: #d4d4d4;
+  --color-ink-soft: #c5c5c5;
+  --color-ink-subtle: #a6a6a6;
+  --color-ink-faint: #858585;
+  --color-ink-ghost: #5a5a5a;
+  --color-ink-inverse: #ffffff;
+  --color-ink-on-inverse: #1e1e1e;
+
+  --color-line-faint: #2b2b2b;
+  --color-line-subtle: #333334;
+  --color-line: #3e3e42;
+  --color-line-strong: #6b6b6b;
+
+  --color-accent: #0e639c;
+  --color-accent-hover: #1177bb;
+  --color-accent-ink: #6cb6ff;
+  --color-accent-ink-soft: #4fa3f7;
+  --color-accent-ink-strong: #9ecbff;
+  --color-accent-surface: #16324a;
+  --color-accent-surface-strong: #1d4266;
+  --color-accent-line-faint: #234a6e;
+  --color-accent-line-subtle: #2a5c8a;
+  --color-accent-line: #3f8fd0;
+  --color-accent-line-strong: #4fa3f7;
+
+  --color-positive: #2d6e2a;
+  --color-positive-surface: #1d2f1d;
+  --color-positive-surface-strong: #264227;
+  --color-positive-ink-soft: #7bd67b;
+  --color-positive-ink: #96e096;
+  --color-positive-ink-strong: #b6ebb6;
+  --color-positive-line-subtle: #356035;
+  --color-positive-line: #4d9a4d;
+  --color-positive-line-strong: #6ac46a;
+
+  --color-negative: #a1260d;
+  --color-negative-hover: #c13d22;
+  --color-negative-surface: #331c18;
+  --color-negative-surface-strong: #4a2620;
+  --color-negative-ink-faint: #e08b7a;
+  --color-negative-ink-soft: #ef9c8b;
+  --color-negative-ink: #f4a89a;
+  --color-negative-ink-strong: #f8bfb4;
+  --color-negative-ink-deep: #fbd6cf;
+  --color-negative-line-faint: #5c2f27;
+  --color-negative-line-subtle: #7a3d32;
+  --color-negative-line: #b5573f;
+
+  --color-warning: #6b5100;
+  --color-warning-hover: #7d5f00;
+  --color-warning-surface: #332b16;
+  --color-warning-ink: #e5c07b;
+  --color-warning-ink-strong: #f0d5a3;
+  --color-warning-line: #6b5a2a;
+}
+
+/* Solarized Light — Ethan Schoonover's palette: base3 page, base02 body text. */
+:root[data-theme='solarized-light'] {
+  color-scheme: light;
+
+  --color-surface: #fdf6e3;
+  --color-surface-raised: #fffbf0;
+  --color-surface-hover: #f2ead5;
+  --color-surface-sunken: #eee8d5;
+  --color-surface-strong: #ddd6c1;
+  --color-surface-inverse: #586e75;
+
+  --color-ink: #073642;
+  --color-ink-muted: #26505c;
+  --color-ink-soft: #35606c;
+  --color-ink-subtle: #566f77;
+  --color-ink-faint: #93a1a1;
+  --color-ink-ghost: #c5c0ad;
+  --color-ink-inverse: #fdf6e3;
+  --color-ink-on-inverse: #fdf6e3;
+
+  --color-line-faint: #f2ead5;
+  --color-line-subtle: #e6dfc8;
+  --color-line: #d3ccb6;
+  --color-line-strong: #93a1a1;
+
+  --color-accent: #1f6f9c;
+  --color-accent-hover: #17587c;
+  --color-accent-ink: #1f6f9c;
+  --color-accent-ink-soft: #1c7fbe;
+  --color-accent-ink-strong: #17587c;
+  --color-accent-surface: #e3eff5;
+  --color-accent-surface-strong: #cfe3ee;
+  --color-accent-line-faint: #b9d5e5;
+  --color-accent-line-subtle: #8fbdd8;
+  --color-accent-line: #4d9cc9;
+  --color-accent-line-strong: #268bd2;
+
+  --color-positive: #4d6f00;
+  --color-positive-surface: #eef2dd;
+  --color-positive-surface-strong: #e0e8c4;
+  --color-positive-ink-soft: #5f8700;
+  --color-positive-ink: #4d6f00;
+  --color-positive-ink-strong: #3a5400;
+  --color-positive-line-subtle: #c3d194;
+  --color-positive-line: #93ab48;
+  --color-positive-line-strong: #6f9310;
+
+  --color-negative: #c1341c;
+  --color-negative-hover: #9c2a17;
+  --color-negative-surface: #fbe9e5;
+  --color-negative-surface-strong: #f6d5cd;
+  --color-negative-ink-faint: #d4705d;
+  --color-negative-ink-soft: #cb4b32;
+  --color-negative-ink: #c1341c;
+  --color-negative-ink-strong: #9c2a17;
+  --color-negative-ink-deep: #741f11;
+  --color-negative-line-faint: #f0c4b9;
+  --color-negative-line-subtle: #e3a08f;
+  --color-negative-line: #d4705d;
+
+  --color-warning: #7d5a04;
+  --color-warning-hover: #654903;
+  --color-warning-surface: #f8f0d8;
+  --color-warning-ink: #7d5a04;
+  --color-warning-ink-strong: #543c02;
+  --color-warning-line: #d6bd72;
+}
+
+/* Solarized Dark — the same palette on base03. */
+:root[data-theme='solarized-dark'] {
+  color-scheme: dark;
+
+  --color-surface: #002b36;
+  --color-surface-raised: #073642;
+  --color-surface-hover: #0d4653;
+  --color-surface-sunken: #14515f;
+  --color-surface-strong: #1c5c6b;
+  --color-surface-inverse: #93a1a1;
+
+  --color-ink: #eee8d5;
+  --color-ink-muted: #d7d1be;
+  --color-ink-soft: #c3bda9;
+  --color-ink-subtle: #a8a795;
+  --color-ink-faint: #839496;
+  --color-ink-ghost: #5b6f75;
+  --color-ink-inverse: #fdf6e3;
+  --color-ink-on-inverse: #002b36;
+
+  --color-line-faint: #0b3d49;
+  --color-line-subtle: #124e5c;
+  --color-line: #1c5c6b;
+  --color-line-strong: #58787f;
+
+  --color-accent: #1a6a99;
+  --color-accent-hover: #2280b5;
+  --color-accent-ink: #6cb8e8;
+  --color-accent-ink-soft: #4fa5de;
+  --color-accent-ink-strong: #9ad2f2;
+  --color-accent-surface: #0a3f55;
+  --color-accent-surface-strong: #0f4f6b;
+  --color-accent-line-faint: #14536e;
+  --color-accent-line-subtle: #1c6a8c;
+  --color-accent-line: #2f8fc9;
+  --color-accent-line-strong: #4fa5de;
+
+  --color-positive: #4d5c00;
+  --color-positive-surface: #1c3320;
+  --color-positive-surface-strong: #26452b;
+  --color-positive-ink-soft: #a8bd3a;
+  --color-positive-ink: #bccf5c;
+  --color-positive-ink-strong: #d3e08c;
+  --color-positive-line-subtle: #47632a;
+  --color-positive-line: #6d8a2a;
+  --color-positive-line-strong: #93a832;
+
+  --color-negative: #a32420;
+  --color-negative-hover: #c02c27;
+  --color-negative-surface: #3a1f1f;
+  --color-negative-surface-strong: #4f2827;
+  --color-negative-ink-faint: #e08b89;
+  --color-negative-ink-soft: #eb9f9d;
+  --color-negative-ink: #f0aead;
+  --color-negative-ink-strong: #f5c6c5;
+  --color-negative-ink-deep: #f9dcdb;
+  --color-negative-line-faint: #5e2c2b;
+  --color-negative-line-subtle: #7d3b39;
+  --color-negative-line: #b9564f;
+
+  --color-warning: #6b5100;
+  --color-warning-hover: #7d5f00;
+  --color-warning-surface: #33290f;
+  --color-warning-ink: #d9b45c;
+  --color-warning-ink-strong: #ecd190;
+  --color-warning-line: #6b5720;
 }
 
 body {
-  @apply bg-slate-50 text-slate-900;
+  @apply bg-surface text-ink;
 }
 
 /* Tailwind's preflight resets <button> to the browser default (cursor: default) — restore the

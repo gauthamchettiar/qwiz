@@ -27,26 +27,26 @@
     correct: {
       label: 'Correct',
       icon: CircleCheckBig,
-      box: 'border-green-300 bg-green-50',
-      icon_: 'text-green-600',
-      title: 'text-green-800',
-      pill: 'bg-green-600 text-white'
+      box: 'border-positive-line-subtle bg-positive-surface',
+      icon_: 'text-positive-ink-soft',
+      title: 'text-positive-ink-strong',
+      pill: 'bg-positive text-ink-inverse'
     },
     partial: {
       label: 'Partly correct',
       icon: CircleAlert,
-      box: 'border-amber-300 bg-amber-50',
-      icon_: 'text-amber-600',
-      title: 'text-amber-800',
-      pill: 'bg-amber-600 text-white'
+      box: 'border-warning-line bg-warning-surface',
+      icon_: 'text-warning-ink',
+      title: 'text-warning-ink-strong',
+      pill: 'bg-warning text-ink-inverse'
     },
     incorrect: {
       label: 'Not quite',
       icon: CircleX,
-      box: 'border-red-300 bg-red-50',
-      icon_: 'text-red-600',
-      title: 'text-red-800',
-      pill: 'bg-red-600 text-white'
+      box: 'border-negative-line-subtle bg-negative-surface',
+      icon_: 'text-negative-ink',
+      title: 'text-negative-ink-deep',
+      pill: 'bg-negative text-ink-inverse'
     }
   } as const;
 
@@ -60,21 +60,21 @@
   in:scale={{ duration: 180, start: 0.96 }}
   class="flex items-center gap-3 rounded-lg border p-3 {showVerdict
     ? tone.box
-    : 'border-slate-200 bg-slate-50'}"
+    : 'border-line-subtle bg-surface'}"
   role="status"
 >
   {#if showVerdict}
     <Icon size={22} class="shrink-0 {tone.icon_}" />
     <p class="flex-1 text-base font-semibold {tone.title}">{tone.label}</p>
   {:else}
-    <p class="flex-1 text-sm font-medium text-slate-600">Answer submitted</p>
+    <p class="flex-1 text-sm font-medium text-ink-soft">Answer submitted</p>
   {/if}
 
   {#if showScore}
     <span
       class="shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold {showVerdict
         ? tone.pill
-        : 'bg-slate-600 text-white'}"
+        : 'bg-surface-inverse text-ink-on-inverse'}"
     >
       {result.earned} / {result.max} points
     </span>

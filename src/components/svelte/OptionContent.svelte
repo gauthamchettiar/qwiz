@@ -11,17 +11,17 @@
 </script>
 
 {#if content.kind === 'text'}
-  <p class="text-sm text-slate-900">{content.text}</p>
+  <p class="text-sm text-ink">{content.text}</p>
 {:else if content.kind === 'image'}
   <img
     src={content.url}
     alt={content.alt}
-    class="max-h-56 rounded-md border border-slate-200 object-contain"
+    class="max-h-56 rounded-md border border-line-subtle object-contain"
   />
 {:else}
   {@const videoId = extractYoutubeId(content.url)}
   {#if videoId}
-    <div class="aspect-video overflow-hidden rounded-md border border-slate-200">
+    <div class="aspect-video overflow-hidden rounded-md border border-line-subtle">
       <iframe
         class="h-full w-full"
         src={`https://www.youtube.com/embed/${videoId}`}
@@ -30,6 +30,6 @@
       ></iframe>
     </div>
   {:else}
-    <p class="text-sm text-slate-500">{content.alt || content.url}</p>
+    <p class="text-sm text-ink-subtle">{content.alt || content.url}</p>
   {/if}
 {/if}

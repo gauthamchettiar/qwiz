@@ -31,7 +31,7 @@
 <div class="relative" use:clickOutside={() => set(false)}>
   <button
     type="button"
-    class="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+    class="rounded-md p-1.5 text-ink-faint hover:bg-surface-hover hover:text-ink-muted"
     aria-label={ariaLabel}
     aria-haspopup="menu"
     aria-expanded={open}
@@ -42,7 +42,7 @@
   {#if open}
     <div
       role="menu"
-      class="absolute z-20 mt-1 min-w-44 rounded-md border border-slate-200 bg-white p-1 shadow-md {align ===
+      class="absolute z-20 mt-1 min-w-44 rounded-md border border-line-subtle bg-surface-raised p-1 shadow-md {align ===
       'right'
         ? 'right-0'
         : 'left-0'}"

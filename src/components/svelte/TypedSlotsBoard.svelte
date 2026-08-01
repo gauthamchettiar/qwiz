@@ -53,18 +53,20 @@
   /** Single mutually-exclusive class string — see QuestionPlayer's `choiceOptionTone` for why a
    * "base plus reveal override" pair silently resolves the wrong way. */
   function fieldTone(slotIndex: number): string {
-    if (!showing) return 'border-slate-300 focus:border-slate-400 disabled:bg-slate-50';
-    return correctness[slotIndex] ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50';
+    if (!showing) return 'border-line focus:border-line-strong disabled:bg-surface';
+    return correctness[slotIndex]
+      ? 'border-positive-line bg-positive-surface'
+      : 'border-negative-line bg-negative-surface';
   }
 </script>
 
 <div class="space-y-3">
   {#if reference.length > 0}
     <div class="space-y-1.5">
-      <p class="text-xs font-medium text-slate-500">{referenceLabel}</p>
+      <p class="text-xs font-medium text-ink-subtle">{referenceLabel}</p>
       <div class="flex flex-wrap gap-1.5">
         {#each reference as content, i (i)}
-          <span class="rounded-md border border-slate-300 bg-white p-2 text-sm">
+          <span class="rounded-md border border-line bg-surface-raised p-2 text-sm">
             <OptionContent {content} />
           </span>
         {/each}
@@ -73,12 +75,12 @@
   {/if}
 
   <div class="space-y-1.5">
-    <p class="text-xs font-medium text-slate-500">{caption}</p>
+    <p class="text-xs font-medium text-ink-subtle">{caption}</p>
     <ol class="space-y-1.5">
       {#each slots as slot, i (i)}
         <li class="flex items-center gap-2">
           {#if slot.label}
-            <span class="w-5 shrink-0 text-right text-xs font-medium text-slate-500">
+            <span class="w-5 shrink-0 text-right text-xs font-medium text-ink-subtle">
               {slot.label}
             </span>
           {/if}
@@ -90,7 +92,7 @@
           <div class="flex min-w-0 flex-1 items-center gap-1.5">
             <input
               type="text"
-              class="min-w-0 flex-1 rounded-md border px-2 py-1.5 text-sm text-slate-900 focus:outline-none {fieldTone(
+              class="min-w-0 flex-1 rounded-md border px-2 py-1.5 text-sm text-ink focus:outline-none {fieldTone(
                 i
               )}"
               value={answers[i] ?? ''}
@@ -101,16 +103,16 @@
             />
             {#if showing}
               {#if correctness[i]}
-                <CircleCheck size={16} class="shrink-0 text-green-600" />
+                <CircleCheck size={16} class="shrink-0 text-positive-ink-soft" />
               {:else}
-                <CircleX size={16} class="shrink-0 text-red-500" />
+                <CircleX size={16} class="shrink-0 text-negative-ink-soft" />
               {/if}
             {/if}
           </div>
         </li>
         {#if showing && !correctness[i] && expectations[i]}
-          <li class="flex items-center gap-2 pl-7 text-xs text-slate-500">
-            Answer: <span class="font-medium text-green-700">{expectations[i]}</span>
+          <li class="flex items-center gap-2 pl-7 text-xs text-ink-subtle">
+            Answer: <span class="font-medium text-positive-ink">{expectations[i]}</span>
           </li>
         {/if}
       {/each}

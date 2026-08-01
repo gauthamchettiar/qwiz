@@ -17,7 +17,7 @@
   href={SETTINGS_DOCS_URL}
   target="_blank"
   rel="noopener noreferrer"
-  class="inline-flex h-8 w-8 items-center justify-center rounded text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+  class="inline-flex h-8 w-8 items-center justify-center rounded text-ink-subtle hover:bg-surface-hover hover:text-ink-muted"
   aria-label="Settings reference (opens GitHub in a new tab)"
   title="Settings reference"
 >

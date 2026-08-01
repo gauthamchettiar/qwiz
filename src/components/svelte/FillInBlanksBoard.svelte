@@ -92,25 +92,25 @@
     const filled = placedIn(blankIndex) !== null;
     if (showing && filled) {
       return isBlankCorrect(blankIndex)
-        ? 'border-green-400 bg-green-50'
-        : 'border-red-400 bg-red-50';
+        ? 'border-positive-line bg-positive-surface'
+        : 'border-negative-line bg-negative-surface';
     }
     if (wordDrag?.overZone === blankIndex) {
-      return 'border-indigo-500 bg-indigo-100 ring-2 ring-indigo-200';
+      return 'border-accent-line-strong bg-accent-surface-strong ring-2 ring-accent-line-faint';
     }
-    if (placing) return 'border-indigo-300 bg-indigo-50/50 hover:bg-indigo-50';
-    if (filled) return 'border-slate-300 bg-slate-50';
-    return 'border-dashed border-slate-300';
+    if (placing) return 'border-accent-line-subtle bg-accent-surface/50 hover:bg-accent-surface';
+    if (filled) return 'border-line bg-surface';
+    return 'border-dashed border-line';
   }
 
   /** Same, for `answer_mode=type`'s inline text inputs. */
   function typedBlankTone(blankIndex: number): string {
     if (showing) {
       return isBlankCorrect(blankIndex)
-        ? 'border-green-400 bg-green-50'
-        : 'border-red-400 bg-red-50';
+        ? 'border-positive-line bg-positive-surface'
+        : 'border-negative-line bg-negative-surface';
     }
-    return 'border-slate-300 focus:border-slate-400 disabled:bg-slate-100';
+    return 'border-line focus:border-line-strong disabled:bg-surface-hover';
   }
 
   /** The words this blank was authored to hold — what the review screen reveals for one the player
@@ -143,7 +143,7 @@
        `{#if}`): template whitespace becomes real whitespace in the output, which under
        `whitespace-pre-wrap` showed up as a stray space before the sentence's own punctuation
        ("...of the cell ."). The authored text already carries whatever spacing it needs. -->
-  <p class="whitespace-pre-wrap text-base font-medium text-slate-900">
+  <p class="whitespace-pre-wrap text-base font-medium text-ink">
     {#each segments as segment, i (i)}{segment}{#if i < segments.length - 1}
         {#if mode === 'type'}
           <!-- Field and its revealed answer share one inline-flex wrapper so the answer can never
@@ -151,7 +151,7 @@
                <p>) — the gap between them is layout, not a text node. -->
           <span class="mx-0.5 inline-flex items-baseline gap-1 align-middle">
             <input
-              class="w-28 rounded-md border px-1.5 py-0.5 text-sm text-slate-900 focus:outline-none {typedBlankTone(
+              class="w-28 rounded-md border px-1.5 py-0.5 text-sm text-ink focus:outline-none {typedBlankTone(
                 i
               )}"
               value={blankAnswers[i] ?? ''}
@@ -162,7 +162,7 @@
                 : `Blank ${i + 1}`}
             />
             {#if showing && !isBlankCorrect(i)}
-              <span class="text-sm font-medium text-green-700">{expectedText(i)}</span>
+              <span class="text-sm font-medium text-positive-ink">{expectedText(i)}</span>
             {/if}
           </span>
         {:else}
@@ -208,13 +208,13 @@
             {/if}
             {#if showing && placed}
               {#if isBlankCorrect(i)}
-                <CircleCheck size={13} class="shrink-0 text-green-600" />
+                <CircleCheck size={13} class="shrink-0 text-positive-ink-soft" />
               {:else}
-                <CircleX size={13} class="shrink-0 text-red-500" />
+                <CircleX size={13} class="shrink-0 text-negative-ink-soft" />
               {/if}
             {/if}
             {#if showing && !isBlankCorrect(i)}
-              <span class="shrink-0 font-medium text-green-700">{expectedText(i)}</span>
+              <span class="shrink-0 font-medium text-positive-ink">{expectedText(i)}</span>
             {/if}
           </button>
         {/if}{/if}{/each}
@@ -227,10 +227,10 @@
       data-drop-zone={SOURCE_ZONE}
       class="space-y-1.5 rounded-md border border-dashed p-2 transition-colors {blankDrag?.overZone ===
       SOURCE_ZONE
-        ? 'border-indigo-400 bg-indigo-50'
+        ? 'border-accent-line bg-accent-surface'
         : 'border-transparent'}"
     >
-      <p class="text-xs font-medium text-slate-500">
+      <p class="text-xs font-medium text-ink-subtle">
         {placing ? 'Drop it on a blank above, or tap one' : 'Tap a word to pick it up, or drag it'}
       </p>
       <div class="flex flex-wrap gap-1.5">
@@ -247,8 +247,8 @@
             }}
             class="inline-flex items-center gap-1.5 rounded-md border p-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 {picked ===
             optionIndex
-              ? 'border-indigo-400 bg-indigo-50'
-              : 'border-slate-300 bg-white hover:bg-slate-50'} {wordDrag?.id === optionIndex
+              ? 'border-accent-line bg-accent-surface'
+              : 'border-line bg-surface-raised hover:bg-surface'} {wordDrag?.id === optionIndex
               ? 'opacity-40'
               : ''}"
             disabled={locked || used}
@@ -258,7 +258,7 @@
             <!-- The same grip the other three boards put on their draggable items. Without it, a
                  bank word was the only draggable thing in the app that didn't say so. -->
             {#if !locked && !used}
-              <GripVertical size={13} class="shrink-0 text-slate-400" />
+              <GripVertical size={13} class="shrink-0 text-ink-faint" />
             {/if}
             <!-- Bank pictures are capped shorter than a choice option's (`max-h-56` in
                  OptionContent) so a bank of them stays one scannable strip rather than a column

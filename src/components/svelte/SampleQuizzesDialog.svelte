@@ -28,16 +28,16 @@
 
 <Dialog bind:this={dialog} title="Load a sample quiz">
   {#snippet body()}
-    <p class="text-sm text-slate-500">
+    <p class="text-sm text-ink-subtle">
       Loads a copy into your saved quizzes so you can explore and edit it — nothing here is
       read-only.
     </p>
     <ul class="space-y-3">
       {#each sampleQuizzes as sample (sample.title)}
-        <li class="flex items-start justify-between gap-3 rounded-md border border-slate-200 p-3">
+        <li class="flex items-start justify-between gap-3 rounded-md border border-line-subtle p-3">
           <div>
-            <h3 class="text-sm font-semibold text-slate-900">{sample.title}</h3>
-            <p class="mt-0.5 text-xs text-slate-500">{sample.description}</p>
+            <h3 class="text-sm font-semibold text-ink">{sample.title}</h3>
+            <p class="mt-0.5 text-xs text-ink-subtle">{sample.description}</p>
           </div>
           <Button size="sm" onclick={() => loadSample(sample.code)}>Load</Button>
         </li>

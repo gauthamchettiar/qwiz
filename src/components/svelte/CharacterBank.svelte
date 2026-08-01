@@ -27,10 +27,10 @@
       type="button"
       class="rounded-md border py-1.5 text-sm font-medium uppercase transition-colors disabled:cursor-not-allowed {status ===
       'correct'
-        ? 'border-green-400 bg-green-50 text-green-700'
+        ? 'border-positive-line bg-positive-surface text-positive-ink'
         : status === 'wrong'
-          ? 'border-red-300 bg-red-50 text-red-400'
-          : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50'}"
+          ? 'border-negative-line-subtle bg-negative-surface text-negative-ink-faint'
+          : 'border-line bg-surface-raised text-ink-muted hover:bg-surface disabled:opacity-50'}"
       disabled={locked || disabledLetters.has(letter)}
       onclick={() => onGuess(letter)}
     >

@@ -74,7 +74,7 @@
 <div class="relative {className}">
   <input
     type="text"
-    class="w-full rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-900 focus:border-slate-400 focus:outline-none"
+    class="w-full rounded-md border border-line px-2 py-1 text-xs text-ink focus:border-line-strong focus:outline-none"
     {placeholder}
     autocomplete="off"
     role="combobox"
@@ -114,7 +114,7 @@
       bind:this={dropdownEl}
       id={listboxId}
       role="listbox"
-      class="absolute inset-x-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-md border border-slate-200 bg-white py-1 shadow-md"
+      class="absolute inset-x-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-md border border-line-subtle bg-surface-raised py-1 shadow-md"
     >
       {#each options as option, i (option)}
         <button
@@ -123,8 +123,8 @@
           role="option"
           aria-selected={i === highlight}
           class="block w-full truncate px-3 py-1.5 text-left text-xs {i === highlight
-            ? 'bg-slate-100 text-slate-900'
-            : 'text-slate-600 hover:bg-slate-50'}"
+            ? 'bg-surface-hover text-ink'
+            : 'text-ink-soft hover:bg-surface'}"
           onmousedown={(e) => e.preventDefault()}
           onclick={() => select(option)}
         >

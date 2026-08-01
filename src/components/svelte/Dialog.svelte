@@ -33,16 +33,16 @@
 <dialog
   bind:this={dialogEl}
   tabindex="-1"
-  class="fixed inset-0 m-auto w-full max-w-lg rounded-lg border border-slate-300 p-0 shadow-md backdrop:bg-slate-900/30 focus:outline-none"
+  class="fixed inset-0 m-auto w-full max-w-lg rounded-lg border border-line p-0 shadow-md backdrop:bg-ink/30 focus:outline-none"
 >
-  <div class="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+  <div class="flex items-center justify-between border-b border-line-faint px-5 py-4">
     <div class="flex items-center gap-3">
-      <h2 class="text-base font-semibold text-slate-900">{title}</h2>
+      <h2 class="text-base font-semibold text-ink">{title}</h2>
       {#if titleExtra}{@render titleExtra()}{/if}
     </div>
     <button
       type="button"
-      class="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+      class="rounded p-1 text-ink-faint hover:bg-surface-hover hover:text-ink-soft"
       onclick={close}
       aria-label="Close"
     >
@@ -54,7 +54,7 @@
     {@render body()}
   </div>
 
-  <div class="flex justify-end gap-2 border-t border-slate-100 px-5 py-4">
+  <div class="flex justify-end gap-2 border-t border-line-faint px-5 py-4">
     {@render footer()}
   </div>
 </dialog>
