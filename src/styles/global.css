@@ -442,6 +442,482 @@
   --color-warning-line: #6b5720;
 }
 
+/* Gruvbox Light — Pavel Pertsev's palette, the classic vim colourscheme. Warm paper. */
+:root[data-theme='gruvbox-light'] {
+  color-scheme: light;
+
+  --color-surface: #fbf1c7;
+  --color-surface-raised: #f9f5d7;
+  --color-surface-hover: #f2e5bc;
+  --color-surface-sunken: #ebdbb2;
+  --color-surface-strong: #d5c4a1;
+  --color-surface-inverse: #3c3836;
+
+  --color-ink: #282828;
+  --color-ink-muted: #3c3836;
+  --color-ink-soft: #504945;
+  --color-ink-subtle: #665c54;
+  --color-ink-faint: #928374;
+  --color-ink-ghost: #bdae93;
+  --color-ink-inverse: #fbf1c7;
+  --color-ink-on-inverse: #fbf1c7;
+
+  --color-line-faint: #f2e5bc;
+  --color-line-subtle: #ebdbb2;
+  --color-line: #d5c4a1;
+  --color-line-strong: #928374;
+
+  --color-accent: #076678;
+  --color-accent-hover: #054c59;
+  --color-accent-ink: #076678;
+  --color-accent-ink-soft: #0b7c91;
+  --color-accent-ink-strong: #054c59;
+  --color-accent-surface: #e3eef0;
+  --color-accent-surface-strong: #cbe0e4;
+  --color-accent-line-faint: #b0d0d6;
+  --color-accent-line-subtle: #7fb3bd;
+  --color-accent-line: #3f8b99;
+  --color-accent-line-strong: #076678;
+
+  --color-positive: #6b670c;
+  --color-positive-surface: #eef0dd;
+  --color-positive-surface-strong: #e0e4c2;
+  --color-positive-ink-soft: #79740e;
+  --color-positive-ink: #5f5c0b;
+  --color-positive-ink-strong: #464408;
+  --color-positive-line-subtle: #c3c894;
+  --color-positive-line: #9aa153;
+  --color-positive-line-strong: #79740e;
+
+  --color-negative: #9d0006;
+  --color-negative-hover: #7c0005;
+  --color-negative-surface: #f7e3e2;
+  --color-negative-surface-strong: #efc9c7;
+  --color-negative-ink-faint: #c85f59;
+  --color-negative-ink-soft: #b02b23;
+  --color-negative-ink: #9d0006;
+  --color-negative-ink-strong: #7c0005;
+  --color-negative-ink-deep: #5c0004;
+  --color-negative-line-faint: #e6b6b3;
+  --color-negative-line-subtle: #d8918c;
+  --color-negative-line: #c85f59;
+
+  --color-warning: #856300;
+  --color-warning-hover: #725500;
+  --color-warning-surface: #f8f0d8;
+  --color-warning-ink: #8f6b00;
+  --color-warning-ink-strong: #5f4700;
+  --color-warning-line: #d5b458;
+}
+
+/* Gruvbox Dark — the same palette on bg0 #282828, the vim default most people picture. */
+:root[data-theme='gruvbox-dark'] {
+  color-scheme: dark;
+
+  --color-surface: #282828;
+  --color-surface-raised: #32302f;
+  --color-surface-hover: #3c3836;
+  --color-surface-sunken: #45403d;
+  --color-surface-strong: #504945;
+  --color-surface-inverse: #d5c4a1;
+
+  --color-ink: #fbf1c7;
+  --color-ink-muted: #ebdbb2;
+  --color-ink-soft: #d5c4a1;
+  --color-ink-subtle: #bdae93;
+  --color-ink-faint: #928374;
+  --color-ink-ghost: #7c6f64;
+  --color-ink-inverse: #ffffff;
+  --color-ink-on-inverse: #282828;
+
+  --color-line-faint: #32302f;
+  --color-line-subtle: #3c3836;
+  --color-line: #504945;
+  --color-line-strong: #7c6f64;
+
+  --color-accent: #076678;
+  --color-accent-hover: #0b7c91;
+  --color-accent-ink: #93b3a7;
+  --color-accent-ink-soft: #7fb3bd;
+  --color-accent-ink-strong: #a7c8d4;
+  --color-accent-surface: #173e47;
+  --color-accent-surface-strong: #1d4f5c;
+  --color-accent-line-faint: #245c6b;
+  --color-accent-line-subtle: #2f7484;
+  --color-accent-line: #458da0;
+  --color-accent-line-strong: #5fa8bb;
+
+  --color-positive: #79740e;
+  --color-positive-surface: #2b2e18;
+  --color-positive-surface-strong: #3a3f20;
+  --color-positive-ink-soft: #b8bb26;
+  --color-positive-ink: #c9cc55;
+  --color-positive-ink-strong: #dcdd8f;
+  --color-positive-line-subtle: #4d5321;
+  --color-positive-line: #6b7327;
+  --color-positive-line-strong: #8a9430;
+
+  --color-negative: #9d0006;
+  --color-negative-hover: #cc241d;
+  --color-negative-surface: #3a1f1e;
+  --color-negative-surface-strong: #4f2926;
+  --color-negative-ink-faint: #e08b7a;
+  --color-negative-ink-soft: #f08a7d;
+  --color-negative-ink: #fc8272;
+  --color-negative-ink-strong: #fb7f6d;
+  --color-negative-ink-deep: #fdb3a7;
+  --color-negative-line-faint: #5c2f2b;
+  --color-negative-line-subtle: #7a3d38;
+  --color-negative-line: #b5574c;
+
+  --color-warning: #8f6b00;
+  --color-warning-hover: #a87e00;
+  --color-warning-surface: #332b16;
+  --color-warning-ink: #fabd2f;
+  --color-warning-ink-strong: #fcd48a;
+  --color-warning-line: #6b5a2a;
+}
+
+/* Nord — Arctic Ice Studio's palette: polar night surfaces, frost accents. */
+:root[data-theme='nord'] {
+  color-scheme: dark;
+
+  --color-surface: #2e3440;
+  --color-surface-raised: #3b4252;
+  --color-surface-hover: #434c5e;
+  --color-surface-sunken: #4c566a;
+  --color-surface-strong: #5a6478;
+  --color-surface-inverse: #d8dee9;
+
+  --color-ink: #eceff4;
+  --color-ink-muted: #e5e9f0;
+  --color-ink-soft: #d8dee9;
+  --color-ink-subtle: #b8c1d1;
+  --color-ink-faint: #8b95a8;
+  --color-ink-ghost: #697180;
+  --color-ink-inverse: #ffffff;
+  --color-ink-on-inverse: #2e3440;
+
+  --color-line-faint: #39404e;
+  --color-line-subtle: #434c5e;
+  --color-line: #4c566a;
+  --color-line-strong: #707a8c;
+
+  --color-accent: #4c6f8f;
+  --color-accent-hover: #5e83a6;
+  --color-accent-ink: #88c0d0;
+  --color-accent-ink-soft: #81a1c1;
+  --color-accent-ink-strong: #a3d3df;
+  --color-accent-surface: #2b3f52;
+  --color-accent-surface-strong: #345066;
+  --color-accent-line-faint: #3b5a73;
+  --color-accent-line-subtle: #456b88;
+  --color-accent-line: #5e8faf;
+  --color-accent-line-strong: #81a1c1;
+
+  --color-positive: #4a6b45;
+  --color-positive-surface: #26332a;
+  --color-positive-surface-strong: #334436;
+  --color-positive-ink-soft: #a3be8c;
+  --color-positive-ink: #b6cca3;
+  --color-positive-ink-strong: #cddcc1;
+  --color-positive-line-subtle: #3d5540;
+  --color-positive-line: #557a52;
+  --color-positive-line-strong: #6d9668;
+
+  --color-negative: #8f3f42;
+  --color-negative-hover: #a84e51;
+  --color-negative-surface: #3a2427;
+  --color-negative-surface-strong: #4d2f33;
+  --color-negative-ink-faint: #d08b8f;
+  --color-negative-ink-soft: #dc9ea1;
+  --color-negative-ink: #e8a9ac;
+  --color-negative-ink-strong: #efc0c2;
+  --color-negative-ink-deep: #f5d7d8;
+  --color-negative-line-faint: #5c3336;
+  --color-negative-line-subtle: #7a4448;
+  --color-negative-line: #b5666a;
+
+  --color-warning: #8a6a2f;
+  --color-warning-hover: #a37f3c;
+  --color-warning-surface: #332c1c;
+  --color-warning-ink: #ebcb8b;
+  --color-warning-ink-strong: #f2dcae;
+  --color-warning-line: #6b5a35;
+}
+
+/* Dracula — Zeno Rocha's palette: #282a36 background, #bd93f9 purple accent. */
+:root[data-theme='dracula'] {
+  color-scheme: dark;
+
+  --color-surface: #282a36;
+  --color-surface-raised: #343746;
+  --color-surface-hover: #3d4052;
+  --color-surface-sunken: #454962;
+  --color-surface-strong: #525670;
+  --color-surface-inverse: #c9cce0;
+
+  --color-ink: #f8f8f2;
+  --color-ink-muted: #e8e8e2;
+  --color-ink-soft: #d5d5d0;
+  --color-ink-subtle: #b9bcc9;
+  --color-ink-faint: #8f93a8;
+  --color-ink-ghost: #6272a4;
+  --color-ink-inverse: #ffffff;
+  --color-ink-on-inverse: #282a36;
+
+  --color-line-faint: #31343f;
+  --color-line-subtle: #3d4052;
+  --color-line: #4a4e63;
+  --color-line-strong: #6272a4;
+
+  --color-accent: #5b3fa0;
+  --color-accent-hover: #6d4dbd;
+  --color-accent-ink: #bd93f9;
+  --color-accent-ink-soft: #a97ef0;
+  --color-accent-ink-strong: #d3b6fc;
+  --color-accent-surface: #332a4d;
+  --color-accent-surface-strong: #413461;
+  --color-accent-line-faint: #4b3c72;
+  --color-accent-line-subtle: #5c4a8c;
+  --color-accent-line: #7d66b8;
+  --color-accent-line-strong: #9b81d6;
+
+  --color-positive: #3f7a4a;
+  --color-positive-surface: #1f3326;
+  --color-positive-surface-strong: #2b452f;
+  --color-positive-ink-soft: #50fa7b;
+  --color-positive-ink: #7ffb9d;
+  --color-positive-ink-strong: #aefcc1;
+  --color-positive-line-subtle: #2f5c39;
+  --color-positive-line: #3f7a4a;
+  --color-positive-line-strong: #57a05f;
+
+  --color-negative: #a02c3a;
+  --color-negative-hover: #bd3648;
+  --color-negative-surface: #3a2029;
+  --color-negative-surface-strong: #4f2a35;
+  --color-negative-ink-faint: #ff79a2;
+  --color-negative-ink-soft: #ff92b3;
+  --color-negative-ink: #ffa8c3;
+  --color-negative-ink-strong: #ffc2d5;
+  --color-negative-ink-deep: #ffdbe6;
+  --color-negative-line-faint: #5c2f3a;
+  --color-negative-line-subtle: #7a3f4d;
+  --color-negative-line: #b5596d;
+
+  --color-warning: #8a6a1f;
+  --color-warning-hover: #a37f28;
+  --color-warning-surface: #332d18;
+  --color-warning-ink: #f1fa8c;
+  --color-warning-ink-strong: #f6fcb4;
+  --color-warning-line: #6b5f2a;
+}
+
+/* Monokai — Wimer Hazenberg's palette, and vim's molokai: #272822 with a magenta accent. */
+:root[data-theme='monokai'] {
+  color-scheme: dark;
+
+  --color-surface: #272822;
+  --color-surface-raised: #31322b;
+  --color-surface-hover: #3b3c35;
+  --color-surface-sunken: #45463d;
+  --color-surface-strong: #53544a;
+  --color-surface-inverse: #cfd0c2;
+
+  --color-ink: #f8f8f2;
+  --color-ink-muted: #eaeade;
+  --color-ink-soft: #d6d7c9;
+  --color-ink-subtle: #b6b7a8;
+  --color-ink-faint: #90918a;
+  --color-ink-ghost: #75715e;
+  --color-ink-inverse: #ffffff;
+  --color-ink-on-inverse: #272822;
+
+  --color-line-faint: #2f302a;
+  --color-line-subtle: #3b3c35;
+  --color-line: #494a41;
+  --color-line-strong: #75715e;
+
+  --color-accent: #a01f5e;
+  --color-accent-hover: #bd2670;
+  --color-accent-ink: #fb6a9b;
+  --color-accent-ink-soft: #f45b8d;
+  --color-accent-ink-strong: #fb8fb1;
+  --color-accent-surface: #3d1c2c;
+  --color-accent-surface-strong: #4f2438;
+  --color-accent-line-faint: #5c2a41;
+  --color-accent-line-subtle: #7a3554;
+  --color-accent-line: #a84a72;
+  --color-accent-line-strong: #c95c8b;
+
+  --color-positive: #4f7a1f;
+  --color-positive-surface: #26330f;
+  --color-positive-surface-strong: #324516;
+  --color-positive-ink-soft: #a6e22e;
+  --color-positive-ink: #bfe95f;
+  --color-positive-ink-strong: #d5f195;
+  --color-positive-line-subtle: #3f5c1c;
+  --color-positive-line: #587f26;
+  --color-positive-line-strong: #74a231;
+
+  --color-negative: #a02020;
+  --color-negative-hover: #bd2626;
+  --color-negative-surface: #3a1e1e;
+  --color-negative-surface-strong: #4f2828;
+  --color-negative-ink-faint: #f28a8a;
+  --color-negative-ink-soft: #f5a0a0;
+  --color-negative-ink: #f7b3b3;
+  --color-negative-ink-strong: #fac9c9;
+  --color-negative-ink-deep: #fcdede;
+  --color-negative-line-faint: #5c2e2e;
+  --color-negative-line-subtle: #7a3d3d;
+  --color-negative-line: #b55757;
+
+  --color-warning: #8a6a1f;
+  --color-warning-hover: #a37f28;
+  --color-warning-surface: #332d18;
+  --color-warning-ink: #e6db74;
+  --color-warning-ink-strong: #efe9a4;
+  --color-warning-line: #6b5f2a;
+}
+
+/* One Dark — Atom's default, still the most-forked dark theme going. */
+:root[data-theme='one-dark'] {
+  color-scheme: dark;
+
+  --color-surface: #282c34;
+  --color-surface-raised: #31353f;
+  --color-surface-hover: #3a3f4b;
+  --color-surface-sunken: #434955;
+  --color-surface-strong: #4f5563;
+  --color-surface-inverse: #c8ccd4;
+
+  --color-ink: #e6e6e6;
+  --color-ink-muted: #d7dae0;
+  --color-ink-soft: #c8ccd4;
+  --color-ink-subtle: #a9b0bd;
+  --color-ink-faint: #848b98;
+  --color-ink-ghost: #5c6370;
+  --color-ink-inverse: #ffffff;
+  --color-ink-on-inverse: #282c34;
+
+  --color-line-faint: #31353f;
+  --color-line-subtle: #3a3f4b;
+  --color-line: #464c59;
+  --color-line-strong: #5c6370;
+
+  --color-accent: #3b6ea5;
+  --color-accent-hover: #4a83c1;
+  --color-accent-ink: #61afef;
+  --color-accent-ink-soft: #54a0e6;
+  --color-accent-ink-strong: #96c9f5;
+  --color-accent-surface: #1f3448;
+  --color-accent-surface-strong: #27425a;
+  --color-accent-line-faint: #2d4f6b;
+  --color-accent-line-subtle: #396685;
+  --color-accent-line: #4a86ad;
+  --color-accent-line-strong: #61afef;
+
+  --color-positive: #4a7a3f;
+  --color-positive-surface: #22331f;
+  --color-positive-surface-strong: #2e452a;
+  --color-positive-ink-soft: #98c379;
+  --color-positive-ink: #aed195;
+  --color-positive-ink-strong: #c9e3b8;
+  --color-positive-line-subtle: #3a5c31;
+  --color-positive-line: #4f7a44;
+  --color-positive-line-strong: #6a9a5c;
+
+  --color-negative: #a03c42;
+  --color-negative-hover: #bd484f;
+  --color-negative-surface: #3a2225;
+  --color-negative-surface-strong: #4f2d31;
+  --color-negative-ink-faint: #e06c75;
+  --color-negative-ink-soft: #e88b92;
+  --color-negative-ink: #eda1a7;
+  --color-negative-ink-strong: #f2bcc0;
+  --color-negative-ink-deep: #f7d7da;
+  --color-negative-line-faint: #5c3034;
+  --color-negative-line-subtle: #7a4046;
+  --color-negative-line: #b55b62;
+
+  --color-warning: #8a6626;
+  --color-warning-hover: #a37b2f;
+  --color-warning-surface: #332b1a;
+  --color-warning-ink: #e5c07b;
+  --color-warning-ink-strong: #eed6a8;
+  --color-warning-line: #6b5830;
+}
+
+/* Tokyo Night — enkia's palette; the current favourite among the newer editor themes. */
+:root[data-theme='tokyo-night'] {
+  color-scheme: dark;
+
+  --color-surface: #1a1b26;
+  --color-surface-raised: #232433;
+  --color-surface-hover: #2b2d3f;
+  --color-surface-sunken: #33364a;
+  --color-surface-strong: #3d4159;
+  --color-surface-inverse: #c0caf5;
+
+  --color-ink: #e7eaf5;
+  --color-ink-muted: #d5d9ec;
+  --color-ink-soft: #c0caf5;
+  --color-ink-subtle: #9aa5ce;
+  --color-ink-faint: #787c99;
+  --color-ink-ghost: #565a75;
+  --color-ink-inverse: #ffffff;
+  --color-ink-on-inverse: #1a1b26;
+
+  --color-line-faint: #20212e;
+  --color-line-subtle: #2b2d3f;
+  --color-line: #363a50;
+  --color-line-strong: #565a75;
+
+  --color-accent: #2e5f9e;
+  --color-accent-hover: #3a75bd;
+  --color-accent-ink: #7aa2f7;
+  --color-accent-ink-soft: #6a92e8;
+  --color-accent-ink-strong: #a3c0fa;
+  --color-accent-surface: #1b2c47;
+  --color-accent-surface-strong: #22375a;
+  --color-accent-line-faint: #28406b;
+  --color-accent-line-subtle: #325288;
+  --color-accent-line: #4a72ad;
+  --color-accent-line-strong: #6a92e8;
+
+  --color-positive: #3f7a5c;
+  --color-positive-surface: #1c3328;
+  --color-positive-surface-strong: #264535;
+  --color-positive-ink-soft: #9ece6a;
+  --color-positive-ink: #b3dc8c;
+  --color-positive-ink-strong: #cdeab1;
+  --color-positive-line-subtle: #2f5c42;
+  --color-positive-line: #3f7a58;
+  --color-positive-line-strong: #57a077;
+
+  --color-negative: #a03848;
+  --color-negative-hover: #bd4356;
+  --color-negative-surface: #3a2028;
+  --color-negative-surface-strong: #4f2a35;
+  --color-negative-ink-faint: #f7768e;
+  --color-negative-ink-soft: #f992a5;
+  --color-negative-ink: #faa8b7;
+  --color-negative-ink-strong: #fcc4ce;
+  --color-negative-ink-deep: #fddfe5;
+  --color-negative-line-faint: #5c2e38;
+  --color-negative-line-subtle: #7a3d4a;
+  --color-negative-line: #b55868;
+
+  --color-warning: #8a6a2a;
+  --color-warning-hover: #a37f34;
+  --color-warning-surface: #332c1b;
+  --color-warning-ink: #e0af68;
+  --color-warning-ink-strong: #ecc994;
+  --color-warning-line: #6b5730;
+}
+
 body {
   @apply bg-surface text-ink;
 }

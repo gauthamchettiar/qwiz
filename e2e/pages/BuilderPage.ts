@@ -16,9 +16,9 @@ export class BuilderPage {
   readonly deleteQuizButton: Locator;
   readonly confirmDeleteQuizButton: Locator;
   readonly notFoundMessage: Locator;
-  /** The page-level whole-document editor beside Play. `exact` matters: the metadata card and every
-   * question card have their own "Edit quiz code"/"Edit question code" buttons, which a substring
-   * match on "Code" also picks up. */
+  /** The whole-document editor, opened by the "<>" beside the quiz title. It used to be a
+   * separate page-header button that edited only the frontmatter; there is one source editor
+   * now, and this is it. */
   readonly fileCodeButton: Locator;
   readonly fileSourceInput: Locator;
 
@@ -27,14 +27,14 @@ export class BuilderPage {
     this.titleInput = page.getByLabel('Title', { exact: true });
     this.descriptionInput = page.getByLabel('Description', { exact: true });
     this.addQuestionButton = page.getByRole('button', { name: 'Add question' });
-    this.saveButton = page.getByRole('button', { name: 'Save', exact: true });
+    this.saveButton = page.getByRole('button', { name: 'Save to this browser' });
     this.downloadButton = page.getByRole('button', { name: 'Download .qwiz' });
     this.moreActionsButton = page.getByRole('button', { name: 'More quiz actions' });
     this.savedFlash = page.getByText('Saved', { exact: true });
     this.deleteQuizButton = page.getByRole('button', { name: 'Delete quiz' });
     this.confirmDeleteQuizButton = page.getByRole('button', { name: 'Confirm delete?' });
     this.notFoundMessage = page.getByText("That quiz couldn't be found.");
-    this.fileCodeButton = page.getByRole('button', { name: 'Code', exact: true });
+    this.fileCodeButton = page.getByRole('button', { name: 'Edit quiz code' });
     this.fileSourceInput = page.getByLabel('Quiz .qwiz source');
   }
 

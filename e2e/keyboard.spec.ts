@@ -37,21 +37,26 @@ test('Enter adds a tag, and Backspace on an empty draft removes the last one', a
   await expect(page.getByText('quiznight', { exact: true })).toHaveCount(0);
 });
 
-test("Escape exits the quiz metadata card's code mode back to the plain fields", async ({
-  page
-}) => {
+test('the whole-document editor closes through Discard, not Escape', async ({ page }) => {
   const builder = new BuilderPage(page);
   await builder.gotoCreate();
 
-  await page.getByRole('button', { name: 'Edit quiz code' }).click();
+  await builder.fileCodeButton.click();
   // `.font-mono` picks out the code editor specifically: an unscoped `textarea` locator would
-  // match the header's always-mounted (hidden) import textarea before Escape, and the
-  // Description textarea once Escape reveals the plain fields again.
+  // match the header's always-mounted (hidden) import textarea, and the Description textarea
+  // once the plain fields are back.
   const codeEditor = page.locator('main textarea.font-mono');
   await expect(codeEditor).toBeVisible();
   await expect(builder.titleInput).toBeHidden();
 
+  // Escape is deliberately inert here, unlike in a question's code mode: this editor holds the
+  // WHOLE quiz, and one stray keypress silently throwing that away is a far worse outcome than
+  // having to reach for a button.
   await codeEditor.press('Escape');
+  await expect(codeEditor).toBeVisible();
+
+  // The editor REPLACES the cards it edits, "<>" included, so it closes through its own controls.
+  await page.getByRole('button', { name: 'Discard' }).click();
   await expect(codeEditor).toBeHidden();
   await expect(builder.titleInput).toBeVisible();
 });

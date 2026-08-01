@@ -21,11 +21,9 @@
     QUIZ_FRONTMATTER_RULES,
     QUIZ_SUGGESTED_SETTING_KEYS,
     groupSettingKeys,
-    parseQuizScriptFrontmatter,
     parseQuizScriptQuestion,
     parseQwizFile,
     serializeQuizScript,
-    serializeQuizScriptFrontmatter,
     serializeQuizScriptQuestion,
     settingDefaultValue,
     settingValueSuggestions,
@@ -38,7 +36,7 @@
   import Button from './Button.svelte';
   import ErrorList from './ErrorList.svelte';
   import CardMenu from './CardMenu.svelte';
-  import CodeFrame from './CodeFrame.svelte';
+  import LeaveGuard from './LeaveGuard.svelte';
   import SettingsDocsLink from './SettingsDocsLink.svelte';
   import SettingsLegend from './SettingsLegend.svelte';
   import SuggestionInput from './SuggestionInput.svelte';
@@ -88,6 +86,7 @@
   // Which state the header menu's Delete item is in — reset by CardMenu's onClose, so it can
   // never linger armed on a menu that was dismissed.
   let confirmingDelete = $state(false);
+  let leaveGuard: LeaveGuard | undefined = $state();
   let saveState = $state<'idle' | 'saving' | 'saved'>('idle');
   let saveFlashTimeout: ReturnType<typeof setTimeout> | undefined;
   $effect(() => () => clearTimeout(saveFlashTimeout));
@@ -223,17 +222,35 @@
     tags = tags.filter((x) => x !== t);
   }
 
+  /** Same as a question's (see QuestionForm's own `addSetting`): the first still-free key, with
+   * its default value, rather than a blank row and a placeholder option pretending to be one. */
   function addSetting() {
-    settingsList = [...settingsList, { _key: crypto.randomUUID(), key: '', value: '' }];
+    const used = settingsList.map((s) => s.key);
+    const key = QUIZ_SUGGESTED_SETTING_KEYS.find((k) => !used.includes(k)) ?? '';
+    settingsList = [
+      ...settingsList,
+      {
+        _key: crypto.randomUUID(),
+        key,
+        value: settingDefaultValue(key, QUIZ_FRONTMATTER_RULES)
+      }
+    ];
   }
   function removeSetting(key: string) {
     settingsList = settingsList.filter((s) => s._key !== key);
   }
   /** Same reasoning as QuestionForm's own `selectSettingKey` — fills in the picked key's default
    * value, but only when the row's value is genuinely still blank. */
+  /** Fires when a setting row's key <select> changes. Replaces the value with the new key's
+   * default whenever the one already there wouldn't be valid for it — the normal case now that a
+   * row starts pre-filled with a real key and its default rather than blank.
+   *
+   * A value that IS valid for the new key survives: switching between `reveal_answers` and
+   * `reveal_scores` keeps `at_end`, which is nearly always what was meant. */
   function selectSettingKey(setting: { key: string; value: string }) {
-    if (setting.value.trim() === '')
+    if (validateSettingValue(setting.key, setting.value, QUIZ_FRONTMATTER_RULES).error) {
       setting.value = settingDefaultValue(setting.key, QUIZ_FRONTMATTER_RULES);
+    }
   }
 
   // --- Question editing: view / code / form -------------------------------------------------
@@ -244,26 +261,34 @@
   // Editing: start from the saved quiz's own questions. Creating: start empty — use "Add
   // question" or Import/"Load sample" to get started, rather than a fixed demo seed.
   let questions = $state<QuizQuestion[]>(untrack(() => initial?.questions ?? []));
-  type ActiveEdit =
-    { kind: 'meta' } | { kind: 'question'; questionId: string; mode: 'code' | 'form' };
+  // No `meta` kind: the metadata card's <> button opens the WHOLE document now (see
+  // `enterFileCode`), so there's no longer a mode that edits just the frontmatter. One "edit this
+  // as source" affordance instead of two that looked identical and did different amounts.
+  type ActiveEdit = { kind: 'question'; questionId: string; mode: 'code' | 'form' };
   let activeEdit = $state<ActiveEdit | null>(null);
-  // Only meaningful while activeEdit is meta or a question in code mode — lifted up here (rather
+  // Only meaningful while a question is in code mode — lifted up here (rather
   // than living inside QuestionCard) because the keydown handler below needs to read and act on
   // it directly, and that handler must already live here to move `activeEdit` *across* cards for
   // Page nav.
   let activeDraft = $state('');
   let activeFocusTarget = $state<FocusTarget | null>(null);
-  let metaTextareaEl: HTMLTextAreaElement | undefined = $state();
-  const metaDraftErrors = $derived(
-    activeEdit?.kind === 'meta' ? parseQuizScriptFrontmatter(activeDraft).errors : []
-  );
-
-  $effect(() => {
-    if (activeEdit?.kind === 'meta') metaTextareaEl?.focus();
-  });
-
   function currentFrontmatter(): QuizScriptFrontmatter {
     return { title, description, category, tags, settings: quizSettings };
+  }
+
+  /** Everything the builder currently holds, as one `.qwiz` document — the same serialization
+   * Download produces. Comparing two of these is how "are there unsaved changes" is answered:
+   * field-by-field dirty flags would need one per field and would miss a question's code entirely,
+   * whereas the document is by definition the whole of what a save persists.
+   *
+   * While the whole-document editor is open, its textarea IS the document, so that's what counts —
+   * otherwise typing into it would read as no change at all. */
+  function currentDocument(): string {
+    if (fileDraft !== null) return fileDraft;
+    return serializeQuizScript(
+      currentFrontmatter(),
+      questions.map((q) => q.code)
+    );
   }
 
   /** Saves the current code draft if it parses cleanly; leaves it (and its errors) alone if
@@ -274,20 +299,6 @@
    * path just stays put and keeps showing the errors instead. */
   function commitActiveDraft(): boolean {
     if (!activeEdit) return true;
-    if (activeEdit.kind === 'meta') {
-      const { frontmatter, errors: draftErrors } = parseQuizScriptFrontmatter(activeDraft);
-      if (draftErrors.length > 0) return false;
-      title = frontmatter.title;
-      description = frontmatter.description;
-      category = frontmatter.category;
-      tags = frontmatter.tags;
-      settingsList = Object.entries(frontmatter.settings).map(([key, value]) => ({
-        key,
-        value: String(value),
-        _key: crypto.randomUUID()
-      }));
-      return true;
-    }
     if (activeEdit.mode !== 'code') return true;
     if (parseQuizScriptQuestion(activeDraft).errors.length > 0) return false;
     const id = activeEdit.questionId;
@@ -306,6 +317,18 @@
   // Import reads, so this is the third surface on the exact same format rather than a fourth
   // representation of a quiz.
   let fileDraft = $state<string | null>(null);
+
+  // Declared after `fileDraft` on purpose: `currentDocument()` reads it, so seeding the snapshot
+  // any earlier is a temporal-dead-zone error — one that only surfaces during Astro's SSR build,
+  // where this component is executed for real rather than merely hydrated.
+  //
+  // Captured at mount (so an existing quiz starts clean, and a blank /local/create does too) and
+  // reset after every successful save. `untrack` for the same reason every other seed here uses:
+  // this is a starting value, not a subscription.
+  let savedSnapshot = $state(untrack(() => currentDocument()));
+  // An in-progress tag counts as unsaved: it's typed text a save would discard, and the tag input
+  // is easy to leave without pressing Enter.
+  const isDirty = $derived(currentDocument() !== savedSnapshot || tagDraft.trim() !== '');
   let fileTextareaEl: HTMLTextAreaElement | undefined = $state();
   const fileDraftErrors = $derived(fileDraft === null ? [] : parseQwizFile(fileDraft).errors);
 
@@ -314,11 +337,10 @@
   });
 
   function enterFileCode() {
-    // Toggle-to-close on re-click, matching both the metadata and per-question code buttons.
-    if (fileDraft !== null) {
-      applyFileDraft();
-      return;
-    }
+    // No toggle-to-close branch: this editor REPLACES the metadata card, taking its own "<>"
+    // button off screen with it, so a re-click is unreachable. It closes through its own
+    // Discard/Apply buttons instead — which is the right shape for an edit spanning the whole
+    // quiz rather than one card.
     // A tag half-typed in the tag field, or a card still open in code mode, is state the document
     // has to include — otherwise it silently vanishes the moment the document is applied back.
     addTag();
@@ -364,18 +386,6 @@
    * into a state that can't parse (or that the author simply changed their mind about). */
   function discardFileDraft() {
     fileDraft = null;
-  }
-
-  function enterMetaCode() {
-    // Same close-toggle-on-reclick semantics as a question's <> button (see enterCode below).
-    if (activeEdit?.kind === 'meta') {
-      commitActiveDraft();
-      activeEdit = null;
-      return;
-    }
-    if (!commitActiveDraft()) return;
-    activeEdit = { kind: 'meta' };
-    activeDraft = serializeQuizScriptFrontmatter(currentFrontmatter());
   }
 
   function enterCode(questionId: string) {
@@ -452,28 +462,10 @@
   async function navigateQuestion(dir: 1 | -1) {
     if (!activeEdit) return;
 
-    // Stepping PageUp off the first question moves into the quiz metadata card's own code mode
-    // instead of silently doing nothing — metadata is a real "slot" before question 0, the same
-    // way PageDown off the last question already just runs out of questions and stops. PageDown
-    // the other way (off metadata, onto question 0) is the mirror of this.
-    if (activeEdit.kind === 'meta') {
-      if (dir !== 1) return;
-      if (!commitActiveDraft()) return;
-      const first = questions[0];
-      if (!first) return;
-      activeEdit = { kind: 'question', questionId: first.id, mode: 'code' };
-      activeDraft = first.code;
-      return;
-    }
+    // Page nav runs over the questions only. It used to treat the metadata card as a slot before
+    // question 0, which no longer exists as a code mode of its own.
     if (activeEdit.mode === 'code' && !commitActiveDraft()) return;
     const idx = questions.findIndex((q) => q.id === activeEdit!.questionId);
-
-    if (idx === 0 && dir === -1) {
-      if (!commitActiveDraft()) return;
-      activeEdit = { kind: 'meta' };
-      activeDraft = serializeQuizScriptFrontmatter(currentFrontmatter());
-      return;
-    }
 
     const nextQuestion = questions[idx + dir];
     if (!nextQuestion) return;
@@ -510,9 +502,7 @@
         }
         return;
       }
-      const inCodeMode =
-        activeEdit?.kind === 'meta' ||
-        (activeEdit?.kind === 'question' && activeEdit.mode === 'code');
+      const inCodeMode = activeEdit?.mode === 'code';
       if (inCodeMode && (e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault();
         commitActiveDraft();
@@ -598,12 +588,9 @@
     // A code draft that doesn't parse used to be silently left uncommitted while the save went
     // ahead — so the edit on screen simply wasn't in the saved quiz, with nothing said about it.
     if (!commitActiveDraft()) {
-      const isMeta = activeEdit?.kind === 'meta';
-      blockingQuestionId = isMeta ? null : (activeEdit?.questionId ?? null);
+      blockingQuestionId = activeEdit?.questionId ?? null;
       errors = [
-        isMeta
-          ? "The quiz details code has an error, so it wasn't saved. Fix it or press Escape to discard the edit."
-          : "A question's code has an error, so it wasn't saved. Fix it or press Escape to discard the edit."
+        "A question's code has an error, so it wasn't saved. Fix it or press Escape to discard the edit."
       ];
       focusFirstError();
       return null;
@@ -646,7 +633,10 @@
     // no longer an accurate address for it, so move to the real edit URL (a fresh page load,
     // same as every other navigation in this app). Editing an existing quiz is already sitting on
     // that URL, so it just stays put and flashes the inline "Saved" feedback below instead.
+    savedSnapshot = currentDocument();
     if (!initial) {
+      // Navigating away from a just-saved quiz — nothing left to warn about.
+      leaveGuard?.release();
       window.location.href = `/local/edit?id=${quiz.id}`;
       return;
     }
@@ -663,6 +653,8 @@
   function playNow() {
     const quiz = buildAndSaveQuiz();
     if (!quiz) return;
+    savedSnapshot = currentDocument();
+    leaveGuard?.release();
     window.location.href = `/local/play?id=${quiz.id}`;
   }
 
@@ -692,6 +684,9 @@
       errors = ["Couldn't delete — your browser's storage might be unavailable right now."];
       return;
     }
+    // Deliberately leaving a quiz that no longer exists — warning about its unsaved edits would
+    // be asking whether to keep changes to something just deleted.
+    leaveGuard?.release();
     window.location.href = '/';
   }
 </script>
@@ -700,38 +695,22 @@
   <div class="flex items-center justify-between gap-3">
     <h1 class="text-2xl font-bold text-ink">{heading}</h1>
     <div class="flex shrink-0 items-center gap-2">
-      <!-- The whole-document editor, alongside Play rather than on a card: unlike the metadata
-           card's own <> button (which edits just that card's frontmatter) this one is about the
-           entire quiz, so it belongs to the page, not to any one block on it. -->
+      <!-- Play is the one action worth a permanent button beside the menu: it's how you check
+           what you just wrote, and it saves first (see `playNow`) so it never shows stale
+           content. The whole-document Code button that used to sit here is gone — the same editor
+           is reached from the <> beside the title, where it's next to the fields it replaces. -->
       <button
         type="button"
-        class="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium {fileDraft !==
-        null
-          ? 'border-line bg-surface-hover text-ink'
-          : 'border-line bg-surface-raised text-ink-soft hover:bg-surface'}"
-        aria-pressed={fileDraft !== null}
-        onclick={enterFileCode}
+        class="flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-ink-inverse hover:bg-accent-hover"
+        onclick={playNow}
       >
-        <Code size={15} /> Code
+        <Play size={15} /> Play
       </button>
-      <!-- Two visible actions, everything else one tap away. This row had grown to Code + Play up
-           here and Delete + Download + Save along the bottom — five competing buttons for a screen
-           whose job is editing, on which only Save is reached often. Play, Download and Delete are
-           each occasional and none is undoable-by-accident-proof, which is exactly the profile for
-           an overflow menu. Save keeps its own button: it's the one action that shouldn't cost a
-           second click, and burying it would make "did that save?" a question. -->
+      <!-- Download and Delete: occasional, and neither reached often enough to earn a permanent
+           button. Save is NOT here either — it stays at the end of the document, where you land
+           after writing the thing you're saving, and one Save is less ambiguous than two. -->
       <CardMenu ariaLabel="More quiz actions" onClose={() => (confirmingDelete = false)}>
         {#snippet children(close)}
-          <button
-            type="button"
-            class="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left text-sm text-ink-muted hover:bg-surface"
-            onclick={() => {
-              close();
-              playNow();
-            }}
-          >
-            <Play size={15} /> Play
-          </button>
           <button
             type="button"
             class="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left text-sm text-ink-muted hover:bg-surface"
@@ -769,7 +748,6 @@
           {/if}
         {/snippet}
       </CardMenu>
-      <Button variant="primary" onclick={save}>Save</Button>
     </div>
   </div>
 
@@ -806,259 +784,240 @@
       <!-- Same `lg:`-gated absolute/in-flow switch as QuestionCard.svelte's button strip — see its
          comment for why: Base.astro's page container leaves no margin outside this card below
          `lg:` (1024px), so the button would otherwise be pushed off-screen on mobile. -->
+      <!-- Opens the WHOLE .qwiz document, not just this card's frontmatter. There used to be two
+           source editors that looked alike — this one, and a "Code" button in the page header —
+           and the difference between "the details block" and "the entire quiz" was invisible
+           until you were already in one. One editor, reached from the card whose fields it
+           subsumes. -->
       <button
         type="button"
-        class="mb-3 rounded-md border border-line-subtle bg-surface-raised p-1.5 hover:bg-surface lg:absolute lg:right-full lg:top-0 lg:mb-0 lg:mr-2 {activeEdit?.kind ===
-        'meta'
-          ? 'bg-surface-hover text-ink'
-          : 'text-ink-faint'}"
-        onclick={enterMetaCode}
+        class="mb-3 rounded-md border border-line-subtle bg-surface-raised p-1.5 text-ink-faint hover:bg-surface lg:absolute lg:right-full lg:top-0 lg:mb-0 lg:mr-2"
+        onclick={enterFileCode}
         aria-label="Edit quiz code"
-        title="Edit quiz code"
+        title="Edit the whole quiz as .qwiz source"
       >
         <Code size={15} />
       </button>
 
-      {#if activeEdit?.kind === 'meta'}
-        <div class="space-y-2">
-          <textarea
-            bind:this={metaTextareaEl}
-            class="w-full rounded-md border border-line bg-surface px-3 py-2 font-mono text-xs text-ink-muted focus:border-line-strong focus:outline-none focus:ring-2 focus:ring-line-subtle"
-            rows={Math.min(16, Math.max(6, activeDraft.split('\n').length))}
-            value={activeDraft}
-            oninput={(e) => (activeDraft = e.currentTarget.value)}></textarea>
-          <SettingsLegend keys={QUIZ_SUGGESTED_SETTING_KEYS} rules={QUIZ_FRONTMATTER_RULES} />
-          {#each metaDraftErrors as error, index (index)}
-            <CodeFrame {error} source={activeDraft} />
-          {/each}
-        </div>
-      {:else}
-        <div class="-mx-1 space-y-1">
-          <input
-            bind:this={titleEl}
-            type="text"
-            class="w-full rounded-md px-1 py-1 text-2xl font-bold text-ink placeholder:text-ink-ghost focus:outline-none focus:ring-2 focus:ring-line-subtle {titleInvalid
-              ? 'border border-negative-line-subtle ring-1 ring-negative-surface-strong'
-              : 'border-0 bg-transparent'}"
-            placeholder="Untitled quiz"
-            aria-label="Title"
-            bind:value={title}
-          />
-          <textarea
-            class="w-full resize-none rounded-md border-0 bg-transparent px-1 py-1 text-sm text-ink-subtle placeholder:text-ink-ghost focus:outline-none focus:ring-2 focus:ring-line-subtle"
-            rows="2"
-            placeholder="Add a description…"
-            aria-label="Description"
-            bind:value={description}></textarea>
-          <!-- Category and tags share the metadata row treatment: a muted leading icon (the only
-           thing distinguishing them, since neither carries a visible label) and a borderless
-           input that sits flush with the title/description above. -->
-          <div class="flex items-center gap-1.5 px-1">
-            <FolderOpen size={13} class="shrink-0 text-ink-faint" />
-            <!-- Free text with suggestions: they're a convenience, not a constraint, so authors can
-             group quizzes under anything they like. -->
-            <div class="relative min-w-[8rem] flex-1">
-              <input
-                id="category"
-                type="text"
-                class="w-full border-0 bg-transparent px-1 py-0.5 text-xs text-ink-soft placeholder:text-ink-ghost focus:outline-none"
-                placeholder="Add a category…"
-                aria-label="Category"
-                autocomplete="off"
-                role="combobox"
-                aria-expanded={showCategoryDropdown && categoryDropdownOptions.length > 0}
-                aria-controls={categoryListboxId}
-                bind:value={category}
-                onfocus={() => (showCategoryDropdown = true)}
-                onblur={() => (showCategoryDropdown = false)}
-                onkeydown={onCategoryKeydown}
-              />
-              {#if showCategoryDropdown && categoryDropdownOptions.length > 0}
-                <div
-                  bind:this={categoryDropdownEl}
-                  id={categoryListboxId}
-                  role="listbox"
-                  class="absolute inset-x-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-md border border-line-subtle bg-surface-raised py-1 shadow-md"
-                >
-                  {#each categoryDropdownOptions as option, i (option)}
-                    <button
-                      type="button"
-                      tabindex="-1"
-                      role="option"
-                      aria-selected={i === categoryHighlight}
-                      class="block w-full truncate px-3 py-1.5 text-left text-xs {i ===
-                      categoryHighlight
-                        ? 'bg-surface-hover text-ink'
-                        : 'text-ink-soft hover:bg-surface'}"
-                      onmousedown={(e) => e.preventDefault()}
-                      onclick={() => selectCategory(option)}
-                    >
-                      {option}
-                    </button>
-                  {/each}
-                </div>
-              {/if}
-            </div>
-          </div>
-
-          <div class="flex flex-wrap items-center gap-1.5 px-1">
-            <TagIcon size={13} class="shrink-0 text-ink-faint" />
-            {#each tags as tag (tag)}
-              <span
-                class="inline-flex items-center gap-1 rounded-md bg-surface-hover px-2 py-0.5 text-xs font-medium text-ink-soft"
+      <div class="-mx-1 space-y-1">
+        <input
+          bind:this={titleEl}
+          type="text"
+          class="w-full rounded-md px-1 py-1 text-2xl font-bold text-ink placeholder:text-ink-ghost focus:outline-none focus:ring-2 focus:ring-line-subtle {titleInvalid
+            ? 'border border-negative-line-subtle ring-1 ring-negative-surface-strong'
+            : 'border-0 bg-transparent'}"
+          placeholder="Untitled quiz"
+          aria-label="Title"
+          bind:value={title}
+        />
+        <textarea
+          class="w-full resize-none rounded-md border-0 bg-transparent px-1 py-1 text-sm text-ink-subtle placeholder:text-ink-ghost focus:outline-none focus:ring-2 focus:ring-line-subtle"
+          rows="2"
+          placeholder="Add a description…"
+          aria-label="Description"
+          bind:value={description}></textarea>
+        <!-- Category and tags share the metadata row treatment: a muted leading icon (the only
+         thing distinguishing them, since neither carries a visible label) and a borderless
+         input that sits flush with the title/description above. -->
+        <div class="flex items-center gap-1.5 px-1">
+          <FolderOpen size={13} class="shrink-0 text-ink-faint" />
+          <!-- Free text with suggestions: they're a convenience, not a constraint, so authors can
+           group quizzes under anything they like. -->
+          <div class="relative min-w-[8rem] flex-1">
+            <input
+              id="category"
+              type="text"
+              class="w-full border-0 bg-transparent px-1 py-0.5 text-xs text-ink-soft placeholder:text-ink-ghost focus:outline-none"
+              placeholder="Add a category…"
+              aria-label="Category"
+              autocomplete="off"
+              role="combobox"
+              aria-expanded={showCategoryDropdown && categoryDropdownOptions.length > 0}
+              aria-controls={categoryListboxId}
+              bind:value={category}
+              onfocus={() => (showCategoryDropdown = true)}
+              onblur={() => (showCategoryDropdown = false)}
+              onkeydown={onCategoryKeydown}
+            />
+            {#if showCategoryDropdown && categoryDropdownOptions.length > 0}
+              <div
+                bind:this={categoryDropdownEl}
+                id={categoryListboxId}
+                role="listbox"
+                class="absolute inset-x-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-md border border-line-subtle bg-surface-raised py-1 shadow-md"
               >
-                {tag}
-                <button
-                  type="button"
-                  onclick={() => removeTag(tag)}
-                  aria-label={`Remove tag ${tag}`}
-                  class="hover:text-ink"
-                >
-                  <X size={12} />
-                </button>
-              </span>
-            {/each}
-            <div class="relative min-w-[8rem] flex-1">
-              <input
-                type="text"
-                class="w-full border-0 bg-transparent px-1 py-0.5 text-xs text-ink-soft placeholder:text-ink-ghost focus:outline-none"
-                placeholder={tags.length ? 'Add tag…' : 'Add tags (press Enter)…'}
-                aria-label="Add tag"
-                autocomplete="off"
-                role="combobox"
-                aria-expanded={showTagDropdown && tagDropdownOptions.length > 0}
-                aria-controls={tagListboxId}
-                bind:value={tagDraft}
-                onfocus={() => (showTagDropdown = true)}
-                onkeydown={onTagKeydown}
-                onblur={() => {
-                  addTag();
-                  showTagDropdown = false;
-                }}
-              />
-              {#if showTagDropdown && tagDropdownOptions.length > 0}
-                <div
-                  bind:this={tagDropdownEl}
-                  id={tagListboxId}
-                  role="listbox"
-                  class="absolute inset-x-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-md border border-line-subtle bg-surface-raised py-1 shadow-md"
-                >
-                  {#each tagDropdownOptions as option, i (option)}
-                    <button
-                      type="button"
-                      tabindex="-1"
-                      role="option"
-                      aria-selected={i === tagHighlight}
-                      class="block w-full truncate px-3 py-1.5 text-left text-xs {i === tagHighlight
-                        ? 'bg-surface-hover text-ink'
-                        : 'text-ink-soft hover:bg-surface'}"
-                      onmousedown={(e) => e.preventDefault()}
-                      onclick={() => selectTagSuggestion(option)}
-                    >
-                      {option}
-                    </button>
-                  {/each}
-                </div>
-              {/if}
-            </div>
+                {#each categoryDropdownOptions as option, i (option)}
+                  <button
+                    type="button"
+                    tabindex="-1"
+                    role="option"
+                    aria-selected={i === categoryHighlight}
+                    class="block w-full truncate px-3 py-1.5 text-left text-xs {i ===
+                    categoryHighlight
+                      ? 'bg-surface-hover text-ink'
+                      : 'text-ink-soft hover:bg-surface'}"
+                    onmousedown={(e) => e.preventDefault()}
+                    onclick={() => selectCategory(option)}
+                  >
+                    {option}
+                  </button>
+                {/each}
+              </div>
+            {/if}
           </div>
         </div>
 
-        <div class="space-y-1.5">
-          <!-- See QuestionForm's own comment on this disclosure for why the every-key legend is
-             gone. -->
-          <div class="flex items-center gap-1">
-            <button
-              type="button"
-              class="flex items-center gap-1 text-xs font-medium text-ink-subtle hover:text-ink-muted"
-              aria-expanded={settingsOpen}
-              aria-controls={settingsPanelId}
-              onclick={() => (settingsOpen = !settingsOpen)}
+        <div class="flex flex-wrap items-center gap-1.5 px-1">
+          <TagIcon size={13} class="shrink-0 text-ink-faint" />
+          {#each tags as tag (tag)}
+            <span
+              class="inline-flex items-center gap-1 rounded-md bg-surface-hover px-2 py-0.5 text-xs font-medium text-ink-soft"
             >
-              {#if settingsOpen}
-                <ChevronDown size={14} class="shrink-0" />
-              {:else}
-                <ChevronRight size={14} class="shrink-0" />
-              {/if}
-              Settings
-              {#if settingsList.length > 0}
-                <span
-                  class="rounded-full bg-surface-hover px-1.5 py-0.5 font-semibold text-ink-soft"
-                >
-                  {settingsList.length}
-                </span>
-              {/if}
-            </button>
-            <SettingsDocsLink />
-          </div>
-          <div id={settingsPanelId} class="space-y-1.5" hidden={!settingsOpen}>
-            <SettingsLegend keys={QUIZ_SUGGESTED_SETTING_KEYS} rules={QUIZ_FRONTMATTER_RULES} />
-            {#each settingsList as setting (setting._key)}
-              {@const usedElsewhere = settingsList
-                .filter((s) => s._key !== setting._key)
-                .map((s) => s.key)}
-              {@const valueSuggestions = settingValueSuggestions(
-                setting.key,
-                QUIZ_FRONTMATTER_RULES
-              )}
-              {@const validation = setting.key.trim()
-                ? validateSettingValue(setting.key, setting.value, QUIZ_FRONTMATTER_RULES)
-                : null}
-              <!-- Same shape as a question's settings row (see QuestionForm): no per-row "?", and
-                   the same 7rem key select. The wider `w-44` this used to have was enough on its
-                   own to push the value field onto a second line on a phone, stranding the remove
-                   "×" beside an otherwise empty row — quiz-wide keys are longer, but not so much
-                   longer that the row should be laid out differently from the question's. -->
-              <div class="flex flex-wrap items-center gap-1.5">
-                <select
-                  class="w-28 max-w-full shrink-0 rounded-md border border-line px-2 py-1 text-xs text-ink focus:border-line-strong focus:outline-none"
-                  bind:value={setting.key}
-                  onchange={() => selectSettingKey(setting)}
-                  aria-label="Setting key"
-                >
-                  <option value="">key</option>
-                  <!-- Grouped, same as a question's — and it matters more here, since the quiz
-                       block offers every key both tables have. -->
-                  {#each groupSettingKeys( QUIZ_SUGGESTED_SETTING_KEYS.filter((k) => !usedElsewhere.includes(k)), QUIZ_FRONTMATTER_RULES ) as group (group.label)}
-                    <optgroup label={group.label}>
-                      {#each group.keys as k (k)}
-                        <option value={k}>{k}</option>
-                      {/each}
-                    </optgroup>
-                  {/each}
-                </select>
-                <SuggestionInput
-                  bind:value={setting.value}
-                  suggestions={valueSuggestions}
-                  placeholder="value"
-                  class="min-w-[6rem] flex-1"
-                />
-                <button
-                  type="button"
-                  class="shrink-0 rounded p-2 text-ink-subtle hover:bg-surface-hover"
-                  onclick={() => removeSetting(setting._key)}
-                  aria-label="Remove setting"
-                >
-                  <X size={16} />
-                </button>
+              {tag}
+              <button
+                type="button"
+                onclick={() => removeTag(tag)}
+                aria-label={`Remove tag ${tag}`}
+                class="hover:text-ink"
+              >
+                <X size={12} />
+              </button>
+            </span>
+          {/each}
+          <div class="relative min-w-[8rem] flex-1">
+            <input
+              type="text"
+              class="w-full border-0 bg-transparent px-1 py-0.5 text-xs text-ink-soft placeholder:text-ink-ghost focus:outline-none"
+              placeholder={tags.length ? 'Add tag…' : 'Add tags (press Enter)…'}
+              aria-label="Add tag"
+              autocomplete="off"
+              role="combobox"
+              aria-expanded={showTagDropdown && tagDropdownOptions.length > 0}
+              aria-controls={tagListboxId}
+              bind:value={tagDraft}
+              onfocus={() => (showTagDropdown = true)}
+              onkeydown={onTagKeydown}
+              onblur={() => {
+                addTag();
+                showTagDropdown = false;
+              }}
+            />
+            {#if showTagDropdown && tagDropdownOptions.length > 0}
+              <div
+                bind:this={tagDropdownEl}
+                id={tagListboxId}
+                role="listbox"
+                class="absolute inset-x-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-md border border-line-subtle bg-surface-raised py-1 shadow-md"
+              >
+                {#each tagDropdownOptions as option, i (option)}
+                  <button
+                    type="button"
+                    tabindex="-1"
+                    role="option"
+                    aria-selected={i === tagHighlight}
+                    class="block w-full truncate px-3 py-1.5 text-left text-xs {i === tagHighlight
+                      ? 'bg-surface-hover text-ink'
+                      : 'text-ink-soft hover:bg-surface'}"
+                    onmousedown={(e) => e.preventDefault()}
+                    onclick={() => selectTagSuggestion(option)}
+                  >
+                    {option}
+                  </button>
+                {/each}
               </div>
-              {#if validation?.error}
-                <!-- Lines up under the value field: the key select (7rem) plus its gap. -->
-                <p class="break-words text-xs text-negative-ink sm:pl-[7.375rem]">
-                  {validation.error}
-                </p>
-              {/if}
-            {/each}
-            <button
-              type="button"
-              class="flex items-center gap-1 rounded-md border border-line px-2 py-1 text-xs text-ink-soft hover:bg-surface"
-              onclick={addSetting}
-            >
-              <Plus size={13} /> Add setting
-            </button>
+            {/if}
           </div>
         </div>
-      {/if}
+      </div>
+
+      <div class="space-y-1.5">
+        <!-- See QuestionForm's own comment on this disclosure for why the every-key legend is
+           gone. -->
+        <div class="flex items-center gap-1">
+          <button
+            type="button"
+            class="flex items-center gap-1 text-xs font-medium text-ink-subtle hover:text-ink-muted"
+            aria-expanded={settingsOpen}
+            aria-controls={settingsPanelId}
+            onclick={() => (settingsOpen = !settingsOpen)}
+          >
+            {#if settingsOpen}
+              <ChevronDown size={14} class="shrink-0" />
+            {:else}
+              <ChevronRight size={14} class="shrink-0" />
+            {/if}
+            Settings
+            {#if settingsList.length > 0}
+              <span class="rounded-full bg-surface-hover px-1.5 py-0.5 font-semibold text-ink-soft">
+                {settingsList.length}
+              </span>
+            {/if}
+          </button>
+          <SettingsDocsLink />
+        </div>
+        <div id={settingsPanelId} class="space-y-1.5" hidden={!settingsOpen}>
+          <SettingsLegend keys={QUIZ_SUGGESTED_SETTING_KEYS} rules={QUIZ_FRONTMATTER_RULES} />
+          {#each settingsList as setting (setting._key)}
+            {@const usedElsewhere = settingsList
+              .filter((s) => s._key !== setting._key)
+              .map((s) => s.key)}
+            {@const valueSuggestions = settingValueSuggestions(setting.key, QUIZ_FRONTMATTER_RULES)}
+            {@const validation = setting.key.trim()
+              ? validateSettingValue(setting.key, setting.value, QUIZ_FRONTMATTER_RULES)
+              : null}
+            <!-- Same shape as a question's settings row (see QuestionForm): no per-row "?", and
+                 the same 7rem key select. The wider `w-44` this used to have was enough on its
+                 own to push the value field onto a second line on a phone, stranding the remove
+                 "×" beside an otherwise empty row — quiz-wide keys are longer, but not so much
+                 longer that the row should be laid out differently from the question's. -->
+            <div class="flex flex-wrap items-center gap-1.5">
+              <select
+                class="w-28 max-w-full shrink-0 rounded-md border border-line px-2 py-1 text-xs text-ink focus:border-line-strong focus:outline-none"
+                bind:value={setting.key}
+                onchange={() => selectSettingKey(setting)}
+                aria-label="Setting key"
+              >
+                <!-- Grouped, same as a question's — and it matters more here, since the quiz
+                     block offers every key both tables have. -->
+                {#each groupSettingKeys( QUIZ_SUGGESTED_SETTING_KEYS.filter((k) => !usedElsewhere.includes(k)), QUIZ_FRONTMATTER_RULES ) as group (group.label)}
+                  <optgroup label={group.label}>
+                    {#each group.keys as k (k)}
+                      <option value={k}>{k}</option>
+                    {/each}
+                  </optgroup>
+                {/each}
+              </select>
+              <SuggestionInput
+                bind:value={setting.value}
+                suggestions={valueSuggestions}
+                placeholder="value"
+                class="min-w-[6rem] flex-1"
+              />
+              <button
+                type="button"
+                class="shrink-0 rounded p-2 text-ink-subtle hover:bg-surface-hover"
+                onclick={() => removeSetting(setting._key)}
+                aria-label="Remove setting"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            {#if validation?.error}
+              <!-- Lines up under the value field: the key select (7rem) plus its gap. -->
+              <p class="break-words text-xs text-negative-ink sm:pl-[7.375rem]">
+                {validation.error}
+              </p>
+            {/if}
+          {/each}
+          <button
+            type="button"
+            class="flex items-center gap-1 rounded-md border border-line px-2 py-1 text-xs text-ink-soft hover:bg-surface"
+            onclick={addSetting}
+          >
+            <Plus size={13} /> Add setting
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Direct siblings of the metadata card in the page's own space-y-6, not a separately-spaced
@@ -1117,3 +1076,13 @@
     <Button variant="primary" onclick={save}>Save to this browser</Button>
   </div>
 </div>
+
+<!-- Nothing here is persisted until Save, so leaving with edits outstanding loses them outright —
+     the same class of loss a run in progress faces, and the same guard. -->
+<LeaveGuard
+  bind:this={leaveGuard}
+  active={isDirty}
+  title="Leave without saving?"
+  message="This quiz has changes that haven't been saved to this browser yet. Leaving now discards them."
+  confirmLabel="Discard changes"
+/>

@@ -127,8 +127,13 @@ test('an option row stays on one line at every width, shrinking its field rather
   await builder.addQuestion();
   await builder.fillChoiceQuestion('Narrow row', 'Correct', 'Wrong');
 
-  const field = builder.optionTextInput(0);
-  const points = page.getByRole('textbox', { name: 'Points' }).first();
+  // Both locators scoped to the SAME row. Taking the first field and the first `pts` on the page
+  // independently let them resolve to different rows, which then "failed" by exactly one row's
+  // height — a green layout reported as broken. `data-drop-zone` is the row's own stable handle
+  // (it already exists for drag-and-drop), not a class or a DOM shape.
+  const row = page.locator('[data-drop-group="option-row"][data-drop-zone="0"]');
+  const field = row.getByPlaceholder('Option text', { exact: true });
+  const points = row.getByRole('textbox', { name: 'Points' });
   const fieldBox = await field.boundingBox();
   const pointsBox = await points.boundingBox();
   expect(fieldBox).not.toBeNull();

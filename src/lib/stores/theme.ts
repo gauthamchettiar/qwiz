@@ -23,12 +23,25 @@ export interface ThemeOption {
  * every colour in the app is a token that block can override. */
 export const THEMES: readonly ThemeOption[] = [
   { id: 'light', label: 'Light', mode: 'light' },
-  { id: 'dark', label: 'Dark', mode: 'dark' },
   { id: 'vscode-light', label: 'VS Code Light+', mode: 'light' },
-  { id: 'vscode-dark', label: 'VS Code Dark+', mode: 'dark' },
   { id: 'solarized-light', label: 'Solarized Light', mode: 'light' },
-  { id: 'solarized-dark', label: 'Solarized Dark', mode: 'dark' }
+  { id: 'gruvbox-light', label: 'Gruvbox Light', mode: 'light' },
+  { id: 'dark', label: 'Dark', mode: 'dark' },
+  { id: 'vscode-dark', label: 'VS Code Dark+', mode: 'dark' },
+  { id: 'solarized-dark', label: 'Solarized Dark', mode: 'dark' },
+  { id: 'gruvbox-dark', label: 'Gruvbox Dark', mode: 'dark' },
+  { id: 'nord', label: 'Nord', mode: 'dark' },
+  { id: 'dracula', label: 'Dracula', mode: 'dark' },
+  { id: 'monokai', label: 'Monokai', mode: 'dark' },
+  { id: 'one-dark', label: 'One Dark', mode: 'dark' },
+  { id: 'tokyo-night', label: 'Tokyo Night', mode: 'dark' }
 ];
+
+/** The themes of one mode, in listed order — the picker groups by this rather than showing one
+ * long run, since "is it light or dark" is the first thing anyone is choosing between. */
+export function themesByMode(mode: 'light' | 'dark'): ThemeOption[] {
+  return THEMES.filter((t) => t.mode === mode);
+}
 
 /** Follow the OS. The default, so a visitor who has told their system they prefer dark gets dark
  * without having to find this app's own control. */

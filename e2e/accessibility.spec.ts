@@ -118,11 +118,18 @@ test('a fill_blanks question (type mode) has no serious accessibility violations
 // token group.
 for (const theme of [
   'light',
-  'dark',
   'vscode-light',
-  'vscode-dark',
   'solarized-light',
-  'solarized-dark'
+  'gruvbox-light',
+  'dark',
+  'vscode-dark',
+  'solarized-dark',
+  'gruvbox-dark',
+  'nord',
+  'dracula',
+  'monokai',
+  'one-dark',
+  'tokyo-night'
 ]) {
   test(`the ${theme} theme has no serious accessibility violations`, async ({ page }) => {
     const quiz = buildQuiz();

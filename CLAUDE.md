@@ -282,10 +282,11 @@ Every colour is a semantic token defined once in `src/styles/global.css` and ove
 - `accent`, `positive`, `negative`, `warning`, each with `-surface`, `-ink` and `-line` families.
 
 **Adding a theme is one block of CSS variables** under `:root[data-theme='…']` plus an entry in
-`THEMES` (`lib/stores/theme.ts`). No component changes: Tailwind v4 compiles `bg-surface` to
+`THEMES` (`lib/stores/theme.ts`) and one in `accessibility.spec.ts`'s per-theme loop. No component
+changes: Tailwind v4 compiles `bg-surface` to
 `background-color: var(--color-surface)`, so overriding the variable re-skins every usage. This is
 why there are no `dark:` variants — they'd be a second set of class names to keep in sync, and
-they can't express six themes anyway.
+they can't express thirteen themes anyway.
 
 Rules that come with it:
 

@@ -27,8 +27,7 @@
   } from '@/lib/utils/grading';
   import type { Quiz } from '@/lib/schemas/quiz';
   import QuestionPlayer from './QuestionPlayer.svelte';
-  import Dialog from './Dialog.svelte';
-  import Button from './Button.svelte';
+  import LeaveGuard from './LeaveGuard.svelte';
 
   let { quiz }: { quiz: Quiz } = $props();
 
@@ -354,72 +353,6 @@
   }
 
   const summary = $derived(finished ? gradeRun(results, quiz.settings) : null);
-
-  let leaveDialog: Dialog;
-  let pendingHref = $state<string | null>(null);
-  // Set by the beforeunload effect below; kept in module scope (not just the effect's own
-  // closure) so `confirmLeave` can remove it synchronously, deterministically, the instant the
-  // player confirms — rather than setting a flag and hoping Svelte's next effect-flush cycle
-  // beats the browser's own navigation timing, which would be a race.
-  let beforeUnloadHandler: ((e: BeforeUnloadEvent) => void) | null = null;
-
-  function cancelLeave() {
-    pendingHref = null;
-    leaveDialog.close();
-  }
-
-  function confirmLeave() {
-    // Without this, confirming here would still trigger the native beforeunload prompt a moment
-    // later when `pendingHref`'s navigation actually starts — a second, redundant "are you sure"
-    // right after the one the player just answered.
-    if (beforeUnloadHandler) window.removeEventListener('beforeunload', beforeUnloadHandler);
-    leaveDialog.close();
-    if (pendingHref) window.location.href = pendingHref;
-  }
-
-  // Intercepts a click on any in-page link while a run is in progress, so leaving via the
-  // header's logo/"+ New Quiz" (or any other same-tab link this page ever grows) shows this
-  // component's own modal instead of only the browser's generic beforeunload prompt below.
-  // Skipped for anything that isn't actually "leaving in this tab right now": modifier/middle
-  // clicks and a non-`_self` target open elsewhere without unloading this page, and a link whose
-  // resolved URL matches the current one isn't going anywhere. Re-runs whenever `finished`
-  // changes, same reasoning as the beforeunload effect below.
-  $effect(() => {
-    if (finished) return;
-    function handleClick(e: MouseEvent) {
-      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
-      const anchor = (e.target as HTMLElement).closest('a');
-      if (!anchor || !anchor.href) return;
-      if (anchor.target && anchor.target !== '_self') return;
-      const url = new URL(anchor.href, window.location.href);
-      if (url.href === window.location.href) return;
-      e.preventDefault();
-      pendingHref = anchor.href;
-      leaveDialog.open();
-    }
-    document.addEventListener('click', handleClick, true);
-    return () => document.removeEventListener('click', handleClick, true);
-  });
-
-  // Fallback for every way of "leaving" a click listener can't intercept before it happens —
-  // browser back/forward, a typed URL, tab close, refresh. There's no web API that swaps in
-  // custom UI for those; `beforeunload` only ever gets the browser's own generic, non-
-  // customizable dialog (by design, so a compromised site can't fake a more alarming prompt).
-  // Re-runs whenever `finished` changes: cleanup removes the listener before the effect body
-  // re-executes, so it's only ever attached while a run is genuinely still in progress.
-  $effect(() => {
-    if (finished) return;
-    function handleBeforeUnload(e: BeforeUnloadEvent) {
-      e.preventDefault();
-      e.returnValue = '';
-    }
-    beforeUnloadHandler = handleBeforeUnload;
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      beforeUnloadHandler = null;
-    };
-  });
 </script>
 
 <!-- The author's own "why" note for a question, shown once its answer is revealed — identical on
@@ -667,14 +600,9 @@
   {/if}
 </div>
 
-<Dialog bind:this={leaveDialog} title="Leave this quiz?">
-  {#snippet body()}
-    <p class="text-sm text-ink-subtle">
-      Your progress on this run won't be saved. Are you sure you want to leave?
-    </p>
-  {/snippet}
-  {#snippet footer()}
-    <Button size="sm" onclick={cancelLeave}>Stay</Button>
-    <Button size="sm" variant="danger" onclick={confirmLeave}>Leave</Button>
-  {/snippet}
-</Dialog>
+<!-- A run in progress is unsaved by construction — see LeaveGuard for what it intercepts. -->
+<LeaveGuard
+  active={!finished}
+  title="Leave this quiz?"
+  message="Your progress on this run won't be saved. Are you sure you want to leave?"
+/>

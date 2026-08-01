@@ -510,21 +510,36 @@
     );
     emit();
   }
+  /** A new row starts on the first key this variant still has free, with that key's default value
+   * already in place. It used to start blank, which meant the <select> needed a placeholder option
+   * reading "key" — an entry that looked like a setting called `key` sitting above the real ones,
+   * and a state a row could be left in that saves as nothing. There's no reason to make an author
+   * pick from a list to get out of an empty state the list itself can fill. */
   function addSetting() {
-    settingsList = [...settingsList, { _key: crypto.randomUUID(), key: '', value: '' }];
+    const used = settingsList.map((s) => s.key);
+    const key = suggestedKeys.find((k) => !used.includes(k)) ?? '';
+    settingsList = [
+      ...settingsList,
+      { _key: crypto.randomUUID(), key, value: settingDefaultValue(key) }
+    ];
     emit();
   }
   function removeSetting(key: string) {
     settingsList = settingsList.filter((s) => s._key !== key);
     emit();
   }
-  /** Fires when a setting row's key <select> changes — fills in that key's default value
-   * (`settingDefaultValue`) so picking a key never leaves an author staring at an empty value
-   * field for, say, a boolean setting that's really just "on or off". Only fills a genuinely
-   * blank value: switching an already-filled row to a different key leaves whatever's there
-   * (the author may be deliberately reusing a value, e.g. flipping between two enum settings). */
+  /** Fires when a setting row's key <select> changes. Replaces the value with the new key's
+   * default whenever the one already there wouldn't be valid for it — which is the normal case,
+   * since a row now starts pre-filled with a real key and its default rather than blank.
+   *
+   * A value that IS valid for the new key survives: switching between `reveal_answers` and
+   * `reveal_scores` keeps `at_end`, which is nearly always what was meant. Blindly overwriting
+   * would throw that away; blindly keeping (what this did when rows started empty) leaves a
+   * `points_correct` of `3` sitting under `shuffle_options`. */
   function selectSettingKey(setting: { key: string; value: string }) {
-    if (setting.value.trim() === '') setting.value = settingDefaultValue(setting.key);
+    if (validateSettingValue(setting.key, setting.value).error) {
+      setting.value = settingDefaultValue(setting.key);
+    }
     emit();
   }
 </script>
@@ -1005,7 +1020,6 @@
             onchange={() => selectSettingKey(setting)}
             aria-label="Setting key"
           >
-            <option value="">key</option>
             <!-- Grouped rather than one alphabetical run: `letter_bank` sitting between
                  `difficulty` and `match_case` told an author nothing about which of the seventeen
                  keys were even related to each other. -->

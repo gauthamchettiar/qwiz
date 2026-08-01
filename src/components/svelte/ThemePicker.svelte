@@ -1,7 +1,14 @@
 <script lang="ts">
   import { Check, ChevronDown, Monitor, Moon, Sun } from '@lucide/svelte';
   import { clickOutside } from '@/lib/utils/clickOutside';
-  import { applyTheme, readTheme, saveTheme, SYSTEM_THEME, THEMES } from '@/lib/stores/theme';
+  import {
+    applyTheme,
+    readTheme,
+    saveTheme,
+    SYSTEM_THEME,
+    THEMES,
+    themesByMode
+  } from '@/lib/stores/theme';
 
   // A writable `$derived`: reads the stored preference once the component exists in a browser,
   // then lets `choose` overwrite it locally (the same "read once, then let local interactions win"
@@ -53,18 +60,29 @@
     <div
       id={menuId}
       role="menu"
-      class="absolute right-0 top-full z-30 mt-1 min-w-48 rounded-md border border-line-subtle bg-surface-raised py-1 shadow-lg"
+      class="absolute right-0 top-full z-30 mt-1 max-h-[70vh] min-w-48 overflow-y-auto rounded-md border border-line-subtle bg-surface-raised py-1 shadow-lg"
     >
       <!-- "System" first and on its own: it's not a look, it's a deferral to one, so grouping it
            among the concrete themes would misrepresent what picking it does. -->
       {@render item(SYSTEM_THEME, 'System', Monitor)}
-      <div class="my-1 border-t border-line-faint"></div>
-      {#each THEMES as theme (theme.id)}
-        {@render item(theme.id, theme.label, theme.mode === 'dark' ? Moon : Sun)}
-      {/each}
+      <!-- Grouped by mode: "light or dark" is the first thing anyone is choosing between, and a
+           flat run of thirteen made you read every label to find the half you wanted. -->
+      {@render group('Light', 'light', Sun)}
+      {@render group('Dark', 'dark', Moon)}
     </div>
   {/if}
 </div>
+
+{#snippet group(heading: string, mode: 'light' | 'dark', Icon: typeof Sun)}
+  <div
+    class="mt-1 border-t border-line-faint px-3 pb-0.5 pt-1.5 text-xs font-medium text-ink-subtle"
+  >
+    {heading}
+  </div>
+  {#each themesByMode(mode) as theme (theme.id)}
+    {@render item(theme.id, theme.label, Icon)}
+  {/each}
+{/snippet}
 
 {#snippet item(id: string, label: string, Icon: typeof Sun)}
   <button

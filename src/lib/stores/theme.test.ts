@@ -25,7 +25,7 @@ describe('isKnownTheme', () => {
   });
 
   it('rejects anything else', () => {
-    expect(isKnownTheme('monokai')).toBe(false);
+    expect(isKnownTheme('not-a-theme-we-ship')).toBe(false);
     expect(isKnownTheme('')).toBe(false);
   });
 });
