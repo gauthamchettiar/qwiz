@@ -12,6 +12,9 @@
     disabled = false,
     ariaLabel,
     title,
+    ariaHasPopup,
+    ariaExpanded,
+    ariaControls,
     onclick,
     children
   }: {
@@ -22,6 +25,12 @@
     disabled?: boolean;
     ariaLabel?: string;
     title?: string;
+    /** Menu-trigger wiring, for the buttons that open one. Here rather than left to callers to
+     * hand-roll their own <button>, which is how the header ended up with three differently-sized
+     * controls — see `sizes` below. */
+    ariaHasPopup?: 'menu' | 'dialog' | 'listbox';
+    ariaExpanded?: boolean;
+    ariaControls?: string;
     onclick?: (e: MouseEvent) => void;
     children: Snippet;
   } = $props();
@@ -36,7 +45,13 @@
     danger: 'border border-negative-line-faint text-negative-ink hover:bg-negative-surface'
   } as const;
 
-  const sizes = { sm: 'px-3 py-1.5 text-sm', md: 'px-4 py-2 text-sm' } as const;
+  /** An explicit HEIGHT, not vertical padding. Padding alone makes a button's height depend on two
+   * things that vary between buttons sitting side by side: whether the variant has a border
+   * (`secondary` does, `primary` doesn't — a 2px difference at identical padding), and whether the
+   * content is text or an icon (a 20px line-box versus a 15px glyph). The header had one of each
+   * and came out 29px, 29px and 32px. A fixed height with `items-center` makes all four variants
+   * and any content agree, and 36px/40px are better touch targets than the 32–34px this produced. */
+  const sizes = { sm: 'h-9 px-3 text-sm', md: 'h-10 px-4 text-sm' } as const;
 
   const cls = $derived(`${base} ${variants[variant]} ${sizes[size]}`);
 </script>
@@ -46,7 +61,17 @@
     {@render children()}
   </a>
 {:else}
-  <button {type} class={cls} {disabled} aria-label={ariaLabel} {title} {onclick}>
+  <button
+    {type}
+    class={cls}
+    {disabled}
+    aria-label={ariaLabel}
+    {title}
+    aria-haspopup={ariaHasPopup}
+    aria-expanded={ariaExpanded}
+    aria-controls={ariaControls}
+    {onclick}
+  >
     {@render children()}
   </button>
 {/if}

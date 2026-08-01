@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Check, ChevronDown, Monitor, Moon, Sun } from '@lucide/svelte';
   import { clickOutside } from '@/lib/utils/clickOutside';
+  import Button from './Button.svelte';
   import {
     applyTheme,
     readTheme,
@@ -43,18 +44,19 @@
 </script>
 
 <div class="relative" use:clickOutside={() => (open = false)}>
-  <button
-    type="button"
-    class="flex items-center gap-1.5 rounded-md border border-line px-2 py-1.5 text-sm text-ink-soft hover:bg-surface-hover"
-    aria-haspopup="menu"
-    aria-expanded={open}
-    aria-controls={menuId}
-    aria-label={`Theme: ${currentLabel}`}
+  <!-- The shared Button rather than its own markup, so it can't drift out of step with the two
+       controls beside it in the header — which is exactly what had happened. -->
+  <Button
+    size="sm"
+    ariaHasPopup="menu"
+    ariaExpanded={open}
+    ariaControls={menuId}
+    ariaLabel={`Theme: ${currentLabel}`}
     onclick={() => (open = !open)}
   >
     <Sun size={15} class="shrink-0" />
     <ChevronDown size={12} class="shrink-0 text-ink-faint" />
-  </button>
+  </Button>
 
   {#if open}
     <div

@@ -127,26 +127,38 @@ test('an option row stays on one line at every width, shrinking its field rather
   await builder.addQuestion();
   await builder.fillChoiceQuestion('Narrow row', 'Correct', 'Wrong');
 
-  // Both locators scoped to the SAME row. Taking the first field and the first `pts` on the page
-  // independently let them resolve to different rows, which then "failed" by exactly one row's
-  // height — a green layout reported as broken. `data-drop-zone` is the row's own stable handle
-  // (it already exists for drag-and-drop), not a class or a DOM shape.
-  const row = page.locator('[data-drop-group="option-row"][data-drop-zone="0"]');
-  const field = row.getByPlaceholder('Option text', { exact: true });
-  const points = row.getByRole('textbox', { name: 'Points' });
-  const fieldBox = await field.boundingBox();
-  const pointsBox = await points.boundingBox();
-  expect(fieldBox).not.toBeNull();
-  expect(pointsBox).not.toBeNull();
+  // BOTH boxes measured in ONE evaluation, and scoped to the same row.
+  //
+  // Two `boundingBox()` calls are two separate round-trips, so anything that moves the page
+  // between them — a header island finishing hydration, say — is silently folded into the
+  // difference being asserted on. That produced a genuine intermittent failure on WebKit: the
+  // layout was correct (probed directly, the two share a `y` every time) but the test compared a
+  // measurement from before a ~52px shift with one from after. Reading both inside a single
+  // evaluation makes the comparison atomic, which is the only way it means anything.
+  //
+  // `data-drop-zone` is the row's own stable handle — it already exists for drag-and-drop — not a
+  // class or a DOM shape. Scoping matters too: taking the first field and the first `pts` on the
+  // page independently let them resolve to different ROWS.
+  const geometry = await page.evaluate(() => {
+    const row = document.querySelector('[data-drop-group="option-row"][data-drop-zone="0"]')!;
+    const field = row.querySelector('input[placeholder="Option text"]')!.getBoundingClientRect();
+    const points = row.querySelector('input[aria-label="Points"]')!.getBoundingClientRect();
+    return {
+      fieldY: field.y,
+      fieldWidth: field.width,
+      pointsY: points.y,
+      pointsHeight: points.height
+    };
+  });
 
   // One line: `pts` sits beside the field, not under it. Two earlier layouts wrapped one or the
   // other onto a second line when space ran short, and both read worse than a cramped field —
   // whichever half stayed behind was left next to a stretch of whitespace.
-  expect(Math.abs(fieldBox!.y - pointsBox!.y)).toBeLessThan(pointsBox!.height);
+  expect(Math.abs(geometry.fieldY - geometry.pointsY)).toBeLessThan(geometry.pointsHeight);
 
   // Shrinking, not overflowing: the field gives up width down to nothing, so even the mobile
   // project's viewport doesn't push the row (or the page) sideways.
-  expect(fieldBox!.width).toBeGreaterThan(0);
+  expect(geometry.fieldWidth).toBeGreaterThan(0);
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - window.innerWidth
   );

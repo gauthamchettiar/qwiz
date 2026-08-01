@@ -1,0 +1,72 @@
+---
+// The "Qwiz" wordmark as a ransom note: every letter cut from a different publication.
+//
+// Done in CSS rather than with a display font, deliberately. A ransom note IS mismatched
+// letterforms, so at four characters the effect comes from the letters DISAGREEING with each
+// other — family, weight, size, tilt, baseline and chip colour all different — which one uniform
+// font can't give you however punk it looks. It also costs no download, carries no licence (the
+// ransom-note fonts on offer are near-universally non-commercial), and re-themes for free, since
+// every colour below is a semantic token.
+//
+// The first `.astro` component in the project: static markup with no interactivity, so it ships
+// zero JS, unlike everything under components/svelte/.
+
+interface Props {
+  /** Rendered inside the header link, so it must not introduce its own. */
+  class?: string;
+}
+const { class: className = '' } = Astro.props;
+
+// Each letter's own cutting. Arbitrary values by necessity — the entire point is that no two
+// letters agree on anything, so a shared scale would just be a list of one-offs with extra steps
+// (see CLAUDE.md §5, which allows them for exactly this kind of genuine one-off).
+//
+// Every chip pairs a solid token with the ink meant to sit on it (`ink-inverse` on accent /
+// negative / warning, `surface` on `ink`) — the same pairings the contrast checker covers, so the
+// wordmark stays legible in all thirteen themes rather than only the light one it was drawn in.
+const LETTERS = [
+  {
+    char: 'Q',
+    class:
+      'font-serif font-black text-3xl bg-ink text-surface rotate-[-11deg] -translate-y-0.5 px-1.5 shadow-md'
+  },
+  {
+    char: 'w',
+    class:
+      'font-mono font-bold text-lg bg-warning text-ink-inverse rotate-[8deg] translate-y-1 px-1 shadow-sm'
+  },
+  {
+    char: 'i',
+    class:
+      'font-sans font-black text-2xl bg-accent text-ink-inverse rotate-[-6deg] -translate-y-1 px-2 shadow-md'
+  },
+  {
+    char: 'z',
+    class:
+      'font-serif italic font-bold text-3xl bg-negative text-ink-inverse rotate-[13deg] translate-y-0.5 px-1.5 shadow-md'
+  }
+];
+---
+
+<!-- `-space-x-1` overlaps the chips slightly, the way pasted-on cuttings would, and the negative
+     margins keep the tilted, oversized letters from pushing the header row taller. -->
+<span class={`inline-flex items-center -space-x-1 py-1 ${className}`}>
+  {
+    /*
+    The letters are decorative: a screen reader given four separate spans can announce them one at
+    a time ("Q, w, i, z"), so the accessible name comes from a single visually-hidden word and the
+    chips are hidden from the tree entirely.
+  */
+  }
+  <span class="sr-only">Qwiz</span>
+  {
+    LETTERS.map((letter) => (
+      <span
+        aria-hidden="true"
+        class={`inline-block rounded-[1px] py-0.5 leading-none ${letter.class}`}
+      >
+        {letter.char}
+      </span>
+    ))
+  }
+</span>

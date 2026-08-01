@@ -812,50 +812,74 @@
          `xl:` splits it into source and live preview. Below that the two would be too narrow to be
          either — a preview that can't show a question card isn't worth the half of the screen it
          costs — so a narrow viewport gets the editor alone, exactly as before. -->
-    <div class="relative space-y-3 rounded-lg border border-line-subtle bg-surface-raised p-6">
-      <!-- Apply and Discard as a tick and a cross beside the editor, matching every question
-           card's own button strip (see QuestionCard) — the same `lg:`-gated absolute/in-flow
-           switch, for the same reason: below `lg:` there's no margin outside the card to put them
-           in, so they render as a plain row above instead of being pushed off-screen. -->
-      <div
-        class="mb-3 flex items-center gap-1 lg:absolute lg:right-full lg:top-6 lg:mb-0 lg:mr-2 lg:flex-col"
-      >
-        <button
-          type="button"
-          class="rounded-md border border-line-subtle bg-surface-raised p-1.5 text-positive-ink-soft hover:bg-positive-surface"
-          onclick={() => applyFileDraft()}
-          aria-label="Apply changes"
-          title="Apply changes (Ctrl+S)"
-        >
-          <Check size={15} />
-        </button>
-        <button
-          type="button"
-          class="rounded-md border border-line-subtle bg-surface-raised p-1.5 text-negative-ink hover:bg-negative-surface"
-          onclick={discardFileDraft}
-          aria-label="Discard changes"
-          title="Discard changes"
-        >
-          <X size={15} />
-        </button>
-      </div>
-
+    <!-- Breaks out to 150% of its own width at `xl:`, exactly as a question card in code mode
+         does — see QuestionCard for why it's scaled off its own width rather than the viewport,
+         and why `xl:` rather than `lg:`. It matters more here: this card holds two columns. -->
+    <div
+      class="space-y-3 rounded-lg border border-line-subtle bg-surface-raised p-6 xl:-mx-[25%] xl:w-[150%]"
+    >
       <p class="text-xs font-medium text-ink-subtle">
         The whole quiz as <span class="font-mono">.qwiz</span> source — the details block and every question.
         Same format as Download and Import.
       </p>
 
-      <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <div class="space-y-3">
-          <CodeEditor
-            bind:this={fileEditor}
-            value={fileDraft}
-            ariaLabel="Quiz .qwiz source"
-            rows={Math.min(40, Math.max(12, fileDraft.split('\n').length))}
-            onInput={(next) => (fileDraft = next)}
-            onCaretLine={(line) => (caretLine = line)}
-          />
-          <ErrorList errors={fileDraftErrors} />
+      <!-- ONE height for both panes at `xl:`, rather than each finding its own. The editor used to
+           size itself by line count (12–40 rows) and the preview by `70vh`, two unrelated rules
+           that agreed only by accident — a short quiz left the preview taller than the editor, a
+           long one the reverse. Both now fill this row and scroll internally, so they always line
+           up. Below `xl:` there's no second pane, so the editor goes back to being sized by its
+           content and stays resizable. -->
+      <div class="grid grid-cols-1 gap-4 xl:h-[70vh] xl:grid-cols-2">
+        <div class="relative flex min-h-0 flex-col gap-3">
+          <!-- Apply and Discard as a tick and a cross, matching every question card's own button
+               strip (see QuestionCard) with the same `lg:`-gated absolute/in-flow switch. Anchored
+               to the EDITOR COLUMN, not the card: against the card it sat a paragraph's height
+               too low, and a hand-tuned offset would drift the moment that paragraph wrapped. -->
+          <div
+            class="mb-3 flex items-center gap-1 lg:absolute lg:right-full lg:top-0 lg:mb-0 lg:mr-2 lg:flex-col"
+          >
+            <button
+              type="button"
+              class="rounded-md border border-line-subtle bg-surface-raised p-1.5 text-positive-ink-soft hover:bg-positive-surface"
+              onclick={() => applyFileDraft()}
+              aria-label="Apply changes"
+              title="Apply changes (Ctrl+S)"
+            >
+              <Check size={15} />
+            </button>
+            <button
+              type="button"
+              class="rounded-md border border-line-subtle bg-surface-raised p-1.5 text-negative-ink hover:bg-negative-surface"
+              onclick={discardFileDraft}
+              aria-label="Discard changes"
+              title="Discard changes"
+            >
+              <X size={15} />
+            </button>
+          </div>
+
+          <!-- `min-h-0` on the wrapper: a flex child's default minimum is its content size, so
+               without it a long document would push the editor past the row's height instead of
+               scrolling inside it. -->
+          <div class="min-h-0 flex-1">
+            <CodeEditor
+              bind:this={fileEditor}
+              value={fileDraft}
+              ariaLabel="Quiz .qwiz source"
+              rows={Math.min(40, Math.max(12, fileDraft.split('\n').length))}
+              fill
+              onInput={(next) => (fileDraft = next)}
+              onCaretLine={(line) => (caretLine = line)}
+            />
+          </div>
+          <!-- Gated rather than always rendered: ErrorList draws nothing when empty, but an empty
+               flex child still earns the column's `gap-3`, which left the editor 12px shorter than
+               the preview whenever the document parsed. -->
+          {#if fileDraftErrors.length > 0}
+            <div class="max-h-40 shrink-0 overflow-y-auto">
+              <ErrorList errors={fileDraftErrors} />
+            </div>
+          {/if}
         </div>
 
         <!-- The preview renders the LAST APPLIED document, not the draft: re-rendering on every
@@ -863,7 +887,7 @@
              the tick) applies, and that's what moves it. -->
         <div
           bind:this={previewEl}
-          class="hidden max-h-[70vh] space-y-4 overflow-y-auto rounded-md border border-line-subtle bg-surface p-4 xl:block"
+          class="hidden min-h-0 space-y-4 overflow-y-auto rounded-md border border-line-subtle bg-surface p-4 xl:block"
         >
           {#each questions as question, index (question.id)}
             <div

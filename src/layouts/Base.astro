@@ -2,6 +2,8 @@
 import '@/styles/global.css';
 import ImportQuizDialog from '@/components/svelte/ImportQuizDialog.svelte';
 import ThemePicker from '@/components/svelte/ThemePicker.svelte';
+import Button from '@/components/svelte/Button.svelte';
+import Wordmark from '@/components/astro/Wordmark.astro';
 import { ArrowLeft } from '@lucide/svelte';
 
 interface Props {
@@ -70,18 +72,15 @@ const {
           </header>
         ) : (
           <header class="mb-8 flex items-center justify-between">
-            <a href="/" class="text-xl font-bold text-ink">
-              Qwiz
+            <a href="/" class="rounded focus-visible:outline-2 focus-visible:outline-offset-4">
+              <Wordmark />
             </a>
             <div class="flex items-center gap-2">
               <ThemePicker client:load />
               <ImportQuizDialog client:load />
-              <a
-                href="/local/create"
-                class="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-ink-inverse hover:bg-accent-hover"
-              >
+              <Button href="/local/create" variant="primary" size="sm" client:load>
                 + New Quiz
-              </a>
+              </Button>
             </div>
           </header>
         )
