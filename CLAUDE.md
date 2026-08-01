@@ -302,6 +302,36 @@ Rules that come with it:
   already seen a white flash. That script deliberately restates a few lines of `lib/stores/theme.ts`
   rather than importing it, because importing a module is exactly what would make it non-blocking.
 
+### The `.qwiz` source editors
+
+`CodeEditor.svelte` is used by both the whole-document editor and a question card's code mode. It's
+a real `<textarea>` with a highlighted `<pre>` layered UNDER it and the textarea's own text made
+transparent — not a contenteditable, and not an editor library. That keeps native undo/redo, IME
+composition, spellcheck and mobile text selection, all of which a bespoke editor reimplements
+badly, and it adds no dependency.
+
+The contract between the two layers is the thing to be careful with:
+
+- **They must occupy identical space to the pixel**, or the caret drifts off the glyphs beneath it.
+  Everything affecting text metrics (font, size, line height, padding, wrapping, tab size) is set
+  once, from the single `LAYER` string, on both.
+- **`highlightQwiz` must reproduce its input exactly.** Joining a line's token texts always gives
+  back the line, character for character. `qwizHighlight.test.ts` asserts this over every line of
+  every example file plus half-typed fragments — it's the invariant the overlay rests on, so it's
+  tested rather than assumed.
+- **The tokenizer never requires valid source.** It's a line tokenizer with two bits of carried
+  context (inside the frontmatter fence, inside a `{ }` block), because an editor mostly contains
+  source that doesn't parse yet.
+- **Token colours are semantic tokens**, never palette shades, so an editor follows the active
+  theme like everything else.
+
+The whole-document editor additionally shows a **live preview** beside the source at `xl:` and up.
+It renders the last APPLIED document, not the draft — re-rendering per keystroke would flash a wall
+of parse errors through half of every edit. Ctrl+S applies without closing (the preview catches up,
+the caret stays put); the tick applies and closes. The preview scrolls to whichever question the
+caret is in, derived from the draft's own blank-line-separated block structure rather than from
+`questions`, since those two disagree the moment anything is typed.
+
 ### Security headers (`public/_headers`)
 
 Cloudflare Pages reads this file verbatim. `script-src`/`style-src` include `'unsafe-inline'`

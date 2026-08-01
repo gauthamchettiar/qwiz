@@ -12,6 +12,7 @@
   import QuestionView from './QuestionView.svelte';
   import QuestionForm from './QuestionForm.svelte';
   import QuestionPlayer from './QuestionPlayer.svelte';
+  import CodeEditor from './CodeEditor.svelte';
   import CodeFrame from './CodeFrame.svelte';
   import SettingsLegend from './SettingsLegend.svelte';
   import ConfirmDeleteButton from './ConfirmDeleteButton.svelte';
@@ -81,12 +82,14 @@
   // immediately — see QuestionForm) and on commit while in code mode.
   let playing = $state(false);
 
-  let textareaEl: HTMLTextAreaElement | undefined = $state();
+  let editor: CodeEditor | undefined = $state();
 
   // Only depends on `mode`, so this fires exactly once per genuine transition INTO code mode
-  // (e.g. PageUp/PageDown landing here) — not on every keystroke while already in it.
+  // (e.g. PageUp/PageDown landing here) — not on every keystroke while already in it. The caret
+  // lands on line 1, not wherever the browser would restore it to: a question's source is short
+  // and read from the top, and its first line is the one you most often came to change.
   $effect(() => {
-    if (mode === 'code') textareaEl?.focus();
+    if (mode === 'code') editor?.focusStart();
   });
 </script>
 
@@ -176,12 +179,13 @@
   {:else if mode === 'code'}
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
       <div class="space-y-2">
-        <textarea
-          bind:this={textareaEl}
-          class="w-full rounded-md border border-line bg-surface px-3 py-2 font-mono text-xs text-ink-muted focus:border-line-strong focus:outline-none focus:ring-2 focus:ring-line-subtle"
-          {rows}
+        <CodeEditor
+          bind:this={editor}
           value={draft}
-          oninput={(e) => onDraftChange(e.currentTarget.value)}></textarea>
+          ariaLabel="Question .qwiz source"
+          {rows}
+          onInput={onDraftChange}
+        />
         <SettingsLegend keys={draftSuggestedKeys} />
         {#each draftErrors as error, index (index)}
           <CodeFrame {error} source={draft} />

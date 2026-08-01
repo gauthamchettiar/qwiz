@@ -36,6 +36,8 @@
   import Button from './Button.svelte';
   import ErrorList from './ErrorList.svelte';
   import CardMenu from './CardMenu.svelte';
+  import CodeEditor from './CodeEditor.svelte';
+  import QuestionView from './QuestionView.svelte';
   import LeaveGuard from './LeaveGuard.svelte';
   import SettingsDocsLink from './SettingsDocsLink.svelte';
   import SettingsLegend from './SettingsLegend.svelte';
@@ -317,6 +319,50 @@
   // Import reads, so this is the third surface on the exact same format rather than a fourth
   // representation of a quiz.
   let fileDraft = $state<string | null>(null);
+  let fileEditor: CodeEditor | undefined = $state();
+  let previewEl: HTMLElement | undefined = $state();
+  /** 1-based source line the caret sits on, reported by the editor. */
+  let caretLine = $state(1);
+
+  /** Which question the caret is currently inside, as an index into `questions` — what the split
+   * preview highlights and scrolls to.
+   *
+   * Derived from the DRAFT's own line structure rather than from `questions`, because the two
+   * disagree the moment anything is typed: the preview shows the last applied document, but the
+   * caret is in the text being edited. Questions are blank-line-separated blocks after the
+   * frontmatter fence (see parseQwizFile), so counting blocks up to the caret is the whole rule.
+   * `null` while the caret is in the frontmatter, where there's no question to point at. */
+  const caretQuestionIndex = $derived.by(() => {
+    if (fileDraft === null) return null;
+    const lines = fileDraft.split('\n').slice(0, caretLine);
+    let fences = 0;
+    let index = -1;
+    let inBlock = false;
+    for (const line of lines) {
+      if (/^---\s*$/.test(line)) {
+        fences++;
+        continue;
+      }
+      if (fences === 1) continue; // still inside the frontmatter
+      if (line.trim() === '') inBlock = false;
+      else if (!inBlock) {
+        inBlock = true;
+        index++;
+      }
+    }
+    return index < 0 ? null : index;
+  });
+
+  // Scrolls the preview to whichever question the caret moved into. `block: 'nearest'` so a caret
+  // moving within one question doesn't jerk the pane around, and only when that pane is actually
+  // on screen — below `xl:` it's `display: none`, where scrollIntoView would do nothing useful.
+  $effect(() => {
+    const index = caretQuestionIndex;
+    if (index === null || !previewEl || previewEl.offsetParent === null) return;
+    previewEl
+      .querySelector(`[data-preview-question="${index}"]`)
+      ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  });
 
   // Declared after `fileDraft` on purpose: `currentDocument()` reads it, so seeding the snapshot
   // any earlier is a temporal-dead-zone error — one that only surfaces during Astro's SSR build,
@@ -329,12 +375,7 @@
   // An in-progress tag counts as unsaved: it's typed text a save would discard, and the tag input
   // is easy to leave without pressing Enter.
   const isDirty = $derived(currentDocument() !== savedSnapshot || tagDraft.trim() !== '');
-  let fileTextareaEl: HTMLTextAreaElement | undefined = $state();
   const fileDraftErrors = $derived(fileDraft === null ? [] : parseQwizFile(fileDraft).errors);
-
-  $effect(() => {
-    if (fileDraft !== null) fileTextareaEl?.focus();
-  });
 
   function enterFileCode() {
     // No toggle-to-close branch: this editor REPLACES the metadata card, taking its own "<>"
@@ -350,6 +391,10 @@
       currentFrontmatter(),
       questions.map((q) => q.code)
     );
+    caretLine = 1;
+    // A document is read from the top, so that's where the caret starts — the browser would
+    // otherwise restore it to the end of the text.
+    tick().then(() => fileEditor?.focusStart());
   }
 
   /** Parses the whole-document draft back into the builder's own state, leaving it open (with its
@@ -359,7 +404,11 @@
    * in the document hasn't replaced questions 1, 2 and 4, and handing those new ids on every apply
    * would churn identity for questions nothing touched. Ids are internal to this browser's storage
    * and absent from the `.qwiz` format itself, so position is the only correspondence there is. */
-  function applyFileDraft(): boolean {
+  /** `close` distinguishes the two ways of applying. The tick means "done": commit and go back to
+   * the cards. Ctrl+S means "render what I've written": commit and stay put, so the live preview
+   * catches up while the caret keeps its place — which is the whole point of having a preview
+   * beside the source rather than behind a mode switch. */
+  function applyFileDraft(close = true): boolean {
     if (fileDraft === null) return true;
     const { frontmatter, questionCodes, errors: draftErrors } = parseQwizFile(fileDraft);
     if (draftErrors.length > 0) return false;
@@ -378,7 +427,7 @@
       id: questions[i]?.id ?? crypto.randomUUID(),
       code
     }));
-    fileDraft = null;
+    if (close) fileDraft = null;
     return true;
   }
 
@@ -498,7 +547,7 @@
       if (fileDraft !== null) {
         if ((e.metaKey || e.ctrlKey) && e.key === 's') {
           e.preventDefault();
-          applyFileDraft();
+          applyFileDraft(false);
         }
         return;
       }
@@ -758,26 +807,80 @@
   {#if fileDraft !== null}
     <!-- Replaces the metadata card, every question card and Add question for as long as it's open:
          the document IS all of those, and leaving them on screen would mean two editable copies of
-         the same quiz, only one of which is being typed into. -->
-    <div class="space-y-3 rounded-lg border border-line-subtle bg-surface-raised p-6">
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <p class="text-xs font-medium text-ink-subtle">
-          The whole quiz as <span class="font-mono">.qwiz</span> source — the details block and every
-          question. Same format as Download and Import.
-        </p>
-        <div class="flex shrink-0 items-center gap-2">
-          <Button onclick={discardFileDraft}>Discard</Button>
-          <Button variant="primary" onclick={applyFileDraft}>Apply</Button>
+         the same quiz, only one of which is being typed into.
+
+         `xl:` splits it into source and live preview. Below that the two would be too narrow to be
+         either — a preview that can't show a question card isn't worth the half of the screen it
+         costs — so a narrow viewport gets the editor alone, exactly as before. -->
+    <div class="relative space-y-3 rounded-lg border border-line-subtle bg-surface-raised p-6">
+      <!-- Apply and Discard as a tick and a cross beside the editor, matching every question
+           card's own button strip (see QuestionCard) — the same `lg:`-gated absolute/in-flow
+           switch, for the same reason: below `lg:` there's no margin outside the card to put them
+           in, so they render as a plain row above instead of being pushed off-screen. -->
+      <div
+        class="mb-3 flex items-center gap-1 lg:absolute lg:right-full lg:top-6 lg:mb-0 lg:mr-2 lg:flex-col"
+      >
+        <button
+          type="button"
+          class="rounded-md border border-line-subtle bg-surface-raised p-1.5 text-positive-ink-soft hover:bg-positive-surface"
+          onclick={() => applyFileDraft()}
+          aria-label="Apply changes"
+          title="Apply changes (Ctrl+S)"
+        >
+          <Check size={15} />
+        </button>
+        <button
+          type="button"
+          class="rounded-md border border-line-subtle bg-surface-raised p-1.5 text-negative-ink hover:bg-negative-surface"
+          onclick={discardFileDraft}
+          aria-label="Discard changes"
+          title="Discard changes"
+        >
+          <X size={15} />
+        </button>
+      </div>
+
+      <p class="text-xs font-medium text-ink-subtle">
+        The whole quiz as <span class="font-mono">.qwiz</span> source — the details block and every question.
+        Same format as Download and Import.
+      </p>
+
+      <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <div class="space-y-3">
+          <CodeEditor
+            bind:this={fileEditor}
+            value={fileDraft}
+            ariaLabel="Quiz .qwiz source"
+            rows={Math.min(40, Math.max(12, fileDraft.split('\n').length))}
+            onInput={(next) => (fileDraft = next)}
+            onCaretLine={(line) => (caretLine = line)}
+          />
+          <ErrorList errors={fileDraftErrors} />
+        </div>
+
+        <!-- The preview renders the LAST APPLIED document, not the draft: re-rendering on every
+             keystroke would flash a wall of parse errors through half of every edit. Ctrl+S (or
+             the tick) applies, and that's what moves it. -->
+        <div
+          bind:this={previewEl}
+          class="hidden max-h-[70vh] space-y-4 overflow-y-auto rounded-md border border-line-subtle bg-surface p-4 xl:block"
+        >
+          {#each questions as question, index (question.id)}
+            <div
+              data-preview-question={index}
+              class="rounded-lg border p-3 transition-colors {index === caretQuestionIndex
+                ? 'border-accent-line-subtle bg-accent-surface/40'
+                : 'border-line-subtle bg-surface-raised'}"
+            >
+              <QuestionView question={parseQuizScriptQuestion(question.code).question} />
+            </div>
+          {:else}
+            <p class="text-sm text-ink-subtle">
+              Nothing to preview yet — the document has no questions.
+            </p>
+          {/each}
         </div>
       </div>
-      <textarea
-        bind:this={fileTextareaEl}
-        class="w-full rounded-md border border-line bg-surface px-3 py-2 font-mono text-xs text-ink-muted focus:border-line-strong focus:outline-none focus:ring-2 focus:ring-line-subtle"
-        rows={Math.min(40, Math.max(12, fileDraft.split('\n').length))}
-        value={fileDraft}
-        aria-label="Quiz .qwiz source"
-        oninput={(e) => (fileDraft = e.currentTarget.value)}></textarea>
-      <ErrorList errors={fileDraftErrors} />
     </div>
   {:else}
     <div class="relative space-y-5 rounded-lg border border-line-subtle bg-surface-raised p-6">
