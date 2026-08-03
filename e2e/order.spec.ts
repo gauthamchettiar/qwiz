@@ -67,7 +67,10 @@ test('placing items in the correct order wins full credit; a wrong order scores 
   await expect(page.getByText('3 / 3 points')).toBeVisible();
 });
 
-test('an incomplete placement cannot be submitted', async ({ page }) => {
+// Questions are skippable by default now, so a half-filled board is submittable and grades on
+// what's there. `require_answer=true` is what restores the old "finish it first" gate — both
+// halves are asserted here, since this pair IS the contract.
+test('an incomplete placement can be submitted, grading only what was placed', async ({ page }) => {
   const quiz = buildOrderQuiz();
   await seedQuizzes(page, [quiz]);
 
@@ -77,6 +80,22 @@ test('an incomplete placement cannot be submitted', async ({ page }) => {
   await page.getByRole('button', { name: 'First', exact: true }).click();
   await page.getByRole('button', { name: /Position 1, empty/ }).click();
 
+  await expect(play.submitAnswerButton).toBeEnabled();
+  await play.submitAnswerButton.click();
+  // Placed one of three correctly — partial work, not a skip, so it keeps a scored verdict.
+  await expect(page.getByText('Skipped')).toBeHidden();
+});
+
+test('require_answer=true still holds an incomplete placement back', async ({ page }) => {
+  const quiz = buildOrderQuiz({ settings: { shuffle_questions: false, require_answer: true } });
+  await seedQuizzes(page, [quiz]);
+
+  const play = new PlayPage(page);
+  await play.goto(quiz.id);
+
+  await expect(play.submitAnswerButton).toBeDisabled();
+  await page.getByRole('button', { name: 'First', exact: true }).click();
+  await page.getByRole('button', { name: /Position 1, empty/ }).click();
   await expect(play.submitAnswerButton).toBeDisabled();
 });
 

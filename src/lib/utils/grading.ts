@@ -939,6 +939,47 @@ function typedResponseFromDraft(
  * guess_letters has no `min_answers` (excluded from its settings — see quizScript.ts's
  * SETTING_RULES) and can be submitted at any point, guessed-so-far included, same as giving up
  * partway through a real Hangman round. */
+/** Whether the player has put NOTHING into `draft` — the state a skipped question is submitted
+ * in. Deliberately ignores `revealed`/`revealedPositions`: revealing a hint costs points but isn't
+ * answering, so a question whose only interaction was opening a hint still reads as skipped.
+ *
+ * Kept separate from `!isDraftComplete` because the two are not opposites — a half-filled board is
+ * neither complete nor empty, and the reveal screen needs to tell "answered badly" apart from
+ * "didn't answer". */
+export function isDraftEmpty(question: QuizScriptQuestion, draft: QuestionDraft): boolean {
+  if (question.variant === 'guess_letters') return draft.guessedLetters.size === 0;
+  if (question.variant === 'type_pattern') return draft.typedSingleAnswer.trim() === '';
+  if (isTypedAnswerMode(question)) return draft.blankAnswers.every((a) => a.trim() === '');
+  if (question.variant === 'order_items') return draft.orderPlacement.every((p) => p === null);
+  if (question.variant === 'match_pairs') return draft.matchPairs.size === 0;
+  if (question.variant === 'group_items') return draft.categoriseAssignments.size === 0;
+  if (question.variant === 'fill_blanks') return draft.blankPicks.every((p) => p === null);
+
+  if (question.variant !== 'type_answer') return draft.selected.size === 0;
+  const maxAnswers = settingNumber(question.settings.max_answers);
+  if (maxAnswers !== undefined && maxAnswers > 1) return draft.typedGuesses.length === 0;
+  if (question.settings.typed_input === 'boxes') return draft.boxChars.every((c) => c === '');
+  return draft.typedSingleAnswer.trim() === '';
+}
+
+/** Whether the Submit button should be live. Every variant is skippable by DEFAULT — submitting an
+ * empty or half-finished draft is allowed, and grades as whatever it's worth (usually zero).
+ * `require_answer=true` is how an author opts back into the old behaviour of holding Submit shut
+ * until the answer is complete.
+ *
+ * Skipping was always possible in two corners of the app — a `per_question` timer running out
+ * (`QuizPlayer.commitCurrentAnswer`) and `reveal_answers=at_end`, whose single final Submit grades
+ * every draft as-is — so the grading side already handled blank drafts for all nine variants. This
+ * only removes the gate in the third case, the per-question Submit button. */
+export function canSubmitDraft(question: QuizScriptQuestion, draft: QuestionDraft): boolean {
+  if (!settingBoolean(question.settings.require_answer)) return true;
+  // Complete AND non-empty, because "complete" alone doesn't mean "answered" for every variant:
+  // a choice question without `min_answers` is complete at zero selections (`0 >= 0`), and
+  // guess_letters is complete by definition. Requiring an answer on either of those would
+  // otherwise have gated nothing at all.
+  return isDraftComplete(question, draft) && !isDraftEmpty(question, draft);
+}
+
 export function isDraftComplete(question: QuizScriptQuestion, draft: QuestionDraft): boolean {
   if (question.variant === 'guess_letters') return true;
   // Always a single free-text field, so "answered" is just "typed something" — the same bar the
@@ -1262,15 +1303,30 @@ export function draftFromAnswer(question: QuizScriptQuestion, answer: AnswerReco
   return draft;
 }
 
+/** Whether a RECORDED answer was a skip, for the screens that only kept the `AnswerRecord` (the
+ * end-of-run summary list). Round-trips through `draftFromAnswer` so "empty" is defined exactly
+ * once, in `isDraftEmpty`, rather than a second time over a different shape. */
+export function isAnswerEmpty(question: QuizScriptQuestion, answer: AnswerRecord): boolean {
+  return isDraftEmpty(question, draftFromAnswer(question, answer));
+}
+
 /** How a graded question reads to the player, for the reveal screen's own banner: full marks,
  * something-but-not-everything (only reachable with `partial_credit`), or nothing. Deliberately
  * derived from the score rather than from per-option correctness so one rule covers all seven
  * variants — including hint costs, which can legitimately drag a fully-correct answer down to
  * 'partial'. A question whose `max` is 0 (every option weighted `%0%`) reads as 'correct' at
  * `earned >= max`, since there was never anything to lose. */
-export type AnswerVerdict = 'correct' | 'partial' | 'incorrect';
+export type AnswerVerdict = 'correct' | 'partial' | 'incorrect' | 'skipped';
 
-export function answerVerdict(result: QuestionResult): AnswerVerdict {
+/** `skipped` comes from `isDraftEmpty` at the call site rather than being inferred from the score,
+ * because a zero is not evidence of a skip — a fully-worked wrong answer scores zero too, and the
+ * player deserves to be told which of the two happened.
+ *
+ * It only wins while nothing was earned. A `type_pattern` question whose pattern matches the empty
+ * string (`.*`) genuinely awards points for a blank response, and "Skipped" over a positive score
+ * would read as a bug; the score-based verdict is the honest one there. */
+export function answerVerdict(result: QuestionResult, skipped = false): AnswerVerdict {
+  if (skipped && result.earned <= 0) return 'skipped';
   if (result.earned >= result.max) return 'correct';
   if (result.earned > 0) return 'partial';
   return 'incorrect';

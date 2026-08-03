@@ -141,5 +141,8 @@ test('group_items: picking an item back up from a bucket returns it to the pool'
 
   await waterTray.getByRole('button', { name: 'Fish', exact: true }).click();
 
-  await expect(play.submitAnswerButton).toBeDisabled();
+  // Asserted on the board itself rather than via a disabled Submit, which used to stand in for
+  // "the assignment is incomplete" — Submit is always live now that questions are skippable.
+  await expect(waterTray.getByRole('button', { name: 'Fish', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Fish', exact: true })).toBeVisible();
 });

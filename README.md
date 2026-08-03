@@ -19,31 +19,21 @@ Your quizzes, saved in this browser and nowhere else:
 ![Quiz list](./docs/screenshots/home.png)
 
 Author a question through the form — every control, from the correct-answer marker to the settings
-block, maps to one line of `.qwiz` source:
+block, maps to one line of `.qwiz` source. There's a code mode for writing that source directly,
+with a live preview beside it:
 
 ![The form builder](./docs/screenshots/builder-form.png)
 
-…or write that source directly. Code mode keeps a live preview beside it, and lists the settings
-that apply to whatever variant you're currently writing:
-
-![Code mode, with a live preview](./docs/screenshots/builder-code.png)
-
 Then play it, and see what you got right:
 
-| Playing                                          | Reviewing                                           |
-| ------------------------------------------------ | --------------------------------------------------- |
-| ![Playing a quiz](./docs/screenshots/player.png) | ![Reviewing answers](./docs/screenshots/review.png) |
+![Playing a quiz](./docs/screenshots/player.png)
 
-Nine question variants, including four that are placed or sorted rather than picked:
+That's the short version. The docs below carry the rest — code mode, the answer reveal, the
+end-of-run review, the settings panel, and all nine question variants with a screenshot of how each
+one plays:
 
-| `guess_letters`                                                    | `order_items`                                                    |
-| ------------------------------------------------------------------ | ---------------------------------------------------------------- |
-| ![Guess the letters](./docs/screenshots/variant-guess-letters.png) | ![Put in order](./docs/screenshots/variant-order-items.png)      |
-| `match_pairs`                                                      | `group_items`                                                    |
-| ![Match pairs](./docs/screenshots/variant-match-pairs.png)         | ![Sort into buckets](./docs/screenshots/variant-group-items.png) |
-
-See [the format reference](./docs/qwiz-format.md) for all nine, each with a screenshot of how it
-plays.
+- [Introduction](./docs/introduction.md) — the authoring modes, playing and reviewing, import/export
+- [`.qwiz` format reference](./docs/qwiz-format.md) — every question variant, illustrated
 
 ## Documentation
 

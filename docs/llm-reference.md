@@ -322,6 +322,7 @@ Written as `:key=value` lines after the option block. Booleans accept `true`/`fa
 | `points_wrong`           | `number`                   | `0`        | all                                                                           | yes       |
 | `partial_credit`         | `true / false`             | `false`    | pick_many, type_answer, order_items, match_pairs, group_items, fill_blanks    | yes       |
 | `options_layout`         | `list / grid2x2 / grid3x3` | `list`     | pick_one, pick_many                                                           | yes       |
+| `require_answer`         | `true / false`             | `false`    | all                                                                           | yes       |
 | `min_answers`            | `number`                   | —          | pick_many, type_answer                                                        | no        |
 | `max_answers`            | `number`                   | —          | pick_many, type_answer                                                        | no        |
 | `shuffle_options`        | `true / false`             | `false`    | pick_one, pick_many                                                           | yes       |
@@ -345,7 +346,8 @@ What each one does:
 - `points_wrong` — Points deducted for each incorrect option/pair/placement that doesn't specify its own %N% weight.
 - `partial_credit` — Whether getting some (not all) of a question right earns partial credit instead of requiring an exact match — e.g. for a type_answer question with 3 accepted answers, matching only 1 of them awards that one's points instead of 0. For order_items/match_pairs/group_items/fill_blanks, "some but not all" means some but not all items/pairs/buckets/blanks placed correctly.
 - `options_layout` — How a choice question's options are laid out. "list": one per row. "grid2x2": a fixed 2-column grid. "grid3x3": 2 columns on narrow screens, 3 on wider ones.
-- `min_answers` — Minimum number of options/answers the player must select or give before they can submit this question. Not meaningful for pick_one, which can only ever have zero or one selected.
+- `require_answer` — Whether the player must complete this question before they can submit it. Off by default, so every question can be skipped: Submit stays available with the question empty or half-finished, and whatever was given grades as normal (usually zero). Turn it on to hold Submit shut until the answer is complete — every box filled, every item placed, min_answers met.
+- `min_answers` — Minimum number of options/answers that counts as a complete answer to this question. Only gates the Submit button together with require_answer=true; on its own it no longer blocks submitting, since questions are skippable by default. Not meaningful for pick_one, which can only ever have zero or one selected.
 - `max_answers` — Maximum number of options/answers the player is allowed to select or give for this question. Not meaningful for pick_one, which can only ever have zero or one selected.
 - `shuffle_options` — For a choice question, whether its options are shown in a random order each time it's played. Not meaningful for a type_answer question.
 - `difficulty` — How difficult this question is, for organizing or filtering later — purely informational, doesn't affect grading or play.

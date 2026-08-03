@@ -1,6 +1,6 @@
 <script lang="ts">
   import { scale } from 'svelte/transition';
-  import { CircleAlert, CircleCheckBig, CircleX } from '@lucide/svelte';
+  import { CircleAlert, CircleCheckBig, CircleDashed, CircleX } from '@lucide/svelte';
   import { answerVerdict, type QuestionResult } from '@/lib/utils/grading';
 
   // The banner a question wears once it's been submitted and something about it is being
@@ -14,14 +14,18 @@
   let {
     result,
     showVerdict,
-    showScore
+    showScore,
+    skipped = false
   }: {
     result: QuestionResult;
     showVerdict: boolean;
     showScore: boolean;
+    /** Nothing was entered at all — see `isDraftEmpty`. Reads as its own verdict rather than
+     * "Not quite", which claims the player tried and got it wrong. */
+    skipped?: boolean;
   } = $props();
 
-  const verdict = $derived(answerVerdict(result));
+  const verdict = $derived(answerVerdict(result, skipped));
 
   const TONE = {
     correct: {
@@ -47,6 +51,17 @@
       icon_: 'text-negative-ink',
       title: 'text-negative-ink-deep',
       pill: 'bg-negative text-ink-inverse'
+    },
+    // Neutral on purpose — a skip isn't a wrong answer, and dressing it in the negative palette
+    // would tell the player they got something wrong when they simply moved on. Reuses the same
+    // tokens as the score-only (no-verdict) styling below, which already carry passing contrast.
+    skipped: {
+      label: 'Skipped',
+      icon: CircleDashed,
+      box: 'border-line bg-surface-hover',
+      icon_: 'text-ink-subtle',
+      title: 'text-ink',
+      pill: 'bg-surface-inverse text-ink-on-inverse'
     }
   } as const;
 

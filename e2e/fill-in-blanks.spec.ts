@@ -110,8 +110,24 @@ test('bank mode: two words spelled the same are used up independently', async ({
   await expect(page.getByText('2 / 2 points')).toBeVisible();
 });
 
-test('bank mode: an incomplete answer cannot be submitted', async ({ page }) => {
+// See the matching pair in order.spec.ts: skippable by default, gated only on request.
+test('bank mode: an incomplete answer can be submitted', async ({ page }) => {
   const quiz = buildFillInBlanksQuiz();
+  await seedQuizzes(page, [quiz]);
+
+  const play = new PlayPage(page);
+  await play.goto(quiz.id);
+
+  await page.getByRole('button', { name: 'mitochondria', exact: true }).click();
+  await page.getByRole('button', { name: /Blank 1/ }).click();
+
+  await expect(play.submitAnswerButton).toBeEnabled();
+});
+
+test('bank mode: require_answer=true holds an incomplete answer back', async ({ page }) => {
+  const quiz = buildFillInBlanksQuiz({
+    settings: { shuffle_questions: false, require_answer: true }
+  });
   await seedQuizzes(page, [quiz]);
 
   const play = new PlayPage(page);

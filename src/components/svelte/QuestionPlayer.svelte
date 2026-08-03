@@ -16,7 +16,8 @@
     choiceOptionsLayoutClass,
     fillInBlanksAnswerOptions,
     gradeDraft,
-    isDraftComplete,
+    canSubmitDraft,
+    isDraftEmpty,
     isGuessableChar,
     matchedPatternIndex,
     matchTypedGuesses,
@@ -230,7 +231,8 @@
   });
 
   const result = $derived(isLocked ? gradeDraft(question, currentDraft()).result : null);
-  const canSubmit = $derived(isDraftComplete(question, currentDraft()));
+  const canSubmit = $derived(canSubmitDraft(question, currentDraft()));
+  const skipped = $derived(isDraftEmpty(question, currentDraft()));
 
   const minAnswers = $derived(settingNumber(question.settings.min_answers) ?? 0);
   const maxAnswers = $derived(settingNumber(question.settings.max_answers));
@@ -798,7 +800,7 @@
        filled in made "did I get it right?" something they had to work out for themselves from the
        green/red option tinting. -->
   {#if isLocked && result && (revealAnswers || revealScores)}
-    <AnswerVerdict {result} showVerdict={revealAnswers} showScore={revealScores} />
+    <AnswerVerdict {result} {skipped} showVerdict={revealAnswers} showScore={revealScores} />
   {/if}
 
   {#if !isFillInBlanks}

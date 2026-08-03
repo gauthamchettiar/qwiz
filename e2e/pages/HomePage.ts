@@ -1,20 +1,34 @@
 import { expect, type Locator, type Page } from '@playwright/test';
+import { waitForHydration } from '../utils/hydration';
 
 export class HomePage {
   readonly page: Page;
   readonly newQuizLink: Locator;
   readonly importButton: Locator;
   readonly emptyState: Locator;
+  readonly themeButton: Locator;
+  readonly themeMenu: Locator;
 
   constructor(page: Page) {
     this.page = page;
-    this.newQuizLink = page.getByRole('link', { name: '+ New Quiz' });
-    this.importButton = page.getByRole('button', { name: 'Import Qwiz' });
+    this.newQuizLink = page.getByRole('link', { name: '+ New', exact: true });
+    // `exact` because the import dialog's own "Validate & Import" button is a substring match on
+    // "Import" the moment the dialog is open.
+    this.importButton = page.getByRole('button', { name: 'Import', exact: true });
     this.emptyState = page.getByText('No quizzes yet. Create one to get started.');
+    // The label carries the current theme ("Theme: System"), so match the prefix rather than a
+    // name that changes the moment a test picks something.
+    this.themeButton = page.getByRole('button', { name: /^Theme:/ });
+    this.themeMenu = page.getByRole('menu');
   }
 
   async goto(): Promise<void> {
     await this.page.goto('/');
+    await waitForHydration(this.page);
+  }
+
+  themeOption(label: string): Locator {
+    return this.page.getByRole('menuitemradio', { name: label, exact: true });
   }
 
   card(title: string): Locator {

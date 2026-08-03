@@ -106,7 +106,7 @@ test('shows a not-found message for an unknown quiz id', async ({ page }) => {
   await expect(play.notFoundMessage).toBeVisible();
 });
 
-test('the play screen uses a minimal header — just a back link, no logo/Import/+ New Quiz', async ({
+test('the play screen uses a minimal header — just a back link, no logo/Import/+ New', async ({
   page
 }) => {
   const quiz = buildQuiz();
@@ -117,6 +117,6 @@ test('the play screen uses a minimal header — just a back link, no logo/Import
 
   await expect(page.getByRole('link', { name: 'Back', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Qwiz' })).not.toBeAttached();
-  await expect(page.getByRole('button', { name: 'Import Qwiz' })).not.toBeAttached();
-  await expect(page.getByRole('link', { name: '+ New Quiz' })).not.toBeAttached();
+  await expect(page.getByRole('button', { name: 'Import', exact: true })).not.toBeAttached();
+  await expect(page.getByRole('link', { name: '+ New', exact: true })).not.toBeAttached();
 });

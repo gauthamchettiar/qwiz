@@ -9,7 +9,7 @@ import { ArrowLeft } from '@lucide/svelte';
 interface Props {
   title?: string;
   description?: string;
-  /** Swaps the standard header (logo, Import, + New Quiz) for just a back-to-home link — the
+  /** Swaps the standard header (logo, Import, + New) for just a back-to-home link — the
    * play screen's own request to stay out of the way of the quiz itself. */
   minimal?: boolean;
 }
@@ -79,7 +79,7 @@ const {
               <ThemePicker client:load />
               <ImportQuizDialog client:load />
               <Button href="/local/create" variant="primary" size="sm" client:load>
-                + New Quiz
+                + New
               </Button>
             </div>
           </header>

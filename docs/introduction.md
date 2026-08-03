@@ -59,21 +59,30 @@ bank in a random order.
 
 ![Playing a quiz](./screenshots/player.png)
 
-A run ends with a pass/fail result against the quiz's win threshold, and (unless
-`reveal_answers=never`) a review screen showing what you answered against what was correct — every
-variant replayed through the same board you answered it on, locked:
+Every question can be submitted unanswered — Submit stays available whether the question is empty,
+half-finished or complete, and a skipped question is reported as "Skipped" rather than as a wrong
+answer. Authors who want an answer forced can set
+[`require_answer=true`](./settings.md#per-question-settings) on a question or across the whole quiz.
+
+A run ends with a pass/fail result against the quiz's win threshold, scored against every question
+in the run:
+
+![Results at the end of a run](./screenshots/results.png)
+
+Unless `reveal_answers=never`, a review screen then shows what you answered against what was
+correct — every variant replayed through the same board you answered it on, locked:
 
 ![Reviewing answers after a run](./screenshots/review.png)
 
 ## Import & export
 
 Every quiz can be downloaded as a `.qwiz` file (a plain-text file — safe to read, edit by hand,
-back up, or share) via its card menu. The same file can be re-imported through **Import Qwiz** on
+back up, or share) via its card menu. The same file can be re-imported through **Import** on
 the home page, either by uploading it or pasting its contents directly. Importing always creates a
 new quiz — it never silently overwrites one you already have, even if the file was originally
 exported from this same browser.
 
-The **Import Qwiz** dialog also offers a few built-in sample quizzes ("Load a sample") that each
+The **Import** dialog also offers a few built-in sample quizzes ("Load a sample") that each
 exercise a different part of the format — a quick way to see real, valid `.qwiz` source before
 writing your own.
 

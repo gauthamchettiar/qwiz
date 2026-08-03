@@ -394,12 +394,30 @@ export const SETTING_RULES: Record<string, SettingRule> = {
     description:
       'How a choice question\'s options are laid out. "list": one per row. "grid2x2": a fixed 2-column grid. "grid3x3": 2 columns on narrow screens, 3 on wider ones.\n\nAccepted values: list, grid2x2, grid3x3\nDefault: list'
   },
+  require_answer: {
+    group: 'Answering',
+    kind: 'boolean',
+    default: false,
+    appliesTo: [
+      'pick_one',
+      'pick_many',
+      'type_answer',
+      'type_pattern',
+      'guess_letters',
+      'order_items',
+      'match_pairs',
+      'group_items',
+      'fill_blanks'
+    ],
+    description:
+      'Whether the player must complete this question before they can submit it. Off by default, so every question can be skipped: Submit stays available with the question empty or half-finished, and whatever was given grades as normal (usually zero). Turn it on to hold Submit shut until the answer is complete — every box filled, every item placed, min_answers met.\n\nAccepted values: true, false\nDefault: false'
+  },
   min_answers: {
     group: 'Answering',
     kind: 'number',
     appliesTo: ['pick_many', 'type_answer'],
     description:
-      'Minimum number of options/answers the player must select or give before they can submit this question. Not meaningful for pick_one, which can only ever have zero or one selected.\n\nAccepted values: any number\nDefault: none — any number given is enough, including zero'
+      'Minimum number of options/answers that counts as a complete answer to this question. Only gates the Submit button together with require_answer=true; on its own it no longer blocks submitting, since questions are skippable by default. Not meaningful for pick_one, which can only ever have zero or one selected.\n\nAccepted values: any number\nDefault: none — any number given is enough, including zero'
   },
   max_answers: {
     group: 'Answering',

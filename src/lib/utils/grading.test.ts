@@ -15,8 +15,10 @@ import {
   characterInputNormalizeGuess,
   characterInputPrerevealedPositions,
   characterInputRevealPositionsAfterGuess,
+  canSubmitDraft,
   choiceOptionsLayoutClass,
   draftFromAnswer,
+  isDraftEmpty,
   effectivePoints,
   gradeCategoriseQuestion,
   gradeCharacterInputQuestion,
@@ -829,6 +831,153 @@ describe('isDraftComplete', () => {
   });
 });
 
+describe('isDraftEmpty', () => {
+  // Every variant, because "nothing entered" lives in a different field for each one and a missed
+  // branch would silently label a real answer as skipped.
+  const cases: [string, QuizScriptQuestion, QuestionDraft][] = [
+    [
+      'pick_one',
+      makeQuestion({ variant: 'pick_one' }),
+      { ...blankDraft(), selected: new Set([0]) }
+    ],
+    [
+      'pick_many',
+      makeQuestion({ variant: 'pick_many' }),
+      { ...blankDraft(), selected: new Set([1]) }
+    ],
+    [
+      'type_answer',
+      makeQuestion({ variant: 'type_answer', options: [textOption('paris', true)] }),
+      { ...blankDraft(), typedSingleAnswer: 'x' }
+    ],
+    [
+      'type_answer boxes',
+      makeQuestion({
+        variant: 'type_answer',
+        options: [textOption('ab', true)],
+        settings: { typed_input: 'boxes' }
+      }),
+      { ...blankDraft(), boxChars: ['a', ''] }
+    ],
+    [
+      'type_pattern',
+      makeQuestion({ variant: 'type_pattern', options: [textOption('[0-9]+', true)] }),
+      { ...blankDraft(), typedSingleAnswer: '1' }
+    ],
+    [
+      'guess_letters',
+      makeQuestion({ variant: 'guess_letters', options: [characterInputOption('cat')] }),
+      { ...blankDraft(), guessedLetters: new Map([['c', 'correct' as const]]) }
+    ],
+    [
+      'order_items',
+      makeQuestion({ variant: 'order_items' }),
+      { ...blankDraft(), orderPlacement: [0, null] }
+    ],
+    [
+      'match_pairs',
+      makeQuestion({ variant: 'match_pairs' }),
+      { ...blankDraft(), matchPairs: new Map([[0, 0]]) }
+    ],
+    [
+      'group_items',
+      makeQuestion({ variant: 'group_items' }),
+      { ...blankDraft(), categoriseAssignments: new Map([[0, 0]]) }
+    ],
+    [
+      'fill_blanks',
+      makeQuestion({ variant: 'fill_blanks' }),
+      { ...blankDraft(), blankPicks: [0, null] }
+    ]
+  ];
+
+  for (const [name, question, touched] of cases) {
+    it(`${name}: a blank draft is empty and a touched one is not`, () => {
+      expect(isDraftEmpty(question, blankDraft())).toBe(true);
+      expect(isDraftEmpty(question, touched)).toBe(false);
+    });
+  }
+
+  it('whitespace-only typed text still counts as empty', () => {
+    const q = makeQuestion({ variant: 'type_answer', options: [textOption('paris', true)] });
+    expect(isDraftEmpty(q, { ...blankDraft(), typedSingleAnswer: '   ' })).toBe(true);
+  });
+
+  it('revealing a hint is not answering — the draft stays empty', () => {
+    const q = makeQuestion({ variant: 'pick_one' });
+    expect(isDraftEmpty(q, { ...blankDraft(), revealed: new Set([0]) })).toBe(true);
+  });
+
+  it('a partly-filled board is neither complete nor empty', () => {
+    const q = makeQuestion({ variant: 'order_items' });
+    const partial = { ...blankDraft(), orderPlacement: [0, null] };
+    expect(isDraftComplete(q, partial)).toBe(false);
+    expect(isDraftEmpty(q, partial)).toBe(false);
+  });
+});
+
+describe('canSubmitDraft', () => {
+  it('every variant is submittable empty by default', () => {
+    for (const variant of [
+      'pick_one',
+      'pick_many',
+      'type_answer',
+      'type_pattern',
+      'guess_letters',
+      'order_items',
+      'match_pairs',
+      'group_items',
+      'fill_blanks'
+    ] as const) {
+      const q = makeQuestion({ variant });
+      expect(canSubmitDraft(q, blankDraft()), `${variant} should be skippable`).toBe(true);
+    }
+  });
+
+  it('require_answer restores the completeness gate', () => {
+    const q = makeQuestion({
+      variant: 'type_answer',
+      options: [textOption('paris', true)],
+      settings: { require_answer: true }
+    });
+    expect(canSubmitDraft(q, blankDraft())).toBe(false);
+    expect(canSubmitDraft(q, { ...blankDraft(), typedSingleAnswer: 'paris' })).toBe(true);
+  });
+
+  it('require_answer forces a pick even where "complete" would accept nothing', () => {
+    // A choice question without min_answers is "complete" at zero selections, and guess_letters is
+    // complete by definition — so require_answer has to mean non-empty too, or it gates nothing.
+    const choice = makeQuestion({ variant: 'pick_one', settings: { require_answer: true } });
+    expect(canSubmitDraft(choice, blankDraft())).toBe(false);
+    expect(canSubmitDraft(choice, { ...blankDraft(), selected: new Set([0]) })).toBe(true);
+
+    const letters = makeQuestion({
+      variant: 'guess_letters',
+      options: [characterInputOption('cat')],
+      settings: { require_answer: true }
+    });
+    expect(canSubmitDraft(letters, blankDraft())).toBe(false);
+    expect(
+      canSubmitDraft(letters, {
+        ...blankDraft(),
+        guessedLetters: new Map([['c', 'correct' as const]])
+      })
+    ).toBe(true);
+  });
+
+  it('require_answer also enforces min_answers, which no longer gates on its own', () => {
+    const lenient = makeQuestion({ variant: 'pick_many', settings: { min_answers: 2 } });
+    expect(canSubmitDraft(lenient, { ...blankDraft(), selected: new Set([0]) })).toBe(true);
+
+    const strict = makeQuestion({
+      variant: 'pick_many',
+      settings: { min_answers: 2, require_answer: true }
+    });
+    expect(canSubmitDraft(strict, { ...blankDraft(), selected: new Set([0]) })).toBe(false);
+    expect(canSubmitDraft(strict, { ...blankDraft(), selected: new Set([0, 1]) })).toBe(true);
+  });
+});
+
 describe('gradeDraft / questionMaxPoints', () => {
   it('dispatches to choice or typed grading based on variant', () => {
     const choiceQ = makeQuestion();
@@ -914,6 +1063,27 @@ describe('answerVerdict', () => {
 
   it('a question with nothing to win reads as correct rather than as a failure', () => {
     expect(answerVerdict({ earned: 0, max: 0 })).toBe('correct');
+  });
+
+  it('a skipped question is its own verdict, not a wrong answer', () => {
+    expect(answerVerdict({ earned: 0, max: 3 }, true)).toBe('skipped');
+    // Same score, but the player actually answered — that distinction is the whole point.
+    expect(answerVerdict({ earned: 0, max: 3 }, false)).toBe('incorrect');
+  });
+
+  it('a skipped question that cost hint points still reads as skipped', () => {
+    expect(answerVerdict({ earned: -1, max: 3 }, true)).toBe('skipped');
+  });
+
+  it('skipping a nothing-to-win question reads as skipped rather than correct', () => {
+    expect(answerVerdict({ earned: 0, max: 0 }, true)).toBe('skipped');
+  });
+
+  it('a blank response that genuinely scored keeps its score-based verdict', () => {
+    // Reachable on type_pattern: a pattern like `.*` matches the empty string, so an unanswered
+    // question can legitimately earn points. "Skipped" over a positive score would read as a bug.
+    expect(answerVerdict({ earned: 3, max: 3 }, true)).toBe('correct');
+    expect(answerVerdict({ earned: 1, max: 3 }, true)).toBe('partial');
   });
 });
 

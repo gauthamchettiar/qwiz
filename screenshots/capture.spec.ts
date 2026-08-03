@@ -43,16 +43,102 @@ function single(id: string, code: string): Quiz {
   return quiz(id, 'Sample', 'One question', [code]);
 }
 
+// `shuffle_options: false` is not enough to pin these images. The four placement variants are in
+// `ALWAYS_SHUFFLED_VARIANTS` (grading.ts) and shuffle their boards unconditionally — deliberately,
+// since an order_items board pre-sorted into the right answer would give the game away. That left
+// order_items, match_pairs and group_items producing a different PNG on every run.
+//
+// So the randomness is pinned at its source, for the screenshot run only: a seeded generator in
+// place of `Math.random`, installed before any app code runs. Deterministic but still well mixed,
+// rather than a constant — a fixed return value makes Fisher-Yates degenerate into a predictable
+// near-rotation, which would look like a board that had barely been shuffled.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    let state = 0x2f6e2b1;
+    Math.random = () => {
+      state |= 0;
+      state = (state + 0x6d2b79f5) | 0;
+      let t = Math.imul(state ^ (state >>> 15), 1 | state);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  });
+});
+
 async function seed(page: Page, quizzes: Quiz[]): Promise<void> {
   await page.goto('/');
   await resetStorage(page);
   await seedQuizzes(page, quizzes);
 }
 
+/** Every image in this file goes through here, so the whole set shares one look.
+ *
+ * `pad` is the reason this exists at all. `locator.screenshot()` clips to the element's border
+ * box, which put a card's own 1px border hard against the image edge — the images read as cropped
+ * rather than framed, and a `shadow-md` (the import dialog) was cut off entirely, since a shadow
+ * paints outside the box it belongs to. Clipping a padded rectangle out of a full-page screenshot
+ * instead means the gutter is filled by the real page background (`--color-surface` on `<body>`),
+ * so the frame is the app's own colour rather than transparency.
+ *
+ * `fullPage` plus a scroll to the top is what makes the maths safe: `boundingBox()` is
+ * viewport-relative, `clip` under `fullPage` is document-relative, and at scroll 0 those agree —
+ * including for the tall shots (home, results, review) that don't fit in the 900px viewport.
+ *
+ * `animations: 'disabled'` is not cosmetic. Several of these are captured immediately after an
+ * interaction, so a Svelte `fade`/`scale` was still part-way through when the shot was taken and
+ * the same command produced a different PNG each run — seven of them churned on every re-run. It
+ * fast-forwards finite animations to their end state, which is the state these images should show
+ * anyway. */
+async function shotPadded(
+  page: Page,
+  name: string,
+  target: Locator | Locator[],
+  pad = 16
+): Promise<void> {
+  await page.evaluate(() => window.scrollTo(0, 0));
+  // Several locators when the thing being photographed isn't one box. A question card's action
+  // strip is `lg:absolute lg:right-full` (QuestionCard.svelte) — a child of the card that renders
+  // OUTSIDE it, so the card's own bounding box stops short of it and a plain padded crop sliced
+  // the strip's buttons in half down the left edge.
+  const boxes = [];
+  for (const locator of Array.isArray(target) ? target : [target]) {
+    const box = await locator.boundingBox();
+    if (!box) throw new Error(`Nothing to frame for ${name}`);
+    boxes.push(box);
+  }
+  const left = Math.min(...boxes.map((b) => b.x));
+  const top = Math.min(...boxes.map((b) => b.y));
+  const box = {
+    x: left,
+    y: top,
+    width: Math.max(...boxes.map((b) => b.x + b.width)) - left,
+    height: Math.max(...boxes.map((b) => b.y + b.height)) - top
+  };
+  await page.screenshot({
+    path: `${OUT}/${name}.png`,
+    fullPage: true,
+    animations: 'disabled',
+    caret: 'hide',
+    clip: {
+      x: Math.max(0, box.x - pad),
+      y: Math.max(0, box.y - pad),
+      width: box.width + pad * 2,
+      height: box.height + pad * 2
+    }
+  });
+}
+
 /** Captures the page's `<main>` — everything but the site header, which is the same in every shot
  * and only eats vertical space in a docs image. */
 async function shotMain(page: Page, name: string): Promise<void> {
-  await page.locator('main').screenshot({ path: `${OUT}/${name}.png` });
+  await shotPadded(page, name, page.locator('main'));
+}
+
+/** The question card's action strip, which sits outside the card's own box at this viewport (see
+ * `shotPadded`). Anchored on its topmost button rather than the container's shape, so it's the
+ * strip's own left edge that frames the shot. */
+function questionActions(page: Page): Locator {
+  return page.getByRole('button', { name: /Try this question|Stop testing this question/ });
 }
 
 /** A crop running vertically from `top`'s upper edge to `bottom`'s lower edge, and horizontally
@@ -80,6 +166,7 @@ async function shotRegion(
   const y = Math.max(0, first.y - pad);
   await page.screenshot({
     path: `${OUT}/${name}.png`,
+    animations: 'disabled',
     clip: {
       x: Math.max(0, frame.x - pad),
       y,
@@ -124,16 +211,25 @@ test('home, builder and player', async ({ page }) => {
   const builder = new BuilderPage(page);
   await builder.gotoEdit('shot-home-1');
   await page.getByText('Which bird gathers in a murmuration?').click();
-  await page.locator('[data-question-id]').screenshot({ path: `${OUT}/builder-form.png` });
+  await shotPadded(page, 'builder-form', [
+    page.locator('[data-question-id]'),
+    questionActions(page)
+  ]);
 
   // Code mode: source on the left, live preview on the right, and the settings legend underneath.
   await builder.gotoEdit('shot-home-1');
   await page.getByRole('button', { name: 'Edit question code' }).click();
-  await page.locator('[data-question-id]').screenshot({ path: `${OUT}/builder-code.png` });
+  await shotPadded(page, 'builder-code', [
+    page.locator('[data-question-id]'),
+    questionActions(page)
+  ]);
 
   // View mode — the card as it sits in a stack, which is what the builder mostly looks like.
   await builder.gotoEdit('shot-home-1');
-  await page.locator('[data-question-id]').screenshot({ path: `${OUT}/builder-view.png` });
+  await shotPadded(page, 'builder-view', [
+    page.locator('[data-question-id]'),
+    questionActions(page)
+  ]);
 
   await shotVariant(
     page,
@@ -163,7 +259,13 @@ test('the nine question variants', async ({ page }) => {
     'variant-type-answer',
     'type_answer: What is the capital of Italy?\n{\n=Rome\n=Roma\n}',
     async (page) => {
-      await page.getByPlaceholder('Type your answer').fill('Rome');
+      const field = page.getByPlaceholder('Type your answer');
+      await field.fill('Rome');
+      // Blurred on purpose. `fill()` leaves the field focused, and whether its focus ring had
+      // painted by the time the shot was taken varied run to run — this was the last image still
+      // producing a binary diff from an unchanged UI. An unfocused filled field is also the
+      // truer picture of "here is an answer typed in".
+      await field.blur();
     }
   );
 
@@ -330,5 +432,5 @@ test('settings and import', async ({ page }) => {
   // The import dialog, including "Load a sample".
   await page.goto('/');
   await page.getByRole('button', { name: 'Import' }).click();
-  await page.getByRole('dialog').screenshot({ path: `${OUT}/import.png` });
+  await shotPadded(page, 'import', page.getByRole('dialog'));
 });

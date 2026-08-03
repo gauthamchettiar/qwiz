@@ -71,7 +71,7 @@
 </script>
 
 <Button size="sm" onclick={openDialog}>
-  <Upload size={15} /> Import Qwiz
+  <Upload size={15} /> Import
 </Button>
 
 <SampleQuizzesDialog bind:this={sampleDialog} />

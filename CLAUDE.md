@@ -54,6 +54,15 @@ Renamed from `single_choice`/`multiple_choice`/`typed`/`character_input`/`order`
 quiz saved under the old keywords reports `Unknown variant` and has to be re-authored. Don't add an
 alias map without asking; the clean break is the point.
 
+**All nine are skippable by default.** `canSubmitDraft` (grading.ts) leaves Submit live whatever
+the draft holds — empty, half-finished or complete — and `require_answer=true` is the author's
+opt-in to the old gate. Note it means complete AND non-empty: `isDraftComplete` alone accepts zero
+selections on a choice question without `min_answers` (`0 >= 0`), so requiring an answer would
+otherwise have gated nothing there. `min_answers` no longer blocks submission on its own; it only
+defines what "complete" means for `require_answer` to enforce. A skipped question gets its own
+`answerVerdict` of `'skipped'` (not `'incorrect'`) — derived from `isDraftEmpty`, never from a
+zero score, since a fully-worked wrong answer scores zero too.
+
 `type_pattern` is the one variant whose `=`/`~` markers are both load-bearing (`=` patterns define
 correct, `~` patterns mark a response explicitly wrong). Every other typed variant forces every
 option `correct: true` at parse time.
@@ -72,8 +81,8 @@ option `correct: true` at parse time.
 | Validation      | zod                                                                                  | schemas in `src/lib/schemas/`; types derive via `z.infer`                  |
 | Language        | TypeScript, `strict: true`                                                           | `astro/tsconfigs/strict` as base, plus a `@/*` path alias                  |
 | Package manager | pnpm                                                                                 | lockfile committed (`pnpm-lock.yaml`), `--frozen-lockfile` in CI           |
-| E2E tests       | Playwright                                                                           | primary safety net — 424 tests (106 per project) across 4 browser projects |
-| Unit tests      | Vitest                                                                               | pure logic in `src/lib/**` — 328 tests                                     |
+| E2E tests       | Playwright                                                                           | primary safety net — 600 tests (150 per project) across 4 browser projects |
+| Unit tests      | Vitest                                                                               | pure logic in `src/lib/**` — 401 tests                                     |
 | Lint / format   | ESLint (flat config) + Prettier + `prettier-plugin-astro` + `prettier-plugin-svelte` |                                                                            |
 | Deploy          | Cloudflare Pages                                                                     | via GitHub Actions, see §8                                                 |
 
@@ -126,7 +135,7 @@ migration.
 │   │   └── svelte/              # every interactive island (.svelte) — no astro/ subfolder yet,
 │   │                             # since nothing here is a static zero-JS component today
 │   ├── layouts/
-│   │   └── Base.astro           # page shell: header (logo, Import, + New Quiz), <main><slot /></main>
+│   │   └── Base.astro           # page shell: header (logo, Import, + New), <main><slot /></main>
 │   ├── lib/                     # framework-agnostic TS: pure logic, no Svelte imports
 │   │   ├── schemas/quiz.ts      # zod Quiz/QuizQuestion schemas; Quiz/QuizDraft types derive from them
 │   │   ├── stores/quizzes.ts    # the only file that touches localStorage — list/get/save/delete
@@ -532,7 +541,7 @@ version of the option row that no longer existed, which is exactly the failure m
 image can't have.
 
 It's a Playwright spec, but deliberately not part of the suite: it lives outside `e2e/` and runs
-under its own `playwright.screenshots.config.ts` (one chromium project, `deviceScaleFactor: 2`,
+under its own `playwright.screenshots.config.ts` (one chromium project, `deviceScaleFactor: 1`,
 a viewport wide enough for code mode's two columns but under the `xl:` breakout). It asserts
 nothing, so running it in CI would only write files nobody reads.
 
@@ -540,9 +549,20 @@ Rules for it:
 
 - **Re-run it after any UI change a documented screen would show, and commit the diff.** A doc
   screenshot showing a control that no longer exists is worse than no screenshot.
-- Everything random is pinned (`shuffle_questions`/`shuffle_options` off, fixed `createdAt`), so a
-  re-run with no UI change produces a byte-identical image and an empty diff. Keep it that way —
-  an unpinned shuffle would put a spurious binary diff in every commit that touches this.
+- Everything nondeterministic is pinned, so a re-run with no UI change produces a byte-identical
+  image and an empty diff. Keep it that way — anything unpinned puts a spurious binary diff in
+  every commit that touches this. Four separate sources had to be nailed down, and all four are
+  live: `shuffle_questions`/`shuffle_options` off plus a fixed `createdAt`; a seeded stand-in for
+  `Math.random` (the four `ALWAYS_SHUFFLED_VARIANTS` boards shuffle regardless of
+  `shuffle_options`, by design); `animations: 'disabled'`, since most boards are captured
+  mid-interaction with a transition still running; and `caret: 'hide'` plus an explicit `blur()`
+  on the one shot that leaves a field focused.
+- Every image goes through `shotPadded`, which clips a padded rectangle out of a full-page
+  screenshot rather than calling `locator.screenshot()`. An element screenshot clips to the border
+  box, which put each card's own border flush against the image edge and cut the import dialog's
+  shadow off entirely; the padded clip fills that gutter with the real page background. It takes
+  several locators where the subject isn't one box — a question card's action strip is
+  `lg:absolute lg:right-full`, so it renders outside the card's own bounding box.
 - Content reads like a real quiz, not like a fixture. These images are the first thing anyone sees
   of the app; `e2e-quiz-1` in a README is worse than no README.
 - Prefer an element or region crop over a full-page one, and capture boards **mid-answer** — an

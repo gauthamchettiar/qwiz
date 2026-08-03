@@ -1,6 +1,6 @@
 ---
 title: Beat the Clock
-description: Twenty seconds a question, five questions drawn at random from a bigger bank, and the reveal screen moves on without waiting for you. Run it twice — you won't get the same five.
+description: Twenty seconds a question, five questions drawn at random from a bigger bank, and the reveal screen moves on without waiting for you. No skipping either — commit to an answer or let the clock decide. Run it twice — you won't get the same five.
 category: general knowledge
 tags: [timer, speed, random]
 :questions_per_run=5
@@ -8,6 +8,7 @@ tags: [timer, speed, random]
 :timer_mode=per_question
 :timer_seconds=20
 :on_timeout=auto_submit
+:require_answer=true
 :reveal_screen_seconds=4
 :show_running_score=true
 :percent_to_win=60

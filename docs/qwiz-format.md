@@ -27,8 +27,8 @@ type_answer: What is the capital of Japan?
 :typo_tolerance=15
 ```
 
-This is real, importable source — paste it into **Import Qwiz** to try it. More full examples of
-every feature below are built into the app itself (Import Qwiz → "Load a sample").
+This is real, importable source — paste it into **Import** to try it. More full examples of
+every feature below are built into the app itself (Import → "Load a sample").
 
 ## Frontmatter
 
@@ -384,7 +384,7 @@ Written as `:key=value` lines, before or after the option block. Full reference 
 type/default/applicable variant(s), and how settings behave in combination (which combinations are
 rejected, which are harmless no-ops, and which are valid but non-obvious) — lives in
 [`settings.md`](./settings.md#per-question-settings). In brief: scoring (`point`, `penalty`,
-`partial_credit`), selection limits (`min_answers`, `max_answers`), choice-only display
+`partial_credit`), answering (`require_answer`, `min_answers`, `max_answers`), choice-only display
 (`options_layout`, `shuffle_options`), typed matching (`match_case`, `number_tolerance`,
 `typo_tolerance`, `typed_input`), and guess_letters's own (`letter_bank`,
 `letter_bank_chars`, `letter_reveal`, `letters_shown_at_start`). `options_layout` accepts `list`,
@@ -435,7 +435,7 @@ Both are equivalent; use whichever reads better for a given piece of content.
 
 ## Full examples
 
-Also available in-app via Import Qwiz → "Load a sample".
+Also available in-app via Import → "Load a sample".
 
 **Choice/typed scoring** (multi-select partial credit, per-option weights, typed matching) — also
 via "Load a sample" → **Advanced Scoring**:

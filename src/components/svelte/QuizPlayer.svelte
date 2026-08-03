@@ -16,7 +16,8 @@
     draftFromAnswer,
     gradeDraft,
     gradeRun,
-    isDraftComplete,
+    canSubmitDraft,
+    isAnswerEmpty,
     questionMaxPoints,
     settingNumber,
     settingString,
@@ -135,7 +136,7 @@
   const current = $derived(run[currentIndex]);
   const isLast = $derived(currentIndex === run.length - 1);
   const currentDraft = $derived(draftAnswers[currentIndex] ?? blankDraft());
-  const canSubmit = $derived(current ? isDraftComplete(current.question, currentDraft) : false);
+  const canSubmit = $derived(current ? canSubmitDraft(current.question, currentDraft) : false);
 
   function handleDraftChange(draft: QuestionDraft) {
     draftAnswers[currentIndex] = draft;
@@ -433,9 +434,16 @@
         </p>
         <div class="mx-auto max-w-xs space-y-1">
           {#each results as result, i (i)}
+            {@const answer = answers[i]}
+            {@const wasSkipped =
+              answer !== undefined &&
+              run[i] !== undefined &&
+              isAnswerEmpty(run[i].question, answer)}
             <div class="flex items-center justify-between text-xs text-ink-subtle">
               <span>Question {i + 1}</span>
-              <span>{result.earned} / {result.max}</span>
+              <!-- A skipped question and a wrong one both score 0, so the number alone can't tell
+                   them apart — which is the single most useful thing this list can say. -->
+              <span>{wasSkipped ? 'Skipped' : `${result.earned} / ${result.max}`}</span>
             </div>
           {/each}
         </div>

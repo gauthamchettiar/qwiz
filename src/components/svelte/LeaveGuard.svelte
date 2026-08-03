@@ -9,7 +9,7 @@
   //
   // Two mechanisms, because no single one covers every way of leaving:
   //
-  // - A capture-phase click listener catches in-page links (the header logo, "+ New Quiz", the
+  // - A capture-phase click listener catches in-page links (the header logo, "+ New", the
   //   play screen's "Back"), which is the common case and the only one where a real dialog with
   //   real wording is possible.
   // - `beforeunload` is the fallback for everything a click listener can't see coming: browser

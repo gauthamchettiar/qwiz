@@ -38,7 +38,8 @@ test('order with answer_mode=type: fields instead of a board, graded on the type
   // The items still have to be visible somewhere, or the question is unanswerable.
   await expect(page.getByText('Items to place, in no particular order')).toBeVisible();
 
-  await expect(play.submitAnswerButton).toBeDisabled();
+  // Live from the start — the empty question is skippable, like every other variant.
+  await expect(play.submitAnswerButton).toBeEnabled();
   await page.getByLabel('Answer for position 1').fill('First');
   await page.getByLabel('Answer for position 2').fill('Second');
   await page.getByLabel('Answer for position 3').fill('Third');
