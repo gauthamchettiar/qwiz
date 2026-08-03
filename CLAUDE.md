@@ -24,7 +24,11 @@ Hard constraints — never violate without explicit approval:
 - Anything dynamic happens in the browser: `fetch`, `localStorage`, `crypto.randomUUID`. The
   `/local/edit` and `/local/play` routes read a quiz id from `?id=` at runtime and render
   `client:only="svelte"` — there is no dynamic route to prerender, since quiz ids only ever exist
-  in a visitor's own browser, never at build time.
+  in a visitor's own browser, never at build time. `/play` is the same shape for a quiz that isn't
+  in this browser at all: it reads a compressed `.qwiz` document out of the URL **fragment**
+  (`#q=…`) and plays it from memory. The fragment, not a query string, is the whole point — it's
+  never transmitted to the host, so a shared quiz stays as private as a stored one and isn't
+  subject to any request-line length limit. See `lib/utils/shareLink.ts`.
 - The build output in `dist/` must be servable from any dumb static host with no config beyond
   SPA-ish handling. Currently deployed to **Cloudflare Pages** (see §8) — no `base`/subpath
   config needed there, unlike GitHub Pages.
@@ -54,6 +58,23 @@ Renamed from `single_choice`/`multiple_choice`/`typed`/`character_input`/`order`
 quiz saved under the old keywords reports `Unknown variant` and has to be re-authored. Don't add an
 alias map without asking; the clean break is the point.
 
+### Playing: the welcome screen
+
+**Every run starts on a welcome screen**, in `QuizPlayer.svelte` — the title, the description, and
+a rules list derived from that quiz's own settings (`buildQuizRules` in `lib/utils/quizRules.ts`,
+which is pure and framework-free, so it names an ICON rather than importing one; `QuizPlayer` owns
+the one `Record<QuizRuleIcon, …>` that resolves them). It's gated by a `started` flag with no
+author opt-out and no new setting, so there is exactly one entry path for both local and shared
+quizzes.
+
+The load-bearing part is that **no clock ticks before Start**: the per-question and per-quiz timer
+`$effect`s are guarded on `!started`, and `LeaveGuard` is `started && !finished` (nothing has been
+entered yet, so there's nothing to warn about). "Play again" deliberately does NOT return here.
+Only rules that actually apply are emitted — a line per non-behaviour is the noise that makes
+players skip the screen. `quizRules.test.ts` carries a coverage guard, in the spirit of
+`settingsDoc.test.ts`: adding a key to `QUIZ_SETTING_RULES` fails it until someone decides whether
+the welcome screen should mention it.
+
 **All nine are skippable by default.** `canSubmitDraft` (grading.ts) leaves Submit live whatever
 the draft holds — empty, half-finished or complete — and `require_answer=true` is the author's
 opt-in to the old gate. Note it means complete AND non-empty: `isDraftComplete` alone accepts zero
@@ -81,8 +102,8 @@ option `correct: true` at parse time.
 | Validation      | zod                                                                                  | schemas in `src/lib/schemas/`; types derive via `z.infer`                  |
 | Language        | TypeScript, `strict: true`                                                           | `astro/tsconfigs/strict` as base, plus a `@/*` path alias                  |
 | Package manager | pnpm                                                                                 | lockfile committed (`pnpm-lock.yaml`), `--frozen-lockfile` in CI           |
-| E2E tests       | Playwright                                                                           | primary safety net — 600 tests (150 per project) across 4 browser projects |
-| Unit tests      | Vitest                                                                               | pure logic in `src/lib/**` — 401 tests                                     |
+| E2E tests       | Playwright                                                                           | primary safety net — 660 tests (165 per project) across 4 browser projects |
+| Unit tests      | Vitest                                                                               | pure logic in `src/lib/**` — 482 tests                                     |
 | Lint / format   | ESLint (flat config) + Prettier + `prettier-plugin-astro` + `prettier-plugin-svelte` |                                                                            |
 | Deploy          | Cloudflare Pages                                                                     | via GitHub Actions, see §8                                                 |
 
@@ -127,7 +148,10 @@ migration.
 │   │                            # drag.ts (pointer-drag gesture), hydration.ts (island-ready wait)
 │   └── *.spec.ts
 ├── public/                      # copied verbatim to dist/ root
-│   ├── favicon.svg
+│   ├── favicon.svg              # the Wordmark's four ransom-note chips, stacked 2x2 so they
+│   │                            # survive 16px. Colours are the light theme's tokens resolved to
+│   │                            # HEX — a favicon can't read global.css, so re-theming the
+│   │                            # wordmark means editing this file too
 │   ├── robots.txt               # Disallow: / — see §1, "Deliberately not indexed"
 │   └── _headers                 # Cloudflare Pages security headers (CSP, etc.) — see §5
 ├── src/
@@ -141,12 +165,17 @@ migration.
 │   │   ├── stores/quizzes.ts    # the only file that touches localStorage — list/get/save/delete
 │   │   └── utils/                # quizScript.ts (parser/serializer), grading.ts, shuffle.ts,
 │   │                             # youtube.ts, download.ts, suggestions.ts, sampleQuizzes.ts,
-│   │                             # numericInput.ts,
-│   │                             # importQwiz.ts, clickOutside.ts, dragDrop.ts,
+│   │                             # numericInput.ts, quizRules.ts (the welcome screen's rules
+│   │                             # list), shareLink.ts (compress a quiz into a URL fragment),
+│   │                             # qwizDocument.ts (a saved Quiz -> .qwiz source; the inverse of
+│   │                             # importQwiz.ts), clickOutside.ts, dragDrop.ts,
 │   │                             # questionFocus.ts
 │   ├── pages/
 │   │   ├── index.astro          # quiz list
 │   │   ├── 404.astro            # custom not-found page, matches the app's own visual language
+│   │   ├── play.astro           # SharedQuizPlayPage, client:only — a shared quiz decoded from
+│   │   │                        # `#q=`. Deliberately NOT under local/, which means "from this
+│   │   │                        # browser's storage"
 │   │   └── local/
 │   │       ├── create.astro     # QuizBuilder, client:load
 │   │       ├── edit.astro       # QuizEditPage, client:only (reads ?id= at runtime)
@@ -341,6 +370,37 @@ the caret stays put); the tick applies and closes. The preview scrolls to whiche
 caret is in, derived from the draft's own blank-line-separated block structure rather than from
 `questions`, since those two disagree the moment anything is typed.
 
+### Share links (`lib/utils/shareLink.ts`)
+
+A whole `.qwiz` document, deflated and base64url'd into `/play#q=<version>.<payload>`. Points that
+are decisions, not incidentals:
+
+- **Compression is `CompressionStream('deflate-raw')`**, the platform's own — no dependency, per
+  §2. The cost, stated because it's real: encode/decode are async, and it needs Safari 16.4+ /
+  Firefox 113+ / Chrome 103+.
+- **The payload carries a version digit** so a future format change is rejected with a real message
+  instead of decoding into garbage. The three failure modes (wrong version, malformed base64,
+  failed inflate) get three distinct messages, because they ask different things of the reader.
+- **A shared quiz is never auto-saved.** `SharedQuizPlayPage` builds it via `quizFromQwizSource`
+  (the non-persisting half of `importQwiz.ts`) and plays it from memory; "Save a copy" is the opt
+  in, and it goes through `importQwizSource` like every other import. `share-link.spec.ts` asserts
+  the library is still empty after a full play-through — a UI assertion can't tell "not persisted"
+  from "persisted but not shown".
+- **Length is a hard gate, not just a warning.** `shareUrlVerdict` returns `ok` / `long` (past
+  `SHARE_URL_WARN_LENGTH`, where chat clients and mail gateways start truncating — warn and hand it
+  over) / `too-long` (past `SHARE_URL_MAX_LENGTH`, where browsers stop accepting URLs — refuse
+  outright and point at Download `.qwiz`). A URL that silently fails when pasted is worse than
+  being told to send the file. Only embedded base64 image data actually gets a quiz there, which is
+  why the unit and e2e tests both build that case from an xorshift PRNG: a repeating pattern
+  deflates away and would prove the opposite of the point.
+- The size verdict lives in the dialog, not on the menu item that opens it — a document's
+  compressed length isn't knowable without compressing it.
+- **`qwizSourceFromQuiz` (qwizDocument.ts) is the only way a SAVED quiz becomes a document.**
+  Share and Download, from both the quiz list and the edit screen, all go through it, so they can't
+  drift into exporting subtly different documents for the same quiz. Not to be confused with
+  `QuizBuilder`'s own `currentDocumentForExport`, which serializes live, possibly-unsaved form
+  state and therefore genuinely can't share that code path.
+
 ### Security headers (`public/_headers`)
 
 Cloudflare Pages reads this file verbatim. `script-src`/`style-src` include `'unsafe-inline'`
@@ -530,6 +590,11 @@ The one thing genuinely under test — authoring — is always driven through th
   to fix — Firefox reports YouTube's rejected cross-site cookie as an _error_, which failed CI while
   the app worked perfectly, and it reproduced on no other browser.
 - Page Object Models in `e2e/pages/` — locators and actions live there, assertions live in specs.
+- **`PlayPage.goto` clicks through the welcome screen by default** (`{ start: false }` opts out).
+  That's how one page-object change absorbed the ~56 call sites that all mean "on this quiz, ready
+  to answer". The tradeoff, named rather than hidden: a behavioural default in a page object can
+  hide a screen from a spec that meant to see it, so the opt-outs are explicit and documented in
+  its JSDoc. `gotoShared` is the same shape for a `/play#q=…` link.
 - When fixing a bug: write the failing test first, then fix it. State in the response which test
   now covers the regression.
 

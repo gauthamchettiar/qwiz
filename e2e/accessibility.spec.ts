@@ -1,4 +1,6 @@
 import { test } from '@playwright/test';
+import { BuilderPage } from './pages/BuilderPage';
+import { PlayPage } from './pages/PlayPage';
 import {
   buildCategoriseQuiz,
   buildCharacterInputQuiz,
@@ -34,7 +36,26 @@ test('the create-quiz builder has no serious accessibility violations', async ({
 test('the play screen has no serious accessibility violations', async ({ page }) => {
   const quiz = buildQuiz();
   await seedQuizzes(page, [quiz]);
-  await page.goto(`/local/play?id=${quiz.id}`);
+  await new PlayPage(page).goto(quiz.id);
+  await expectNoSeriousA11yViolations(page);
+});
+
+// The welcome screen is muted text and muted icons on a raised surface — exactly the arrangement
+// that produced this suite's earlier contrast failures, and now the first screen of every run.
+test('the play welcome screen has no serious accessibility violations', async ({ page }) => {
+  const quiz = buildQuiz();
+  await seedQuizzes(page, [quiz]);
+  await new PlayPage(page).goto(quiz.id, { start: false });
+  await expectNoSeriousA11yViolations(page);
+});
+
+test('the share-link dialog has no serious accessibility violations', async ({ page }) => {
+  const quiz = buildQuiz();
+  await seedQuizzes(page, [quiz]);
+
+  const builder = new BuilderPage(page);
+  await builder.gotoEdit(quiz.id);
+  await builder.shareLink();
   await expectNoSeriousA11yViolations(page);
 });
 
@@ -43,7 +64,7 @@ test('a guess_letters question (letter bank + answer row) has no serious accessi
 }) => {
   const quiz = buildCharacterInputQuiz();
   await seedQuizzes(page, [quiz]);
-  await page.goto(`/local/play?id=${quiz.id}`);
+  await new PlayPage(page).goto(quiz.id);
   await expectNoSeriousA11yViolations(page);
 });
 
@@ -52,7 +73,7 @@ test('an order question (pick-and-place board) has no serious accessibility viol
 }) => {
   const quiz = buildOrderQuiz();
   await seedQuizzes(page, [quiz]);
-  await page.goto(`/local/play?id=${quiz.id}`);
+  await new PlayPage(page).goto(quiz.id);
   await expectNoSeriousA11yViolations(page);
 });
 
@@ -61,7 +82,7 @@ test('a match question (two-column board) has no serious accessibility violation
 }) => {
   const quiz = buildMatchQuiz();
   await seedQuizzes(page, [quiz]);
-  await page.goto(`/local/play?id=${quiz.id}`);
+  await new PlayPage(page).goto(quiz.id);
   await expectNoSeriousA11yViolations(page);
 });
 
@@ -70,7 +91,7 @@ test('a group_items question (bucket board) has no serious accessibility violati
 }) => {
   const quiz = buildCategoriseQuiz();
   await seedQuizzes(page, [quiz]);
-  await page.goto(`/local/play?id=${quiz.id}`);
+  await new PlayPage(page).goto(quiz.id);
   await expectNoSeriousA11yViolations(page);
 });
 
@@ -79,7 +100,7 @@ test('a fill_blanks question (bank mode) has no serious accessibility violations
 }) => {
   const quiz = buildFillInBlanksQuiz();
   await seedQuizzes(page, [quiz]);
-  await page.goto(`/local/play?id=${quiz.id}`);
+  await new PlayPage(page).goto(quiz.id);
   await expectNoSeriousA11yViolations(page);
 });
 
@@ -103,7 +124,7 @@ test('a fill_blanks question (type mode) has no serious accessibility violations
     ]
   });
   await seedQuizzes(page, [quiz]);
-  await page.goto(`/local/play?id=${quiz.id}`);
+  await new PlayPage(page).goto(quiz.id);
   await expectNoSeriousA11yViolations(page);
 });
 
@@ -139,7 +160,7 @@ for (const theme of [
     await page.goto(`/local/edit?id=${quiz.id}`);
     await expectNoSeriousA11yViolations(page);
 
-    await page.goto(`/local/play?id=${quiz.id}`);
+    await new PlayPage(page).goto(quiz.id);
     await page.getByLabel('Paris', { exact: true }).check();
     await page.getByRole('button', { name: 'Submit answer' }).click();
     await expectNoSeriousA11yViolations(page);

@@ -50,6 +50,20 @@ export class HomePage {
     return this.page.getByRole('button', { name: 'Download .qwiz' });
   }
 
+  shareMenuItem(): Locator {
+    return this.page.getByRole('button', { name: 'Share link' });
+  }
+
+  /** Opens a card's ⋮ → Share link and returns the URL the dialog built. Waits for the field
+   * rather than reading it straight away, since compression is async. */
+  async shareLink(title: string): Promise<string> {
+    await this.openCardMenu(title);
+    await this.shareMenuItem().click();
+    const input = this.page.getByLabel('Share link');
+    await input.waitFor();
+    return input.inputValue();
+  }
+
   deleteMenuItem(): Locator {
     return this.page.getByRole('button', { name: 'Delete', exact: true });
   }

@@ -9,6 +9,9 @@ export class BuilderPage {
   readonly addQuestionButton: Locator;
   readonly saveButton: Locator;
   readonly downloadButton: Locator;
+  readonly shareLinkButton: Locator;
+  readonly shareUrlInput: Locator;
+  readonly copyShareLinkButton: Locator;
   /** Play, Download and Delete moved behind this once the edit screen had five competing
    * buttons — see QuizBuilder's header. `openMoreActions()` is how a spec reaches them. */
   readonly moreActionsButton: Locator;
@@ -29,6 +32,9 @@ export class BuilderPage {
     this.addQuestionButton = page.getByRole('button', { name: 'Add question' });
     this.saveButton = page.getByRole('button', { name: 'Save to this browser' });
     this.downloadButton = page.getByRole('button', { name: 'Download .qwiz' });
+    this.shareLinkButton = page.getByRole('button', { name: 'Share link' });
+    this.shareUrlInput = page.getByLabel('Share link');
+    this.copyShareLinkButton = page.getByRole('button', { name: /^(Copy|Copied)$/ });
     this.moreActionsButton = page.getByRole('button', { name: 'More quiz actions' });
     this.savedFlash = page.getByText('Saved', { exact: true });
     this.deleteQuizButton = page.getByRole('button', { name: 'Delete quiz' });
@@ -56,6 +62,15 @@ export class BuilderPage {
     if ((await this.moreActionsButton.getAttribute('aria-expanded')) !== 'true') {
       await this.moreActionsButton.click();
     }
+  }
+
+  /** Opens the ⋮ menu's "Share link" and returns the URL it built. The dialog compresses
+   * asynchronously, so this waits for the field rather than reading it straight away. */
+  async shareLink(): Promise<string> {
+    await this.openMoreActions();
+    await this.shareLinkButton.click();
+    await this.shareUrlInput.waitFor();
+    return (await this.shareUrlInput.inputValue()) ?? '';
   }
 
   /** The Nth question card's own text field, once it's open in form mode (true right after

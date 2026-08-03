@@ -1,11 +1,16 @@
 <script lang="ts">
-  import { Download, Play, Trash2 } from '@lucide/svelte';
+  import { Download, Link2, Play, Trash2 } from '@lucide/svelte';
   import { deleteQuiz, listQuizzes } from '@/lib/stores/quizzes';
   import { downloadTextFile, slugify } from '@/lib/utils/download';
-  import { serializeQuizScript } from '@/lib/utils/quizScript';
+  import { qwizSourceFromQuiz } from '@/lib/utils/qwizDocument';
   import type { Quiz } from '@/lib/schemas/quiz';
   import CardMenu from './CardMenu.svelte';
   import ErrorList from './ErrorList.svelte';
+  import ShareQuizDialog from './ShareQuizDialog.svelte';
+
+  // One dialog for the whole list, not one per card — it's a modal, so only ever one can be open,
+  // and mounting N of them would put N <dialog> elements in the document for no reason.
+  let shareDialog: ShareQuizDialog | undefined = $state();
 
   // A writable $derived: it reads from localStorage once at hydration time (the page is
   // prerendered to static HTML, where localStorage doesn't exist yet — listQuizzes() already
@@ -24,17 +29,11 @@
   }
 
   function downloadQuiz(quiz: Quiz) {
-    const doc = serializeQuizScript(
-      {
-        title: quiz.title,
-        description: quiz.description,
-        category: quiz.category,
-        tags: quiz.tags,
-        settings: quiz.settings
-      },
-      quiz.questions.map((q) => q.code)
-    );
-    downloadTextFile(`${slugify(quiz.title)}.qwiz`, doc);
+    downloadTextFile(`${slugify(quiz.title)}.qwiz`, qwizSourceFromQuiz(quiz));
+  }
+
+  function shareQuiz(quiz: Quiz) {
+    void shareDialog?.open(qwizSourceFromQuiz(quiz));
   }
 
   function removeQuiz(id: string) {
@@ -107,6 +106,16 @@
                 type="button"
                 class="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left text-sm text-ink-muted hover:bg-surface"
                 onclick={() => {
+                  shareQuiz(quiz);
+                  close();
+                }}
+              >
+                <Link2 size={15} /> Share link
+              </button>
+              <button
+                type="button"
+                class="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left text-sm text-ink-muted hover:bg-surface"
+                onclick={() => {
                   downloadQuiz(quiz);
                   close();
                 }}
@@ -141,3 +150,5 @@
     {/each}
   </ul>
 {/if}
+
+<ShareQuizDialog bind:this={shareDialog} />

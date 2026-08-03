@@ -8,6 +8,7 @@
     Code,
     Download,
     FolderOpen,
+    Link2,
     Play,
     Plus,
     Tag as TagIcon,
@@ -43,6 +44,7 @@
   import SettingsLegend from './SettingsLegend.svelte';
   import SuggestionInput from './SuggestionInput.svelte';
   import QuestionCard from './QuestionCard.svelte';
+  import ShareQuizDialog from './ShareQuizDialog.svelte';
 
   // `initial` present = editing a previously saved quiz (see QuizEditPage.svelte); absent =
   // creating a brand-new one. Every field below is seeded from it once at mount (`untrack`, same
@@ -707,22 +709,31 @@
     window.location.href = `/local/play?id=${quiz.id}`;
   }
 
-  // Downloads whatever's currently in the builder, valid or not — unlike Save, this never writes
-  // to the quiz library, so there's nothing to protect by blocking on the title-required check.
-  function downloadQwiz() {
-    // In whole-file mode the draft on screen already IS the document — download exactly that,
-    // valid or not, rather than re-serializing the pre-edit state behind it.
-    if (fileDraft !== null) {
-      downloadTextFile(`${slugify(title)}.qwiz`, fileDraft);
-      return;
-    }
+  // Whatever's currently in the builder as one `.qwiz` document, valid or not — unlike Save,
+  // neither export path writes to the quiz library, so there's nothing to protect by blocking on
+  // the title-required check. In whole-file mode the draft on screen already IS the document, so
+  // it's used exactly as typed rather than re-serializing the pre-edit state behind it.
+  let shareDialog: ShareQuizDialog | undefined = $state();
+
+  function currentDocumentForExport(): string {
+    if (fileDraft !== null) return fileDraft;
     addTag();
     commitActiveDraft();
-    const doc = serializeQuizScript(
+    return serializeQuizScript(
       currentFrontmatter(),
       questions.map((q) => q.code)
     );
-    downloadTextFile(`${slugify(title)}.qwiz`, doc);
+  }
+
+  function downloadQwiz() {
+    downloadTextFile(`${slugify(title)}.qwiz`, currentDocumentForExport());
+  }
+
+  // The size verdict lives in the dialog, not on this menu item: a document's compressed length —
+  // the thing that decides whether it fits in a URL at all — isn't knowable without compressing it,
+  // which is async. See ShareQuizDialog.
+  function shareQwiz() {
+    void shareDialog?.open(currentDocumentForExport());
   }
 
   // Only rendered when `initial` is set (see the footer markup) — Delete only ever appears on
@@ -760,6 +771,16 @@
            after writing the thing you're saving, and one Save is less ambiguous than two. -->
       <CardMenu ariaLabel="More quiz actions" onClose={() => (confirmingDelete = false)}>
         {#snippet children(close)}
+          <button
+            type="button"
+            class="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left text-sm text-ink-muted hover:bg-surface"
+            onclick={() => {
+              shareQwiz();
+              close();
+            }}
+          >
+            <Link2 size={15} /> Share link
+          </button>
           <button
             type="button"
             class="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left text-sm text-ink-muted hover:bg-surface"
@@ -1203,6 +1224,8 @@
     <Button variant="primary" onclick={save}>Save to this browser</Button>
   </div>
 </div>
+
+<ShareQuizDialog bind:this={shareDialog} />
 
 <!-- Nothing here is persisted until Save, so leaving with edits outstanding loses them outright —
      the same class of loss a run in progress faces, and the same guard. -->

@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { buildQuiz } from './fixtures/quizzes';
 import { BuilderPage } from './pages/BuilderPage';
 import { HomePage } from './pages/HomePage';
+import { PlayPage } from './pages/PlayPage';
 import { resetStorage, seedQuizzes, simulateStorageFull } from './utils/storage';
 
 test.beforeEach(async ({ page }) => {
@@ -60,6 +61,7 @@ test('Play on a brand-new quiz saves it first, then plays it', async ({ page }) 
   await builder.openMoreActions();
   await page.getByRole('button', { name: 'Play' }).click();
   await expect(page).toHaveURL(/\/local\/play\?id=.+/);
+  await new PlayPage(page).start();
   await expect(page.getByText('What is the capital of France?')).toBeVisible();
 
   const home = new HomePage(page);

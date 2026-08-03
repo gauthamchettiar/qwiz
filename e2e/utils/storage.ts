@@ -20,6 +20,15 @@ export async function seedQuizzes(page: Page, quizzes: Quiz[]): Promise<void> {
   });
 }
 
+/** How many quizzes are currently in the library — for asserting that something did NOT persist,
+ * which a UI assertion can't distinguish from "persisted but not shown". */
+export async function storedQuizCount(page: Page): Promise<number> {
+  return page.evaluate((key) => {
+    const raw = localStorage.getItem(key);
+    return raw ? Object.keys(JSON.parse(raw)).length : 0;
+  }, STORAGE_KEY);
+}
+
 /** Makes every `localStorage.setItem` call throw, as real browsers do once storage is full or
  * (Safari) private browsing disables it entirely — for specs verifying the app surfaces that
  * failure instead of silently claiming success. Must be called before `page.goto`, since it

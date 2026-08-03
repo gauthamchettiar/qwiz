@@ -102,7 +102,8 @@ test('shows post-question analysis on the intermediate screen, but not on the en
 
 test('shows a not-found message for an unknown quiz id', async ({ page }) => {
   const play = new PlayPage(page);
-  await play.goto('does-not-exist');
+  // No welcome screen to click through on a quiz that doesn't exist.
+  await play.goto('does-not-exist', { start: false });
   await expect(play.notFoundMessage).toBeVisible();
 });
 

@@ -24,14 +24,22 @@ mkdirSync(OUT, { recursive: true });
 
 const now = '2025-01-01T00:00:00.000Z';
 
-function quiz(id: string, title: string, description: string, codes: string[]): Quiz {
+function quiz(
+  id: string,
+  title: string,
+  description: string,
+  codes: string[],
+  settings: Quiz['settings'] = {}
+): Quiz {
   return {
     id,
     title,
     description,
     category: 'general knowledge',
     tags: ['sample'],
-    settings: { shuffle_questions: false, shuffle_options: false },
+    // The two shuffles stay pinned off whatever a caller adds — every image here has to be
+    // byte-identical across runs (see the seeded Math.random below).
+    settings: { ...settings, shuffle_questions: false, shuffle_options: false },
     createdAt: now,
     updatedAt: now,
     questions: codes.map((code, i) => ({ id: `${id}-q${i + 1}`, code }))
@@ -230,6 +238,26 @@ test('home, builder and player', async ({ page }) => {
     page.locator('[data-question-id]'),
     questionActions(page)
   ]);
+
+  // The welcome screen — now the first thing anyone sees when they press Play. Settings chosen so
+  // the rules list shows several genuinely different kinds of rule (a clock, a reveal policy, a
+  // win threshold) rather than only the ones every quiz has.
+  await seed(page, [
+    quiz(
+      'shot-welcome',
+      'Pub Quiz Night',
+      'Six rounds, no phones, loser buys the next round.',
+      [
+        'pick_one: Which bird gathers in a murmuration?\n{\n=Starlings\n~Swifts\n~Swallows\n}',
+        'type_answer: What is the capital of Italy?\n{\n=Rome\n}',
+        'order_items: Put these in chronological order\n{\n=Bronze Age\n=Iron Age\n=Middle Ages\n}'
+      ],
+      { timer_mode: 'per_quiz', timer_seconds: 300, reveal_scores: 'at_end', percent_to_win: 60 }
+    )
+  ]);
+  const welcome = new PlayPage(page);
+  await welcome.goto('shot-welcome', { start: false });
+  await shotMain(page, 'player-welcome');
 
   await shotVariant(
     page,
@@ -433,4 +461,10 @@ test('settings and import', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Import' }).click();
   await shotPadded(page, 'import', page.getByRole('dialog'));
+
+  // The share dialog, with a real link in it. Its URL is deterministic for a fixed document —
+  // deflate is, and the preview server's origin is fixed — so this image stays byte-identical.
+  await builder.gotoEdit('shot-settings');
+  await builder.shareLink();
+  await shotPadded(page, 'share-dialog', page.getByRole('dialog'));
 });

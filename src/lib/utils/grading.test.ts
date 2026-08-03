@@ -37,6 +37,7 @@ import {
   typedSlotExpectations,
   isTypedMatch,
   levenshteinDistance,
+  locksOnSubmit,
   matchedPatternIndex,
   matchTypedGuesses,
   normalizeTypedAnswer,
@@ -1047,6 +1048,24 @@ describe('gradeRun', () => {
   it('a zero-max run never wins and reports 0%', () => {
     const result = gradeRun([], {});
     expect(result).toEqual({ earned: 0, max: 0, percentage: 0, won: false });
+  });
+});
+
+describe('locksOnSubmit', () => {
+  it('locks when either reveal setting is live — including by default', () => {
+    expect(locksOnSubmit({})).toBe(true);
+    expect(locksOnSubmit({ reveal_answers: 'after_every_question', reveal_scores: 'at_end' })).toBe(
+      true
+    );
+    expect(locksOnSubmit({ reveal_answers: 'never', reveal_scores: 'after_every_question' })).toBe(
+      true
+    );
+  });
+
+  it('leaves navigation free only when neither setting reveals anything live', () => {
+    expect(locksOnSubmit({ reveal_answers: 'at_end', reveal_scores: 'at_end' })).toBe(false);
+    expect(locksOnSubmit({ reveal_answers: 'never', reveal_scores: 'never' })).toBe(false);
+    expect(locksOnSubmit({ reveal_answers: 'at_end', reveal_scores: 'never' })).toBe(false);
   });
 });
 

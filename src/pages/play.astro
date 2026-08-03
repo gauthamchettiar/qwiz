@@ -1,0 +1,10 @@
+---
+import Base from '@/layouts/Base.astro';
+import SharedQuizPlayPage from '@/components/svelte/SharedQuizPlayPage.svelte';
+---
+
+<!-- Deliberately NOT under /local/: everything there reads a quiz out of this browser's own
+     storage, and a shared quiz is the one thing that doesn't exist there. -->
+<Base title="Play Quiz" minimal>
+  <SharedQuizPlayPage client:only="svelte" />
+</Base>

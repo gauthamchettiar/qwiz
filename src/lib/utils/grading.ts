@@ -1430,6 +1430,20 @@ export function buildPlayRun(
   });
 }
 
+/** Whether answering a question locks it in on the spot, rather than leaving the player free to
+ * move between questions and submit the whole run at the end: true when EITHER `reveal_answers` or
+ * `reveal_scores` is `after_every_question`, because a live reveal makes revisiting that question
+ * retroactively informative. The full reasoning lives in QuizPlayer.svelte's comment above
+ * `locksAnswerImmediately`, which reads this rather than restating it — extracted because the
+ * welcome screen's rules list (`buildQuizRules`) has to describe the same navigation model to the
+ * player up front, and two copies of this decision could disagree. */
+export function locksOnSubmit(quizSettings: QuizScriptSettings): boolean {
+  return (
+    settingString(quizSettings.reveal_answers, 'after_every_question') === 'after_every_question' ||
+    settingString(quizSettings.reveal_scores, 'after_every_question') === 'after_every_question'
+  );
+}
+
 export interface QuizRunResult {
   earned: number;
   max: number;

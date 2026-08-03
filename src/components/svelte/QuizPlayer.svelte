@@ -1,9 +1,23 @@
 <script lang="ts">
   import { fade } from 'svelte/transition';
   import {
+    AlarmClock,
+    ArrowLeftRight,
+    BookmarkPlus,
+    Check,
     ChevronRight,
     ChevronLeft,
+    CircleCheck,
+    CircleMinus,
+    Coins,
+    Eye,
+    EyeOff,
+    FastForward,
+    Lock,
+    Play,
     RotateCcw,
+    Shuffle,
+    SkipForward,
     Trophy,
     ListChecks,
     Timer,
@@ -18,6 +32,7 @@
     gradeRun,
     canSubmitDraft,
     isAnswerEmpty,
+    locksOnSubmit,
     questionMaxPoints,
     settingNumber,
     settingString,
@@ -26,11 +41,55 @@
     type QuestionDraft,
     type QuestionResult
   } from '@/lib/utils/grading';
+  import { buildQuizRules, type QuizRuleIcon } from '@/lib/utils/quizRules';
+  import { importQwizSource } from '@/lib/utils/importQwiz';
   import type { Quiz } from '@/lib/schemas/quiz';
   import QuestionPlayer from './QuestionPlayer.svelte';
   import LeaveGuard from './LeaveGuard.svelte';
+  import Button from './Button.svelte';
+  import ErrorList from './ErrorList.svelte';
 
-  let { quiz }: { quiz: Quiz } = $props();
+  // `saveCopySource` is set only by the shared-link player (SharedQuizPlayPage): the `.qwiz`
+  // document this run was decoded from, so the player can opt into keeping it. Absent for a quiz
+  // that's already in this browser's library, where "save a copy" would just make a duplicate.
+  let { quiz, saveCopySource }: { quiz: Quiz; saveCopySource?: string } = $props();
+
+  let saved = $state(false);
+  let saveErrors = $state<string[]>([]);
+
+  function saveCopy() {
+    if (!saveCopySource || saved) return;
+    saveErrors = [];
+    // Checks the result rather than assuming the write landed — a save that silently didn't
+    // happen is worse than one that visibly failed.
+    const { quiz: savedQuiz, errors } = importQwizSource(saveCopySource);
+    if (!savedQuiz) {
+      saveErrors = errors;
+      return;
+    }
+    saved = true;
+  }
+
+  /** Rule icon names → components. Lives here rather than in `quizRules.ts` because that module is
+   * framework-free (CLAUDE.md §3) and can't import from `@lucide/svelte`. Typed as a full
+   * `Record`, so adding a `QuizRuleIcon` without a component is a compile error rather than a
+   * silently blank bullet. */
+  const RULE_ICONS: Record<QuizRuleIcon, typeof Timer> = {
+    list: ListChecks,
+    shuffle: Shuffle,
+    lock: Lock,
+    navigate: ArrowLeftRight,
+    required: CircleCheck,
+    skip: SkipForward,
+    timer: Timer,
+    alarm: AlarmClock,
+    eye: Eye,
+    'eye-off': EyeOff,
+    'fast-forward': FastForward,
+    points: Coins,
+    penalty: CircleMinus,
+    trophy: Trophy
+  };
 
   /** "M:SS" for any of this component's three countdowns — seconds alone would get unreadable
    * past a minute or two, which a `timer_seconds` easily is. */
@@ -67,7 +126,9 @@
   const showScoresLive = $derived(revealScoresSetting === 'after_every_question');
   const showAnswersAtEnd = $derived(revealAnswersSetting !== 'never');
   const showScoresAtEnd = $derived(revealScoresSetting !== 'never');
-  const locksAnswerImmediately = $derived(showAnswersLive || showScoresLive);
+  // Same decision as `showAnswersLive || showScoresLive`, but read from `locksOnSubmit` so the
+  // welcome screen's rules list can describe this navigation model from the identical predicate.
+  const locksAnswerImmediately = $derived(locksOnSubmit(quiz.settings));
 
   // `show_running_score`: a persistent "earned / total" header visible throughout the run, independent of
   // reveal_scores — the total is always safe to show (a question's max never depends on how it's
@@ -122,6 +183,10 @@
   // populated one at a time (immediate mode, as each question locks) or all at once (deferred
   // mode, at the final submit) — either way, this is what the end-of-quiz Review screen renders.
   let answers = $state<AnswerRecord[]>([]);
+  // The welcome screen is a real phase, not a hidden run: nothing may tick before the player has
+  // read the rules and chosen to begin. Both timer effects below and the LeaveGuard at the bottom
+  // hang off this — a player still reading the rules has no clock running and nothing to lose.
+  let started = $state(false);
   let finished = $state(false);
   let reviewing = $state(false);
 
@@ -274,7 +339,13 @@
   // from "timer at 0".
   let questionSecondsLeft = $state<number | null>(null);
   $effect(() => {
-    if (timerMode !== 'per_question' || timerDuration === undefined || locked || finished) {
+    if (
+      !started ||
+      timerMode !== 'per_question' ||
+      timerDuration === undefined ||
+      locked ||
+      finished
+    ) {
       questionSecondsLeft = null;
       return;
     }
@@ -297,7 +368,7 @@
   // run actually starts (`finished` flipping back to false via `playAgain`).
   let quizSecondsLeft = $state<number | null>(null);
   $effect(() => {
-    if (timerMode !== 'per_quiz' || timerDuration === undefined || finished) {
+    if (!started || timerMode !== 'per_quiz' || timerDuration === undefined || finished) {
       quizSecondsLeft = null;
       return;
     }
@@ -340,6 +411,14 @@
     return () => clearInterval(interval);
   });
 
+  function startRun() {
+    started = true;
+  }
+
+  // `started` deliberately stays true here: "Play again" means play, and none of the rules changed
+  // in the meantime — including under questions_per_run, where the rule describes the *sampling*,
+  // not the sample. It also keeps the per-quiz timer's reset semantics above literally intact,
+  // rather than moving a second run's clock start onto a Start click.
   function playAgain() {
     run = startNewRun();
     currentIndex = 0;
@@ -354,6 +433,18 @@
   }
 
   const summary = $derived(finished ? gradeRun(results, quiz.settings) : null);
+
+  // Read only by the welcome screen; $derived is lazy, so it costs nothing once the run is under
+  // way. Built from `run` rather than `quiz.questions` so that questions_per_run's sampling and
+  // the quiz-wide setting inheritance `buildPlayRun` performs are already reflected in the count,
+  // the points total and every per-question rule.
+  const rules = $derived(
+    buildQuizRules(
+      run.map((playQuestion) => playQuestion.question),
+      quiz.settings,
+      quiz.questions.length
+    )
+  );
 </script>
 
 <!-- The author's own "why" note for a question, shown once its answer is revealed — identical on
@@ -372,11 +463,65 @@
   {/if}
 {/snippet}
 
+<!-- Only ever rendered for a quiz that arrived by link (see `saveCopySource`) — offered on the way
+     in and again on the way out, since "I want to keep this" happens both before and after
+     playing. Disabled once it lands rather than hidden, so a second press can't mint a duplicate
+     and the confirmation stays where the button was. -->
+{#snippet saveCopyAction()}
+  {#if saveCopySource}
+    <Button onclick={saveCopy} disabled={saved}>
+      {#if saved}
+        <Check size={15} /> Saved to your quizzes
+      {:else}
+        <BookmarkPlus size={15} /> Save a copy
+      {/if}
+    </Button>
+  {/if}
+{/snippet}
+
 <div class="space-y-6">
   {#if run.length === 0}
     <p class="rounded-lg border border-line-subtle p-6 text-center text-sm text-ink-subtle">
       This quiz has no questions yet — nothing to play.
     </p>
+    <!-- The entry phase for every run. Deliberately after the empty-quiz branch (a quiz with
+         nothing in it shouldn't offer a Start button over an empty run) and before the two
+         `finished` ones — `finished` can't be true while `!started`, so that ordering is purely a
+         statement of intent, and it's what makes a future "back to the rules" affordance a
+         one-line change. No transition: the timer specs run under a faked rAF clock, and 200ms of
+         polish isn't worth risking them on. -->
+  {:else if !started}
+    <div class="space-y-6 rounded-lg border border-line-subtle bg-surface-raised p-6">
+      <div class="space-y-2">
+        <h1 class="text-2xl font-bold text-ink">{quiz.title}</h1>
+        {#if quiz.description}
+          <p class="whitespace-pre-wrap text-sm text-ink-subtle">{quiz.description}</p>
+        {/if}
+      </div>
+
+      <div class="space-y-2">
+        <h2 class="text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+          How this quiz works
+        </h2>
+        <ul class="space-y-2">
+          {#each rules as rule (rule.id)}
+            {@const Icon = RULE_ICONS[rule.icon]}
+            <li class="flex items-start gap-2 text-sm text-ink-muted">
+              <Icon size={15} class="mt-0.5 shrink-0 text-ink-subtle" />
+              <span>{rule.text}</span>
+            </li>
+          {/each}
+        </ul>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <Button variant="primary" onclick={startRun}>
+          <Play size={15} /> Start quiz
+        </Button>
+        {@render saveCopyAction()}
+      </div>
+      <ErrorList errors={saveErrors} />
+    </div>
   {:else if finished && summary && reviewing}
     <div class="space-y-4">
       <div class="flex items-center justify-between gap-3">
@@ -472,6 +617,12 @@
           <RotateCcw size={15} /> Play again
         </button>
       </div>
+      {#if saveCopySource}
+        <div class="flex flex-wrap items-center justify-center gap-3">
+          {@render saveCopyAction()}
+        </div>
+        <ErrorList errors={saveErrors} />
+      {/if}
     </div>
   {:else if current}
     <div class="space-y-1">
@@ -608,9 +759,11 @@
   {/if}
 </div>
 
-<!-- A run in progress is unsaved by construction — see LeaveGuard for what it intercepts. -->
+<!-- A run in progress is unsaved by construction — see LeaveGuard for what it intercepts. Not
+     before Start either: a player still reading the rules has entered nothing to lose, so warning
+     them would be asking about progress that doesn't exist. -->
 <LeaveGuard
-  active={!finished}
+  active={started && !finished}
   title="Leave this quiz?"
   message="Your progress on this run won't be saved. Are you sure you want to leave?"
 />

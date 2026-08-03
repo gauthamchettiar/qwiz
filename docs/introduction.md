@@ -52,7 +52,18 @@ versa.
 
 ## Playing a quiz
 
-Open any saved quiz's "Play" action to start a run. Depending on the quiz's settings (see
+Open any saved quiz's "Play" action to start a run. Every run opens on a welcome screen: the
+quiz's title and description, and a list of the rules this particular quiz plays by — how many
+questions there are, whether they can be skipped or gone back to, how long the clock gives you,
+when answers and scores appear, and what it takes to win. All of it is derived from the quiz's
+own settings, so it describes what the author actually configured rather than a generic blurb.
+
+![The welcome screen at the start of a run](./screenshots/player-welcome.png)
+
+Nothing starts until you press **Start quiz** — timers included, so a per-question or per-quiz
+clock never runs down while you're still reading.
+
+Depending on the quiz's settings (see
 [quiz-wide settings](./qwiz-format.md#quiz-wide-settings)), answers and scores may be revealed
 after every question or held until the end, and a run may only sample a subset of the question
 bank in a random order.
@@ -87,6 +98,27 @@ exercise a different part of the format — a quick way to see real, valid `.qwi
 writing your own.
 
 ![The import dialog](./screenshots/import.png)
+
+## Sharing a quiz by link
+
+A quiz can also be handed over as a single URL. **Share link** — in a quiz card's "⋮" menu on the
+home page, or the same menu on its edit screen — compresses the whole `.qwiz` document and puts it
+in the link itself, after the `#`:
+
+![The share-link dialog](./screenshots/share-dialog.png)
+
+Two things follow from the quiz living in the fragment (the part after `#`):
+
+- **Nothing is uploaded.** A URL fragment is never sent to a server, so a shared quiz stays as
+  private as a locally-stored one — there's no copy of it anywhere but in the link you sent.
+- **The link is the whole quiz**, so its length grows with the quiz. Past ~8,000 characters the
+  dialog warns that some chat apps and mail clients may cut it off; past 32,000 — which in
+  practice means a quiz with embedded image data — it refuses to make a link at all and points you
+  at Download `.qwiz` instead, since a URL that long stops working in browsers.
+
+Opening a shared link goes straight to the welcome screen and plays the quiz **from the link**.
+It isn't added to the recipient's library unless they choose **Save a copy**, which imports it as
+a brand-new quiz exactly as the Import dialog would.
 
 ## Next
 

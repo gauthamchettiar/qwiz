@@ -15,6 +15,13 @@ test("clicking an in-page link mid-run shows this app's own leave-confirmation m
   await seedQuizzes(page, [quiz]);
 
   const play = new PlayPage(page);
+
+  // The welcome screen is not a run: nothing has been entered, so leaving it must not prompt.
+  await play.goto(quiz.id, { start: false });
+  await page.getByRole('link', { name: 'Back', exact: true }).click();
+  await expect(page).toHaveURL('/');
+  await expect(page.getByRole('dialog')).toBeHidden();
+
   await play.goto(quiz.id);
 
   // Clicking a real in-page link (the play screen's minimal header "Back" link) mid-run is
