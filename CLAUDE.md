@@ -29,6 +29,19 @@ Hard constraints — never violate without explicit approval:
   (`#q=…`) and plays it from memory. The fragment, not a query string, is the whole point — it's
   never transmitted to the host, so a shared quiz stays as private as a stored one and isn't
   subject to any request-line length limit. See `lib/utils/shareLink.ts`.
+- `/play` also accepts a **pointer** to a quiz published on GitHub — `?gist=<id>` or
+  `?repo=<owner/name>&path=<file.qwiz>` — resolved at runtime by `lib/remote/`. These are query
+  params, not a fragment, and the difference is deliberate rather than an oversight: the fragment
+  rule exists to keep a quiz's _content_ off the wire, and a pointer names something already public
+  on GitHub. There's no private document to leak, only a public one to name. What is given up is
+  small and real — the host's access log learns which public quiz was opened — and that's the trade
+  for a link that survives systems which strip fragments. A quiz that lives in the link itself still
+  goes in the fragment, unchanged. See `lib/utils/remoteSource.ts`, which documents this in place.
+- **This means the app makes runtime network requests, which it did not before.** It reads public
+  files from GitHub, signed out (`credentials: 'omit'`), and persists nothing unless the visitor
+  presses "Save a copy". The user's own quizzes still never leave the browser — which is why
+  `Base.astro`'s meta description says "your quizzes never leave your device" rather than the flat
+  "nothing leaves your device" it used to claim. Keep that distinction exact in any user-facing copy.
 - The build output in `dist/` must be servable from any dumb static host with no config beyond
   SPA-ish handling. Currently deployed to **Cloudflare Pages** (see §8) — no `base`/subpath
   config needed there, unlike GitHub Pages.
@@ -163,12 +176,19 @@ migration.
 │   ├── lib/                     # framework-agnostic TS: pure logic, no Svelte imports
 │   │   ├── schemas/quiz.ts      # zod Quiz/QuizQuestion schemas; Quiz/QuizDraft types derive from them
 │   │   ├── stores/quizzes.ts    # the only file that touches localStorage — list/get/save/delete
+│   │   ├── remote/               # THE ONLY PLACE THAT CALLS fetch — same one-side-effect-per-folder
+│   │   │                         # rule as stores/ and localStorage. github.ts (gist/tree/raw
+│   │   │                         # requests, result types, never throws), quizSource.ts (resolve a
+│   │   │                         # QuizSourceRef to .qwiz text). Every DECISION these make lives in
+│   │   │                         # utils/githubRef.ts so it's testable without a network.
 │   │   └── utils/                # quizScript.ts (parser/serializer), grading.ts, shuffle.ts,
 │   │                             # youtube.ts, download.ts, suggestions.ts, sampleQuizzes.ts,
 │   │                             # numericInput.ts, quizRules.ts (the welcome screen's rules
 │   │                             # list), shareLink.ts (compress a quiz into a URL fragment),
-│   │                             # qwizDocument.ts (a saved Quiz -> .qwiz source; the inverse of
-│   │                             # importQwiz.ts), clickOutside.ts, dragDrop.ts,
+│   │                             # githubRef.ts (parse gist/repo pointers, build GitHub URLs, the
+│   │                             # fetch-error taxonomy), remoteSource.ts (what /play's URL points
+│   │                             # at), qwizDocument.ts (a saved Quiz -> .qwiz source; the inverse
+│   │                             # of importQwiz.ts), clickOutside.ts, dragDrop.ts,
 │   │                             # questionFocus.ts
 │   ├── pages/
 │   │   ├── index.astro          # quiz list
@@ -413,6 +433,19 @@ URL is arbitrary author-pasted input (see `QuizScriptOptionContent` in `quizScri
 no fixed set of image hosts to allow-list. `frame-src` is scoped to `https://www.youtube.com` only,
 matching the one embed the app ever renders (`extractYoutubeId` in `lib/utils/youtube.ts`).
 
+`connect-src` names three GitHub hosts — `api.github.com`, `raw.githubusercontent.com` and
+`gist.githubusercontent.com` — and nothing else. This is the only widening the CSP has ever had, and
+it's what makes loading a quiz from a gist or repo possible at all; before it, `connect-src 'self'`
+blocked those requests outright. Each host earns its place: the API for gist contents and the one
+recursive tree call used to discover quizzes in a repo without a `.qwizgroup`, the raw host for
+every `.qwiz`/`.qwizgroup` document (unmetered, which is why all content comes from there), and the
+gist raw host only for gist files over ~1MB, which the API returns truncated with a `raw_url`
+instead of inline content. Named individually rather than as a blanket `https:` for the same reason
+`frame-src` is: this is the complete set of hosts the app can reach, and a new one appearing in a
+diff should have to justify itself. **A `connect-src` violation surfaces in the app as an
+indistinguishable "Couldn't reach GitHub"** — identical to being offline — so if remote loading
+breaks with no obvious cause, check this line first.
+
 ---
 
 ## 6. DRY and code quality
@@ -580,11 +613,20 @@ The one thing genuinely under test — authoring — is always driven through th
   why this reproduced about 1 run in 12 and only in one spec. The page objects' `goto*` methods all
   call `waitForHydration` (`e2e/utils/hydration.ts`, which waits for `astro-island[ssr]` to
   disappear); any new navigation helper must do the same.
-- The app makes exactly one external request: the YouTube iframe a `!<youtube>` media line renders
-  (see `extractYoutubeId`), which the picture-round example uses. **Stub it** —
-  `e2e/utils/network.ts`'s `stubExternalEmbeds` fulfils it with a blank local page, so no spec
-  depends on youtube.com being reachable from CI. Any future `fetch` gets the same treatment via
-  `page.route()`; never hit anything real from CI.
+- The app makes external requests of exactly two kinds, and **both must always be stubbed** — no
+  spec may depend on anything being reachable from CI:
+  - The YouTube iframe a `!<youtube>` media line renders (see `extractYoutubeId`), used by the
+    picture-round example. `e2e/utils/network.ts`'s `stubExternalEmbeds` fulfils it with a blank
+    local page.
+  - GitHub, when playing a gist or a repo quiz. `e2e/utils/github.ts` has `stubGist`, `stubRepo`,
+    `stubRateLimited`, `stubNotFound` and `stubOffline`, plus `countApiCalls` for asserting the
+    manifest-first path spends none of the metered 60/hr budget.
+    Fulfil rather than abort wherever a 200 is the point (a blocked request is itself a console
+    error), and **reproduce GitHub's real CORS headers** — `stubGist`/`stubRepo` send
+    `Access-Control-Expose-Headers` because a cross-origin response hides every non-safelisted header
+    from JS without it. A stub that omits it makes `x-ratelimit-remaining` unreadable and silently
+    degrades the rate-limit message, which looks exactly like an app bug and isn't one. This cost a
+    real debugging round; don't remove it.
 - A test that asserts "no console errors" must scope that to the app's own origin
   (`isAppConsoleMessage`). A third-party frame's logging says nothing about this app and isn't ours
   to fix — Firefox reports YouTube's rejected cross-site cookie as an _error_, which failed CI while
@@ -723,13 +765,16 @@ lint`, `pnpm test`, or `pnpm test:e2e`.
 - [ ] `text-slate-400` never used on text-bearing elements (see §5) — `text-slate-500`+ instead
 - [ ] Still fully static: no adapter, no server route, no runtime secret
 - [ ] `localStorage` touched only from `src/lib/stores/` (`quizzes.ts`, `theme.ts`)
+- [ ] `fetch` called only from `src/lib/remote/` — and always `credentials: 'omit'`, with a
+      timeout, returning a result rather than throwing
 - [ ] Any new persistence call checks `saveQuiz`/`deleteQuiz`'s boolean return and surfaces a
       failure to the user (see §6) — never assumes a write landed
 - [ ] Works at mobile viewport, keyboard navigable, axe-clean (`pnpm test:e2e` covers all three)
 
 ### Anti-patterns — flag these on sight
 
-Adding an SSR adapter · a new `localStorage` call outside `lib/stores/` · calling
+Adding an SSR adapter · a new `localStorage` call outside `lib/stores/` · a `fetch` outside
+`lib/remote/` · a `fetch` without `credentials: 'omit'` · calling
 `saveQuiz`/`deleteQuiz` without checking the result · `@apply` blocks · naming a palette shade
 (`slate-500`, `indigo-600`) anywhere but `global.css` · a `dark:` variant · `text-ink-faint` on
 real text · `waitForTimeout` in tests · CSS-class selectors in tests · duplicated `.qwiz`

@@ -16,7 +16,11 @@ interface Props {
 
 const {
   title = 'Qwiz',
-  description = 'Build and play quizzes entirely in your browser — nothing leaves your device.',
+  // "Your quizzes never leave your device" rather than the flat "nothing leaves your device" this
+  // used to say: since Qwiz can open a quiz published on GitHub, a request does go out — carrying
+  // a pointer to something already public, never anything of the visitor's own. The narrower claim
+  // is the one that's actually true, and it's also the one that matters.
+  description = 'Build and play quizzes entirely in your browser — your quizzes never leave your device.',
   minimal = false
 } = Astro.props;
 ---

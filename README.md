@@ -3,8 +3,10 @@
 [![CI](https://github.com/gauthamchettiar/qwiz/actions/workflows/ci.yml/badge.svg)](https://github.com/gauthamchettiar/qwiz/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
-Build and play quizzes entirely in your browser. There's no server, no accounts, and nothing
-leaves your device — every quiz is saved to `localStorage` and stays there.
+Build and play quizzes entirely in your browser. There's no server and no accounts — every quiz you
+write is saved to `localStorage` and never leaves your device. Qwiz can also open a quiz published
+as a GitHub gist or repository, which is the one time it talks to anything: it reads public files,
+signed out, and saves nothing unless you ask it to.
 
 A quiz is written in a small Markdown-like format (`.qwiz`) covering multiple-choice and typed
 questions, images/video, hints, per-option point weights, and quiz-wide scoring rules. Author

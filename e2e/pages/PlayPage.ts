@@ -58,6 +58,30 @@ export class PlayPage {
     if (options.start !== false) await this.start();
   }
 
+  /** Opens a quiz published on GitHub — `/play?gist=…` or `/play?repo=…&path=…`.
+   *
+   * Unlike the other three, this one waits for the loading state to clear before touching Start:
+   * hydration only means the island's JS has run, and here that island then goes to the network.
+   * Without this wait a fast machine races the fetch and clicks a Start button that isn't rendered
+   * yet. Specs whose subject IS the loading or error state pass `{ start: false }` and assert on
+   * whatever they came for. */
+  async gotoRemote(url: string, options: { start?: boolean } = {}): Promise<void> {
+    await this.page.goto(url);
+    await waitForHydration(this.page);
+    if (options.start !== false) {
+      await this.startQuizButton.waitFor({ state: 'visible' });
+      await this.start();
+    }
+  }
+
+  loadingMessage(): Locator {
+    return this.page.getByText('Loading the quiz…');
+  }
+
+  gistFilePicker(): Locator {
+    return this.page.getByRole('heading', { name: 'Which quiz?' });
+  }
+
   progressLabel(): Locator {
     return this.page.getByText(/^Question \d+ of \d+$/);
   }

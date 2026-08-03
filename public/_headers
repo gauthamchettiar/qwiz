@@ -7,8 +7,20 @@
 # {@html} or other raw-HTML-injection sink anywhere in this codebase for a strict script-src
 # to actually be defending against. The other directives below (frame-ancestors, object-src,
 # base-uri, form-action) don't have that conflict and are worth keeping strict.
+#
+# connect-src names three GitHub hosts because the app can load a quiz published as a gist or in a
+# public repository (see src/lib/remote/github.ts, the only module that calls fetch):
+#   api.github.com              — gist contents, and the one recursive tree call used to discover
+#                                 quizzes in a repo that has no .qwizgroup manifest
+#   raw.githubusercontent.com   — every .qwiz and .qwizgroup document; unmetered, so this is where
+#                                 all content comes from and the API is spent only on discovery
+#   gist.githubusercontent.com  — gist files over ~1MB, which the API returns truncated with a
+#                                 raw_url on this host instead of inline content
+# Named individually rather than as `https:` for the same reason frame-src is scoped to
+# www.youtube.com rather than left open: this is the complete set of hosts the app can reach, and
+# anything else showing up in a diff here should have to be justified.
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; frame-src https://www.youtube.com; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; frame-src https://www.youtube.com; connect-src 'self' https://api.github.com https://raw.githubusercontent.com https://gist.githubusercontent.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
