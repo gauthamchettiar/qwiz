@@ -1,0 +1,24 @@
+---
+title: The Qwiz Trail
+description: A short guided path through three rounds. Clear one to unlock the next, then face the final boss — you'll need to actually win that one.
+category: general knowledge
+tags: [trail, journey]
+:mode=journey
+:require_win=false
+---
+
+quiz: world-capitals.qwiz
+id: capitals
+title: World Capitals
+
+quiz: spelling-bee.qwiz
+id: spelling
+title: Spelling Bee
+requires: [capitals]
+
+quiz: grand-finale.qwiz
+id: finale
+title: The Grand Finale
+requires: [spelling]
+:require_win=true
+:points_to_win=6

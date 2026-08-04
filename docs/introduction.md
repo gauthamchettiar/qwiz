@@ -120,6 +120,35 @@ Opening a shared link goes straight to the welcome screen and plays the quiz **f
 It isn't added to the recipient's library unless they choose **Save a copy**, which imports it as
 a brand-new quiz exactly as the Import dialog would.
 
+## Publishing on GitHub
+
+A link carries one quiz, and it has a size limit. To publish a set of them — or a single quiz you
+want to keep editing in place — put the `.qwiz` files in a **public GitHub repository or gist** and
+open them by pointer instead:
+
+| What you have                | The link                                     |
+| ---------------------------- | -------------------------------------------- |
+| A gist                       | `/play?gist=<gist id or link>`               |
+| One file in a repository     | `/play?repo=owner/name&path=rounds/one.qwiz` |
+| A whole repository or folder | `/group?repo=owner/name`                     |
+
+You can also paste any of those into **Import → "or open one published on GitHub"**.
+
+A repository needs nothing special: point Qwiz at one and it lists every `.qwiz` file in it, using
+the folders as the grouping. Adding a [`.qwizgroup` manifest](./qwizgroup-format.md) is what lets
+you order them, name them, and choose how they're played — as an unlocking journey, one merged
+mega-quiz, a playlist, and so on.
+
+Two things to know, since this is the one time Qwiz talks to a server:
+
+- **It reads, signed out, and saves nothing.** Only public repositories and gists are visible to it,
+  your GitHub session is never attached, and opening a quiz doesn't add it to your library —
+  **Save a copy** does, exactly as with a shared link. Your own quizzes still never leave your
+  browser.
+- **Publishing a manifest avoids a rate limit.** Finding files in a repository _without_ a
+  `.qwizgroup` needs GitHub's API, which allows 60 requests an hour per IP address — shared with
+  everyone else on your network. A manifest that lists its quizzes needs none of that budget at all.
+
 ## Next
 
 If you want a single self-contained specification — for your own reference, or to hand to a model
@@ -128,4 +157,5 @@ that should generate `.qwiz` files — see [the complete `.qwiz` reference](./ll
 loadable from Import → Load a sample.
 
 See [the `.qwiz` format reference](./qwiz-format.md) for the full authoring syntax: question
-types, media, hints, scoring settings, and every quiz-wide/per-question option.
+types, media, hints, scoring settings, and every quiz-wide/per-question option. To publish a set of
+quizzes together, see [the `.qwizgroup` format](./qwizgroup-format.md).

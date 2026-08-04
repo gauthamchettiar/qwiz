@@ -8,6 +8,8 @@ syntax and the same validation path (`validateSettingValue` in `quizScript.ts`),
 This is the single dedicated reference for what each setting does. [`qwiz-format.md`](./qwiz-format.md)
 covers the surrounding authoring syntax (variants, options, media, hints); this file covers
 settings in depth, including how they behave _together_, not just individually.
+[`qwizgroup-format.md`](./qwizgroup-format.md) covers the separate set of settings that apply to a
+**group** of quizzes published together — every quiz-wide setting below also works there.
 
 ## In the builder
 

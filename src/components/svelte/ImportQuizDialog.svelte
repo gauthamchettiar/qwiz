@@ -1,6 +1,8 @@
 <script lang="ts">
-  import { Upload, FileUp, Sparkles } from '@lucide/svelte';
+  import { Upload, FileUp, FolderGit2, Sparkles } from '@lucide/svelte';
   import { importQwizSource } from '@/lib/utils/importQwiz';
+  import { parseGistRef, parseRepoRef, isQwizPath } from '@/lib/utils/githubRef';
+  import { groupUrl, repoQuizUrl } from '@/lib/utils/remoteSource';
   import Dialog from './Dialog.svelte';
   import Button from './Button.svelte';
   import ErrorList from './ErrorList.svelte';
@@ -14,14 +16,43 @@
   let errors = $state<string[]>([]);
   let importing = $state(false);
   let dragging = $state(false);
+  let githubRef = $state('');
 
   function openDialog() {
     errors = [];
     code = '';
     fileName = '';
+    githubRef = '';
     dragging = false;
     if (fileInputEl) fileInputEl.value = '';
     dialog.open();
+  }
+
+  /** Opens whatever was pasted, without fetching anything here: a gist and a single repo file go to
+   * the player, a repository or a folder goes to the group screen. Navigating rather than importing
+   * is the deliberate part — a quiz someone is looking at is not yet a quiz they've asked to keep,
+   * which is the same rule a shared link follows. */
+  function openFromGitHub() {
+    errors = [];
+    const input = githubRef.trim();
+    if (!input) return;
+
+    const gist = parseGistRef(input);
+    if (gist) {
+      window.location.href = `/play?gist=${encodeURIComponent(gist.gistId)}`;
+      return;
+    }
+
+    const repo = parseRepoRef(input);
+    if (!repo) {
+      errors = [
+        "That doesn't look like a GitHub gist or repository. Paste a gist link, or owner/name, or the whole github.com address."
+      ];
+      return;
+    }
+
+    window.location.href =
+      repo.path && isQwizPath(repo.path) ? repoQuizUrl(repo, repo.path) : groupUrl(repo, repo.path);
   }
 
   async function readFile(file: File) {
@@ -130,6 +161,26 @@ title: ...
 
 pick_one: ..."
       bind:value={code}></textarea>
+
+    <div class="flex items-center gap-3 text-xs text-ink-subtle">
+      <div class="h-px flex-1 bg-surface-sunken"></div>
+      or open one published on GitHub
+      <div class="h-px flex-1 bg-surface-sunken"></div>
+    </div>
+
+    <div class="flex gap-2">
+      <input
+        type="text"
+        class="min-w-0 flex-1 rounded-md border border-line-subtle bg-surface px-3 py-2 text-sm text-ink-muted focus:border-line-strong focus:outline-none focus:ring-2 focus:ring-line-subtle"
+        placeholder="gist link, or owner/repo"
+        aria-label="GitHub gist or repository"
+        bind:value={githubRef}
+        onkeydown={(e) => e.key === 'Enter' && openFromGitHub()}
+      />
+      <Button size="sm" onclick={openFromGitHub} disabled={githubRef.trim().length === 0}>
+        <FolderGit2 size={15} /> Open
+      </Button>
+    </div>
 
     <ErrorList {errors} />
   {/snippet}

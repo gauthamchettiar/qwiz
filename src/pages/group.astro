@@ -1,0 +1,12 @@
+---
+import Base from '@/layouts/Base.astro';
+import QuizGroupPage from '@/components/svelte/QuizGroupPage.svelte';
+---
+
+<!-- A collection of quizzes published in a public GitHub repository, described by a .qwizgroup
+     manifest. Deliberately NOT under local/, which means "from this browser's storage" — same
+     reasoning as /play. `client:only` because the repository is only named at runtime, so there is
+     nothing to prerender. -->
+<Base title="Quiz Group" minimal>
+  <QuizGroupPage client:only="svelte" />
+</Base>

@@ -10,6 +10,7 @@ import {
   buildQuiz
 } from './fixtures/quizzes';
 import { expectNoSeriousA11yViolations } from './utils/a11y';
+import { stubRepo } from './utils/github';
 import { resetStorage, seedQuizzes } from './utils/storage';
 
 test.beforeEach(async ({ page }) => {
@@ -46,6 +47,21 @@ test('the play welcome screen has no serious accessibility violations', async ({
   const quiz = buildQuiz();
   await seedQuizzes(page, [quiz]);
   await new PlayPage(page).goto(quiz.id, { start: false });
+  await expectNoSeriousA11yViolations(page);
+});
+
+// The group lobby is the app's only tree control, and the only screen built mostly from
+// `text-ink-subtle` on `surface-raised` at small sizes — the arrangement that produced this suite's
+// earlier contrast failures.
+test('the repo group screen has no serious accessibility violations', async ({ page }) => {
+  await stubRepo(page, 'owner', 'repo', {
+    files: {
+      '.qwizgroup': ['---', 'title: A Group', '---', '', 'quiz: rounds/one.qwiz'].join('\n'),
+      'rounds/one.qwiz': '---\ntitle: One\n---\n\nQ?\n{\n=A\n~B\n}'
+    }
+  });
+  await page.goto('/group?repo=owner%2Frepo');
+  await page.getByRole('heading', { name: 'A Group' }).waitFor();
   await expectNoSeriousA11yViolations(page);
 });
 

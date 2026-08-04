@@ -1,0 +1,27 @@
+---
+title: The Grand Finale
+description: Six points on offer, and you need six to clear it.
+category: general knowledge
+tags: [finale]
+:shuffle_questions=false
+:points_to_win=6
+---
+
+pick_many: Which of these countries have a coastline on the Mediterranean Sea?
+{
+=Slovenia
+=Albania
+=Lebanon
+~Portugal
+~Bulgaria
+}
+:partial_credit=true
+:points_correct=2
+
+order_items: Put these in the order they happened, earliest first.
+{
+=The Moon landing
+=The fall of the Berlin Wall
+=The first iPhone
+}
+:points_correct=3

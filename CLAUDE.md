@@ -37,6 +37,19 @@ Hard constraints — never violate without explicit approval:
   small and real — the host's access log learns which public quiz was opened — and that's the trade
   for a link that survives systems which strip fragments. A quiz that lives in the link itself still
   goes in the fragment, unchanged. See `lib/utils/remoteSource.ts`, which documents this in place.
+- `/group?repo=<owner/name>[&path=<dir>]` browses a **collection** of quizzes published in a public
+  repository, described by a `.qwizgroup` manifest (`docs/qwizgroup-format.md`,
+  `lib/utils/quizGroup.ts`). The manifest is deliberately the SAME format as a `.qwiz` file —
+  frontmatter fence, then blank-line-separated blocks — so it reuses `quizScript.ts`'s lexing and
+  `validateSettingValue` rather than adding a YAML/TOML dependency and a second validation path.
+  It parses just as strictly: an unknown key, or a key used in a mode it means nothing to, is an
+  error.
+  **The load order is the design.** A manifest listing its quizzes loads with **zero
+  `api.github.com` calls** — every file comes from the unmetered raw host, and `HEAD` resolves the
+  default branch server-side. Only a repo with no manifest (or `:discover=true`) spends the one
+  recursive tree call, against a limit of 60/hour shared per IP. That difference is the whole reason
+  to publish a manifest, it's what the rate-limit error points at, and it's asserted by tests in
+  both `quizGroupSource.test.ts` and `repo-group.spec.ts` rather than left as a comment.
 - **This means the app makes runtime network requests, which it did not before.** It reads public
   files from GitHub, signed out (`credentials: 'omit'`), and persists nothing unless the visitor
   presses "Save a copy". The user's own quizzes still never leave the browser — which is why
@@ -149,11 +162,15 @@ migration.
 ```
 .
 ├── docs/                        # introduction.md, qwiz-format.md, settings.md,
+│                                # qwizgroup-format.md (the .qwizgroup manifest — guarded by
+│                                # groupDoc.test.ts the way settings.md is by settingsDoc.test.ts),
 │                                # llm-reference.md (the whole format in one file, for a model)
 │   └── screenshots/             # every image the README and docs reference — GENERATED, never
 │                                # hand-captured; see screenshots/ below
 ├── examples/                    # *.qwiz files — the app's "Load a sample" list, loaded via
 │                                # import.meta.glob ?raw; cover every variant and setting
+│   └── group/                   # a worked .qwizgroup + the three quizzes it lists. NOT in the
+│                                # sample list: that glob is examples/*.qwiz, non-recursive
 ├── e2e/                         # Playwright specs
 │   ├── fixtures/                # quizzes.ts — buildQuiz() factory, sample .qwiz source
 │   ├── pages/                   # Page Object Models: HomePage, BuilderPage, PlayPage
@@ -179,23 +196,27 @@ migration.
 │   │   ├── remote/               # THE ONLY PLACE THAT CALLS fetch — same one-side-effect-per-folder
 │   │   │                         # rule as stores/ and localStorage. github.ts (gist/tree/raw
 │   │   │                         # requests, result types, never throws), quizSource.ts (resolve a
-│   │   │                         # QuizSourceRef to .qwiz text). Every DECISION these make lives in
-│   │   │                         # utils/githubRef.ts so it's testable without a network.
+│   │   │                         # QuizSourceRef to .qwiz text), quizGroupSource.ts (the
+│   │   │                         # manifest-first load sequence). Every DECISION these make lives
+│   │   │                         # in utils/githubRef.ts so it's testable without a network.
 │   │   └── utils/                # quizScript.ts (parser/serializer), grading.ts, shuffle.ts,
 │   │                             # youtube.ts, download.ts, suggestions.ts, sampleQuizzes.ts,
 │   │                             # numericInput.ts, quizRules.ts (the welcome screen's rules
 │   │                             # list), shareLink.ts (compress a quiz into a URL fragment),
 │   │                             # githubRef.ts (parse gist/repo pointers, build GitHub URLs, the
 │   │                             # fetch-error taxonomy), remoteSource.ts (what /play's URL points
-│   │                             # at), qwizDocument.ts (a saved Quiz -> .qwiz source; the inverse
+│   │                             # at), quizGroup.ts (the .qwizgroup parser + its rules tables),
+│   │                             # folderTree.ts, repoIndex.ts (a repo with no manifest becomes
+│   │                             # the same QuizGroup type), qwizDocument.ts (a saved Quiz -> .qwiz source; the inverse
 │   │                             # of importQwiz.ts), clickOutside.ts, dragDrop.ts,
 │   │                             # questionFocus.ts
 │   ├── pages/
 │   │   ├── index.astro          # quiz list
 │   │   ├── 404.astro            # custom not-found page, matches the app's own visual language
-│   │   ├── play.astro           # SharedQuizPlayPage, client:only — a shared quiz decoded from
-│   │   │                        # `#q=`. Deliberately NOT under local/, which means "from this
-│   │   │                        # browser's storage"
+│   │   ├── play.astro           # SharedQuizPlayPage, client:only — a quiz decoded from `#q=`, or
+│   │   │                        # fetched from a gist/repo pointer. Deliberately NOT under local/,
+│   │   │                        # which means "from this browser's storage"
+│   │   ├── group.astro          # QuizGroupPage, client:only — a .qwizgroup collection in a repo
 │   │   └── local/
 │   │       ├── create.astro     # QuizBuilder, client:load
 │   │       ├── edit.astro       # QuizEditPage, client:only (reads ?id= at runtime)

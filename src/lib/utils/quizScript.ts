@@ -214,8 +214,11 @@ const VIDEO_LINE = /^!<youtube>\[(.*)\]\((.*)\)$/;
 const REVEAL_LINE = /^!<reveal>\[(.*)\]\((.*)\)$/;
 const ANALYSIS_LINE = /^!<analysis>\[(.*)\]\((.*)\)$/;
 const VARIANT_LINE = /^variant\s*:\s*(.+)$/i;
-const SETTING_LINE = /^:([A-Za-z_][\w-]*)\s*=\s*(.*)$/;
-const FRONTMATTER_LINE = /^([A-Za-z_][\w-]*)\s*:\s*(.*)$/;
+/** Both exported for `quizGroup.ts`: a `.qwizgroup` manifest uses the identical `:key=value` and
+ * `key: value` line syntax, and recognising them with a second copy of these regexes is exactly how
+ * the two formats would drift apart. */
+export const SETTING_LINE = /^:([A-Za-z_][\w-]*)\s*=\s*(.*)$/;
+export const FRONTMATTER_LINE = /^([A-Za-z_][\w-]*)\s*:\s*(.*)$/;
 /** `match_pairs`/`group_items` option shape: `item -> target`, split on the FIRST " -> " (non-greedy
  * left side) — a known, documented simplification, same category as `matchTypedGuesses`' own
  * "Known limitation" comment in grading.ts: an item whose own text contains a literal " -> " would
@@ -829,7 +832,8 @@ function parseRevealLine(text: string): QuizScriptReveal | null {
   return { label: match[1], content: match[2], points };
 }
 
-function stripQuotes(value: string): string {
+/** Exported alongside `parseInlineArray` for `quizGroup.ts`, for the same reason. */
+export function stripQuotes(value: string): string {
   const trimmed = value.trim();
   const quoted =
     (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
@@ -921,7 +925,11 @@ export function validateSettingValue(
   };
 }
 
-function parseInlineArray(raw: string): string[] {
+/** Exported for `quizGroup.ts`, which parses `tags: [a, b]` and `requires: [x, y]` out of a
+ * `.qwizgroup` manifest. Duplicating this would be duplicating `.qwiz` lexing outside this file,
+ * which is a named anti-pattern (CLAUDE.md §10) — the two formats deliberately share a syntax, so
+ * they must share the code that reads it. */
+export function parseInlineArray(raw: string): string[] {
   const inner = raw.trim().replace(/^\[/, '').replace(/\]$/, '');
   if (inner.trim() === '') return [];
   return inner
@@ -942,10 +950,21 @@ function unescapeFrontmatterValue(value: string): string {
   return value.replace(/\\n/g, '\n').replace(/\\\\/g, '\\');
 }
 
-function parseFrontmatter(
+/** The `title`/`description`/`category`/`tags` + `:key=value` lines between a `---` fence, against
+ * whichever rules table the caller validates settings with.
+ *
+ * Exported and parameterised by `rules` so `quizGroup.ts` reads a `.qwizgroup` manifest's
+ * frontmatter with this exact code rather than a near-identical copy — the two formats share a
+ * syntax deliberately, and a second implementation is precisely how they'd stop sharing it. The
+ * caller owns the fence and any cross-field checks, since those are what actually differ between a
+ * quiz and a group. */
+export function parseFrontmatterFields(
   lines: string[],
+  from: number,
+  to: number,
+  rules: Record<string, SettingRule>,
   errors: QuizScriptError[]
-): { frontmatter: QuizScriptFrontmatter; bodyStart: number } {
+): QuizScriptFrontmatter {
   const frontmatter: QuizScriptFrontmatter = {
     title: '',
     description: '',
@@ -954,22 +973,14 @@ function parseFrontmatter(
     settings: {}
   };
 
-  if (lines[0]?.trim() !== '---') return { frontmatter, bodyStart: 0 };
-
-  const closingIndex = lines.findIndex((l, i) => i > 0 && l.trim() === '---');
-  if (closingIndex === -1) {
-    errors.push({ line: 1, message: 'Frontmatter is opened with "---" but never closed.' });
-    return { frontmatter, bodyStart: 0 };
-  }
-
-  for (let i = 1; i < closingIndex; i++) {
+  for (let i = from; i < to; i++) {
     const raw = lines[i];
     if (raw.trim() === '') continue;
 
     const settingMatch = SETTING_LINE.exec(raw.trim());
     if (settingMatch) {
       const key = settingMatch[1];
-      const { value, error } = validateSettingValue(key, settingMatch[2], QUIZ_FRONTMATTER_RULES);
+      const { value, error } = validateSettingValue(key, settingMatch[2], rules);
       frontmatter.settings[key] = value;
       if (error) errors.push({ line: i + 1, message: `Setting "${key}" ${error}.` });
       continue;
@@ -998,6 +1009,37 @@ function parseFrontmatter(
         errors.push({ line: i + 1, message: `Unknown frontmatter field "${key}".` });
     }
   }
+
+  return frontmatter;
+}
+
+function parseFrontmatter(
+  lines: string[],
+  errors: QuizScriptError[]
+): { frontmatter: QuizScriptFrontmatter; bodyStart: number } {
+  const empty: QuizScriptFrontmatter = {
+    title: '',
+    description: '',
+    category: '',
+    tags: [],
+    settings: {}
+  };
+
+  if (lines[0]?.trim() !== '---') return { frontmatter: empty, bodyStart: 0 };
+
+  const closingIndex = lines.findIndex((l, i) => i > 0 && l.trim() === '---');
+  if (closingIndex === -1) {
+    errors.push({ line: 1, message: 'Frontmatter is opened with "---" but never closed.' });
+    return { frontmatter: empty, bodyStart: 0 };
+  }
+
+  const frontmatter = parseFrontmatterFields(
+    lines,
+    1,
+    closingIndex,
+    QUIZ_FRONTMATTER_RULES,
+    errors
+  );
 
   // `show_reveal_screen=false` skips the per-question pause entirely (see
   // QuizPlayer.svelte) — fine when only `reveal_scores=after_every_question` is live (a brief
@@ -1078,14 +1120,19 @@ function parseFrontmatter(
   return { frontmatter, bodyStart: closingIndex + 1 };
 }
 
-interface SourceLine {
+export interface SourceLine {
   text: string;
   num: number;
 }
 
 /** Splits the body into per-question line groups on blank lines, ignoring blank lines that
- * fall inside a `{ }` option block so multi-line-formatted options don't fracture a question. */
-function splitQuestionBlocks(lines: string[], start: number): SourceLine[][] {
+ * fall inside a `{ }` option block so multi-line-formatted options don't fracture a question.
+ *
+ * Exported (keeping the name, which records its original caller rather than its only one) so
+ * `quizGroup.ts` splits a `.qwizgroup` body into entry blocks with the identical rule. The `{ }`
+ * depth tracking is inert for a manifest, which has no option blocks — harmless, and cheaper than
+ * a second near-identical splitter to keep in step. */
+export function splitQuestionBlocks(lines: string[], start: number): SourceLine[][] {
   const blocks: SourceLine[][] = [];
   let current: SourceLine[] = [];
   let depth = 0;

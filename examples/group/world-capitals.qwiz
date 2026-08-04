@@ -1,0 +1,28 @@
+---
+title: World Capitals
+description: Three capitals to warm up on.
+category: geography
+tags: [capitals]
+:shuffle_questions=false
+---
+
+pick_one: Which city is the capital of Australia?
+{
+=Canberra
+~Sydney
+~Melbourne
+~Perth
+}
+
+pick_one: Which city is the capital of Canada?
+{
+=Ottawa
+~Toronto
+~Vancouver
+~Montreal
+}
+
+type_answer: Which city is the capital of Japan?
+{
+=Tokyo
+}
