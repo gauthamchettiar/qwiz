@@ -139,7 +139,28 @@ an explicit `group:` label. This is also what you get with no manifest at all.
 
 Each quiz unlocks the next, per its `requires:`. `require_win` decides whether _finishing_ a quiz
 counts or whether you have to _win_ it (see `points_to_win` / `percent_to_win` in
-[`settings.md`](./settings.md)). Progress is kept in your own browser, and is never uploaded.
+[`settings.md`](./settings.md)). Set it per entry to make one quiz a real boss:
+
+```
+quiz: grand-finale.qwiz
+id: finale
+requires: [spelling]
+:require_win=true
+```
+
+Quizzes with no `requires:` are where the journey starts, and several can share a stage — anything
+playable in any order is shown side by side rather than as a false sequence.
+
+Each node says where you stand: **Ready**, **Played**, **Cleared**, or _Played — win it to clear it_
+for a `require_win` quiz you finished but didn't win. A locked node names what's blocking it
+("Clear World Capitals to unlock") rather than just refusing.
+
+**A clear is permanent.** Replaying a quiz and doing worse never re-locks what it already opened, so
+you can revisit anything without risking your progress.
+
+Progress is kept in your own browser and never uploaded. It's filed under the repository and the
+manifest's entry ids, so it survives you updating the quizzes — and _Reset progress_ on the map
+clears that one journey without touching any other.
 
 `id:` is mandatory here — without it, a typo in a `requires:` list could silently produce a quiz
 nothing ever unlocks.

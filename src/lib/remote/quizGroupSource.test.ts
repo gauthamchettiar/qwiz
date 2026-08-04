@@ -175,9 +175,16 @@ describe('loadQuizGroup — failure and degradation', () => {
 });
 
 describe('isPlayableAsRun', () => {
-  it('is false for folders, which is a browser and not a run', () => {
-    const { group } = parseQwizGroup(['---', '---', '', 'quiz: a.qwiz'].join('\n'));
-    expect(isPlayableAsRun(group)).toBe(false);
+  it('is false for the browsing modes, where the player chooses what to open next', () => {
+    const folders = parseQwizGroup(['---', '---', '', 'quiz: a.qwiz'].join('\n')).group;
+    expect(isPlayableAsRun(folders)).toBe(false);
+
+    // A journey's ORDER is the content — playing it as one run would skip every gate it exists to
+    // impose, so the lobby must not offer that.
+    const journey = parseQwizGroup(
+      ['---', ':mode=journey', '---', '', 'quiz: a.qwiz', 'id: a'].join('\n')
+    ).group;
+    expect(isPlayableAsRun(journey)).toBe(false);
   });
 
   it('is true for a mode that chains or merges', () => {

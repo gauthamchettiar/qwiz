@@ -8,17 +8,29 @@
     Loader2,
     Play
   } from '@lucide/svelte';
-  import { parseRepoRef, repoBrowseUrl, type RepoRef } from '@/lib/utils/githubRef';
+  import { parseRepoRef, repoBrowseUrl, repoKey, type RepoRef } from '@/lib/utils/githubRef';
   import { pinnedRef, groupUrl } from '@/lib/utils/remoteSource';
   import { allFolderPaths, buildFolderTree } from '@/lib/utils/folderTree';
-  import { groupMode, type QuizGroup } from '@/lib/utils/quizGroup';
+  import { entryRequiresWin, type JourneyProgress } from '@/lib/utils/journey';
+  import { groupMode, type QuizGroup, type QuizGroupEntry } from '@/lib/utils/quizGroup';
+  import {
+    readJourneyProgress,
+    recordJourneyPlay,
+    resetJourneyProgress
+  } from '@/lib/stores/groupProgress';
   import {
     isPlayableAsRun,
     loadQuizGroup,
     type LoadedQuizGroup
   } from '@/lib/remote/quizGroupSource';
+  import { fetchRepoFile } from '@/lib/remote/github';
+  import { quizFromQwizSource } from '@/lib/utils/importQwiz';
+  import type { QuizRunResult } from '@/lib/utils/grading';
+  import type { Quiz } from '@/lib/schemas/quiz';
   import ErrorList from './ErrorList.svelte';
   import FolderTree from './FolderTree.svelte';
+  import JourneyMap from './JourneyMap.svelte';
+  import QuizPlayer from './QuizPlayer.svelte';
 
   // Same "resolve at mount or show why not" shape as the other id-driven pages, with the loading
   // state a network round trip needs. `client:only` because there is nothing to render until the
@@ -31,7 +43,16 @@
   // reassigning a fresh copy on every toggle is the workaround this class exists to remove.
   const expanded = new SvelteSet<string>();
 
+  // A journey plays IN PLACE rather than navigating away: a run finishing has to record progress
+  // against this group, and keeping the player here makes that a local callback instead of
+  // cross-page state.
+  let progress = $state<JourneyProgress>({});
+  let playing = $state<{ entry: QuizGroupEntry; quiz: Quiz; source: string } | null>(null);
+  let playError = $state<string[]>([]);
+  let starting = $state(false);
+
   const group = $derived<QuizGroup | null>(loaded?.group ?? null);
+  const isJourney = $derived(group !== null && groupMode(group) === 'journey');
   const tree = $derived(group && repo ? buildFolderTree(group.entries, repo.path ?? '') : null);
   const folderPaths = $derived(tree ? allFolderPaths(tree) : []);
   const allExpanded = $derived(folderPaths.length > 0 && expanded.size >= folderPaths.length);
@@ -54,6 +75,53 @@
         return 'Play';
     }
   });
+
+  const groupKey = $derived(repo ? repoKey(repo) : '');
+
+  async function playEntry(entry: QuizGroupEntry) {
+    if (!repo || starting) return;
+    starting = true;
+    playError = [];
+    try {
+      const fetched = await fetchRepoFile(repo, entry.path);
+      if (!fetched.ok) {
+        playError = [fetched.error];
+        return;
+      }
+      const built = quizFromQwizSource(fetched.data);
+      if (!built.quiz) {
+        playError = built.errors;
+        return;
+      }
+      playing = { entry, quiz: built.quiz, source: fetched.data };
+    } finally {
+      starting = false;
+    }
+  }
+
+  function finishEntry(entry: QuizGroupEntry, result: QuizRunResult) {
+    if (!group) return;
+    // `won` is what a journey gates on, and what counts as won depends on this entry's own
+    // require_win — a quiz that only had to be finished is cleared either way.
+    const cleared = entryRequiresWin(group, entry) ? result.won : true;
+    // Checked rather than assumed: a save that silently didn't happen would show the next quiz as
+    // unlocked now and locked again after a reload, which is worse than saying so.
+    if (!recordJourneyPlay(groupKey, entry.id, cleared)) {
+      playError = [
+        "Couldn't save your progress — your browser's storage might be full or unavailable."
+      ];
+      return;
+    }
+    progress = readJourneyProgress(groupKey);
+  }
+
+  function resetProgress() {
+    if (!resetJourneyProgress(groupKey)) {
+      playError = ["Couldn't reset your progress — your browser's storage might be unavailable."];
+      return;
+    }
+    progress = readJourneyProgress(groupKey);
+  }
 
   function toggle(path: string) {
     if (expanded.has(path)) expanded.delete(path);
@@ -94,6 +162,7 @@
         return;
       }
       loaded = result.loaded;
+      progress = readJourneyProgress(repoKey(ref));
 
       // Open the top level by default. A collapsed tree of folder names says nothing about what's
       // in the group, and the whole reason someone opened this link was to see that.
@@ -111,6 +180,19 @@
   >
     <Loader2 size={16} class="animate-spin" /> Loading from GitHub…
   </p>
+{:else if playing && repo}
+  <!-- A journey plays its quizzes here rather than at /play, so a finished run can record progress
+       against this group without any cross-page state. `saveCopySource` still works, and the
+       LeaveGuard inside the player still covers a run in progress. -->
+  <div class="space-y-4">
+    <ErrorList errors={playError} />
+    <QuizPlayer
+      quiz={playing.quiz}
+      saveCopySource={playing.source}
+      onFinish={(result) => finishEntry(playing!.entry, result)}
+      continueAction={{ label: 'Back to the journey', onclick: () => (playing = null) }}
+    />
+  </div>
 {:else if loaded && repo && tree}
   <div class="space-y-6">
     <div class="space-y-2">
@@ -182,24 +264,32 @@
       </div>
     {/if}
 
+    <ErrorList errors={playError} />
+
     {#if group && group.entries.length > 0}
-      <div class="space-y-2">
-        <div class="flex items-baseline justify-between gap-3">
-          <h2 class="text-sm font-semibold text-ink-soft">
-            {group.entries.length} quiz{group.entries.length === 1 ? '' : 'zes'}
-          </h2>
-          {#if folderPaths.length > 0}
-            <button
-              type="button"
-              class="text-xs font-medium text-accent-ink hover:underline"
-              onclick={toggleAll}
-            >
-              {allExpanded ? 'Collapse all' : 'Expand all'}
-            </button>
-          {/if}
+      {#if isJourney}
+        <!-- A journey is a map, not a tree: the order is the whole point, so folders would say
+             nothing and a flat list would hide what unlocks what. -->
+        <JourneyMap {group} {progress} onPlay={playEntry} onReset={resetProgress} />
+      {:else}
+        <div class="space-y-2">
+          <div class="flex items-baseline justify-between gap-3">
+            <h2 class="text-sm font-semibold text-ink-soft">
+              {group.entries.length} quiz{group.entries.length === 1 ? '' : 'zes'}
+            </h2>
+            {#if folderPaths.length > 0}
+              <button
+                type="button"
+                class="text-xs font-medium text-accent-ink hover:underline"
+                onclick={toggleAll}
+              >
+                {allExpanded ? 'Collapse all' : 'Expand all'}
+              </button>
+            {/if}
+          </div>
+          <FolderTree node={tree} {repo} {expanded} onToggle={toggle} />
         </div>
-        <FolderTree node={tree} {repo} {expanded} onToggle={toggle} />
-      </div>
+      {/if}
     {/if}
 
     <p class="text-center text-xs text-ink-subtle">

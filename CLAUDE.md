@@ -192,7 +192,10 @@ migration.
 │   │   └── Base.astro           # page shell: header (logo, Import, + New), <main><slot /></main>
 │   ├── lib/                     # framework-agnostic TS: pure logic, no Svelte imports
 │   │   ├── schemas/quiz.ts      # zod Quiz/QuizQuestion schemas; Quiz/QuizDraft types derive from them
-│   │   ├── stores/quizzes.ts    # the only file that touches localStorage — list/get/save/delete
+│   │   ├── stores/               # the only files that touch localStorage. quizzes.ts
+│   │   │                         # (list/get/save/delete), theme.ts, groupProgress.ts (journey
+│   │   │                         # progress, keyed by repo + manifest entry id — never by quiz id,
+│   │   │                         # which is regenerated on every remote load)
 │   │   ├── remote/               # THE ONLY PLACE THAT CALLS fetch — same one-side-effect-per-folder
 │   │   │                         # rule as stores/ and localStorage. github.ts (gist/tree/raw
 │   │   │                         # requests, result types, never throws), quizSource.ts (resolve a
@@ -785,7 +788,8 @@ lint`, `pnpm test`, or `pnpm test:e2e`.
 - [ ] No new dependency without prior agreement
 - [ ] `text-slate-400` never used on text-bearing elements (see §5) — `text-slate-500`+ instead
 - [ ] Still fully static: no adapter, no server route, no runtime secret
-- [ ] `localStorage` touched only from `src/lib/stores/` (`quizzes.ts`, `theme.ts`)
+- [ ] `localStorage` touched only from `src/lib/stores/` (`quizzes.ts`, `theme.ts`,
+      `groupProgress.ts`)
 - [ ] `fetch` called only from `src/lib/remote/` — and always `credentials: 'omit'`, with a
       timeout, returning a result rather than throwing
 - [ ] Any new persistence call checks `saveQuiz`/`deleteQuiz`'s boolean return and surfaces a

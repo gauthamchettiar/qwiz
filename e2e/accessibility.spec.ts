@@ -65,6 +65,33 @@ test('the repo group screen has no serious accessibility violations', async ({ p
   await expectNoSeriousA11yViolations(page);
 });
 
+// The journey map has states nothing else in the app does — a disabled node carrying its own
+// "why", and four status tones sitting side by side on tinted surfaces.
+test('the journey map has no serious accessibility violations', async ({ page }) => {
+  await stubRepo(page, 'owner', 'repo', {
+    files: {
+      '.qwizgroup': [
+        '---',
+        'title: A Journey',
+        ':mode=journey',
+        '---',
+        '',
+        'quiz: a.qwiz',
+        'id: a',
+        '',
+        'quiz: b.qwiz',
+        'id: b',
+        'requires: [a]'
+      ].join('\n'),
+      'a.qwiz': '---\ntitle: A\n---\n\nQ?\n{\n=A\n~B\n}',
+      'b.qwiz': '---\ntitle: B\n---\n\nQ?\n{\n=A\n~B\n}'
+    }
+  });
+  await page.goto('/group?repo=owner%2Frepo');
+  await page.getByText('0 of 2 cleared').waitFor();
+  await expectNoSeriousA11yViolations(page);
+});
+
 test('the share-link dialog has no serious accessibility violations', async ({ page }) => {
   const quiz = buildQuiz();
   await seedQuizzes(page, [quiz]);

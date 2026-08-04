@@ -119,10 +119,14 @@ function hasAnyQwiz(paths: readonly string[]): boolean {
   return paths.some((path) => isQwizPath(path));
 }
 
-/** Whether this group can be played as a single run, which decides whether the lobby offers a
- * "Play all" action at all. Kept here beside the loader because it's the one thing a caller needs
- * to know about a loaded group before it renders anything. */
+/** Whether this group is played as ONE sitting on `/group/play`, which decides whether the lobby
+ * offers a "Play all" action at all.
+ *
+ * `folders` and `journey` are both excluded, for the same underlying reason and it's worth naming:
+ * they are browsing screens where the player chooses what to open next. A journey in particular has
+ * an order that IS the content — collapsing it into a single run would skip past every gate it
+ * exists to impose. Both play their quizzes one at a time from the lobby itself. */
 export function isPlayableAsRun(group: QuizGroup): boolean {
   const mode = groupMode(group);
-  return mode !== 'folders' && group.entries.length > 0;
+  return mode !== 'folders' && mode !== 'journey' && group.entries.length > 0;
 }
