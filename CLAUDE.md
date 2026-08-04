@@ -221,7 +221,9 @@ migration.
 │   │                             # at), quizGroup.ts (the .qwizgroup parser + its rules tables),
 │   │                             # folderTree.ts, repoIndex.ts (a repo with no manifest becomes
 │   │                             # the same QuizGroup type), qwizDocument.ts (a saved Quiz -> .qwiz source; the inverse
-│   │                             # of importQwiz.ts), clickOutside.ts, dragDrop.ts,
+│   │                             # of importQwiz.ts), groupBuilder.ts + zip.ts (the publish
+│   │                             # side: library quizzes -> .qwizgroup + files -> one archive),
+│   │                             # clickOutside.ts, dragDrop.ts,
 │   │                             # questionFocus.ts
 │   ├── pages/
 │   │   ├── index.astro          # quiz list
@@ -235,6 +237,9 @@ migration.
 │   │   │                        # browsing screens where the player chooses what to open next
 │   │   └── local/
 │   │       ├── create.astro     # QuizBuilder, client:load
+│   │       ├── group.astro      # GroupBuilder, client:load — assembles library quizzes into a
+│   │       │                    # publishable group and downloads it as a .zip. Under local/
+│   │       │                    # because it reads the LOCAL library, unlike /group
 │   │       ├── edit.astro       # QuizEditPage, client:only (reads ?id= at runtime)
 │   │       └── play.astro       # QuizPlayPage, client:only (reads ?id= at runtime)
 │   └── styles/global.css        # Tailwind import + @theme tokens + the app's ~3 lines of custom CSS

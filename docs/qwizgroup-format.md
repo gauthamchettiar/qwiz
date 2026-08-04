@@ -46,6 +46,23 @@ the mode folders beneath it.
 
 ---
 
+## Building one from the app
+
+You don't have to write the manifest by hand. **Publish a group** on the home screen assembles one
+from quizzes already in your library: pick them, choose how they play, and download the whole folder
+as a `.zip`.
+
+The preview shows the exact `.qwizgroup` the download will contain, and the download stays disabled
+until that file parses — the app validates it by reading it back with the same parser it uses for
+anyone else's group, so it can't hand you a manifest it couldn't open.
+
+What it deliberately doesn't do is create the repository. That would need a GitHub token with write
+access, and the whole feature rests on Qwiz reading public files signed out. So the last three steps
+are yours: unzip into a repo, commit, push.
+
+Anything the builder doesn't expose — branching journeys, per-entry timers, a nested group — is a
+text edit away afterwards. The file it produces is the same format documented below.
+
 ## Why write one
 
 **You don't have to.** Point Qwiz at any public repository containing `.qwiz` files and it will list

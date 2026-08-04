@@ -434,9 +434,17 @@ export function serializeQwizGroup(group: QuizGroup): string {
   }
   head.push('---');
 
+  // A journey ALWAYS gets an explicit `id:`, even one identical to the filename slug that would
+  // otherwise be left implicit: `parseQwizGroup` requires the line in journey mode (so a typo in a
+  // `requires:` can't orphan a node), which means omitting it produces a document this very module
+  // can't read back. Everywhere else the slug is enough and the line is noise.
+  const alwaysWriteIds = groupMode(group) === 'journey';
+
   const blocks = group.entries.map((entry) => {
     const lines = [`quiz: ${entry.path}`];
-    if (entry.id && entry.id !== slugFromPath(entry.path)) lines.push(`id: ${entry.id}`);
+    if (entry.id && (alwaysWriteIds || entry.id !== slugFromPath(entry.path))) {
+      lines.push(`id: ${entry.id}`);
+    }
     if (entry.title) lines.push(`title: ${entry.title}`);
     if (entry.group) lines.push(`group: ${entry.group}`);
     if (entry.requires.length > 0) lines.push(`requires: [${entry.requires.join(', ')}]`);

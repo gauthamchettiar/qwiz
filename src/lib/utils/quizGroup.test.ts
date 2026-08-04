@@ -319,6 +319,35 @@ describe('round-tripping', () => {
     expect(second.group).toEqual(first.group);
   });
 
+  it('round-trips a journey whose ids match their filename slugs', () => {
+    // The case the TRAIL fixture above misses: its ids (capitals, spelling) differ from their
+    // slugs (world-capitals, spelling-bee), so they were always written. An id EQUAL to its slug
+    // used to be omitted as redundant — producing a journey this module could not read back,
+    // since journey mode requires the line.
+    const source = [
+      '---',
+      ':mode=journey',
+      '---',
+      '',
+      'quiz: capitals.qwiz',
+      'id: capitals',
+      '',
+      'quiz: spelling.qwiz',
+      'id: spelling',
+      'requires: [capitals]'
+    ].join('\n');
+
+    const first = parseQwizGroup(source);
+    expect(first.errors).toEqual([]);
+
+    const serialized = serializeQwizGroup(first.group);
+    expect(serialized).toContain('id: capitals');
+
+    const second = parseQwizGroup(serialized);
+    expect(second.errors).toEqual([]);
+    expect(second.group).toEqual(first.group);
+  });
+
   it('round-trips a folders group with titles and section labels', () => {
     const source = [
       '---',

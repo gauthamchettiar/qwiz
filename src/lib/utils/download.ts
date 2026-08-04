@@ -11,7 +11,11 @@ export function slugify(title: string): string {
 
 /** Triggers a browser download of `content` as a plain-text file — no server involved. */
 export function downloadTextFile(filename: string, content: string): void {
-  const blob = new Blob([content], { type: 'text/plain' });
+  downloadBlobFile(filename, new Blob([content], { type: 'text/plain' }));
+}
+
+/** The same, for something already assembled as a Blob — a group's `.zip`, say. */
+export function downloadBlobFile(filename: string, blob: Blob): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
