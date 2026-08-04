@@ -92,6 +92,31 @@ test('the journey map has no serious accessibility violations', async ({ page })
   await expectNoSeriousA11yViolations(page);
 });
 
+// The gauntlet's category picker is the app's only "choose what happens next mid-run" screen, and
+// its disabled state is driven by data rather than by a form.
+test('the gauntlet category picker has no serious accessibility violations', async ({ page }) => {
+  await stubRepo(page, 'owner', 'repo', {
+    files: {
+      '.qwizgroup': [
+        '---',
+        'title: The Gauntlet',
+        ':mode=gauntlet',
+        ':rounds=2',
+        '---',
+        '',
+        'quiz: history/a.qwiz',
+        '',
+        'quiz: science/b.qwiz'
+      ].join('\n'),
+      'history/a.qwiz': '---\ntitle: A\n---\n\nQ?\n{\n=A\n~B\n}',
+      'science/b.qwiz': '---\ntitle: B\n---\n\nQ?\n{\n=A\n~B\n}'
+    }
+  });
+  await page.goto('/group/play?repo=owner%2Frepo');
+  await page.getByRole('heading', { name: 'Pick a category' }).waitFor();
+  await expectNoSeriousA11yViolations(page);
+});
+
 test('the share-link dialog has no serious accessibility violations', async ({ page }) => {
   const quiz = buildQuiz();
   await seedQuizzes(page, [quiz]);

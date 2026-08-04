@@ -180,8 +180,31 @@ Play the quizzes back to back in the order listed, with one scoreboard across th
 
 ### `gauntlet`
 
-The group's subfolders become categories. You pick a category, answer `questions_per_pick`
-questions from it, then pick again — for `rounds` rounds — and are scored on the average.
+The group's subfolders become categories. You pick one, answer `questions_per_pick` questions from
+it, then pick again — for `rounds` rounds.
+
+```
+---
+title: The Gauntlet
+:mode=gauntlet
+:questions_per_pick=2
+:rounds=5
+---
+```
+
+Only top-level folders are categories: `history/tudors/wives.qwiz` is offered as **history**, not as
+a folder to navigate. Quizzes sitting loose at the root are gathered into **General**, which is
+always listed last. An explicit `group:` on an entry overrides its folder, so a flat directory can
+still present as named categories.
+
+**Scoring is the average of each round's percentage**, not the point total. A category whose
+questions happen to be worth more points would otherwise dominate, which would make picking a
+category a scoring decision rather than a knowledge one. `percent_to_win` (default 75) is the pass
+mark, the same setting a single quiz uses.
+
+A run never asks the same question twice, and a category with nothing left can't be picked. If the
+whole group runs dry before `rounds` is up, the run ends there rather than repeating itself — so
+`rounds × questions_per_pick` is a ceiling, not a promise.
 
 ### `shuffle`
 

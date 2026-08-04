@@ -7,12 +7,15 @@
   import { groupMode, type QuizGroup, type QuizGroupEntry } from '@/lib/utils/quizGroup';
   import { mergeGroupDocument, selectSources, type MergeSource } from '@/lib/utils/mergeGroup';
   import { quizFromQwizSource } from '@/lib/utils/importQwiz';
+  import { parseQwizFile, parseQuizScriptQuestion } from '@/lib/utils/quizScript';
+  import type { QuizScriptQuestion } from '@/lib/utils/quizScript';
   import { shuffledArray } from '@/lib/utils/shuffle';
   import { loadQuizGroup } from '@/lib/remote/quizGroupSource';
   import { fetchRepoFiles } from '@/lib/remote/github';
   import type { QuizRunResult } from '@/lib/utils/grading';
   import type { Quiz } from '@/lib/schemas/quiz';
   import QuizPlayer from './QuizPlayer.svelte';
+  import GauntletSession from './GauntletSession.svelte';
   import ErrorList from './ErrorList.svelte';
 
   // Plays a whole group as one sitting. Two shapes share this component because they share every
@@ -34,6 +37,12 @@
   let errors = $state<string[]>([]);
   let warnings = $state<string[]>([]);
   let loading = $state(true);
+  // Gauntlet only: parsed questions per entry, since it draws ACROSS quizzes mid-run rather than
+  // playing any one of them start to finish.
+  // A plain record rather than a Map: it's a lookup table built once and replaced wholesale, so
+  // there's nothing for a reactive Map to buy. `$state.raw` for the same reason.
+  let gauntletQuestions = $state.raw<Record<string, QuizScriptQuestion[]> | null>(null);
+  let groupBase = $state('');
 
   const current = $derived(stages[index] ?? null);
   const done = $derived(stages.length > 0 && index >= stages.length);
@@ -110,6 +119,29 @@
       }
       const texts = new Map(fetched.files.map((file) => [file.path, file.content]));
 
+      if (mode === 'gauntlet') {
+        groupBase = ref.path ?? '';
+        const parsed: Record<string, QuizScriptQuestion[]> = {};
+        for (const entry of entries) {
+          const source = texts.get(entry.path);
+          if (source === undefined) continue;
+          const file = parseQwizFile(source);
+          if (file.errors.length > 0) {
+            warnings = [...warnings, `Skipped "${entryLabel(entry)}" — it doesn't parse.`];
+            continue;
+          }
+          parsed[entry.id] = file.questionCodes.map(
+            (code) => parseQuizScriptQuestion(code).question
+          );
+        }
+        if (Object.values(parsed).every((questions) => questions.length === 0)) {
+          errors = ["None of this group's quizzes could be played."];
+          return;
+        }
+        gauntletQuestions = parsed;
+        return;
+      }
+
       if (mode === 'playlist') {
         stages = buildStages(entries, texts);
         if (stages.length === 0) errors = ["None of this group's quizzes could be played."];
@@ -171,6 +203,24 @@
         Go to your own quizzes
       </a>
     </p>
+  </div>
+{:else if gauntletQuestions && group && repo}
+  <div class="space-y-4">
+    {#if warnings.length > 0}
+      <ul
+        class="space-y-1 rounded-lg border border-warning-line-faint bg-warning-surface p-4 text-sm text-warning-ink-strong"
+      >
+        {#each warnings as warning (warning)}
+          <li>{warning}</li>
+        {/each}
+      </ul>
+    {/if}
+    <GauntletSession
+      {group}
+      base={groupBase}
+      questionsByEntry={gauntletQuestions}
+      onExit={() => (window.location.href = groupUrl(repo, repo.path))}
+    />
   </div>
 {:else if done && repo}
   <!-- Only reachable with more than one stage: a merged group ends on the player's own results. -->
