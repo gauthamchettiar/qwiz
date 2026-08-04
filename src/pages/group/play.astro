@@ -1,0 +1,12 @@
+---
+import Base from '@/layouts/Base.astro';
+import GroupRunPage from '@/components/svelte/GroupRunPage.svelte';
+---
+
+<!-- Playing a whole group in one sitting: merge and shuffle synthesise a single quiz, playlist
+     chains them with a scoreboard. The browsing modes (folders, journey) live on /group itself.
+     `client:only` for the same reason as every other remote screen — the repository is only named
+     at runtime. -->
+<Base title="Play Group" minimal>
+  <GroupRunPage client:only="svelte" />
+</Base>

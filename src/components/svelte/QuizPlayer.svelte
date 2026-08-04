@@ -3,6 +3,7 @@
   import {
     AlarmClock,
     ArrowLeftRight,
+    ArrowRight,
     BookmarkPlus,
     Check,
     ChevronRight,
@@ -39,7 +40,8 @@
     type AnswerRecord,
     type PlayQuestion,
     type QuestionDraft,
-    type QuestionResult
+    type QuestionResult,
+    type QuizRunResult
   } from '@/lib/utils/grading';
   import { buildQuizRules, type QuizRuleIcon } from '@/lib/utils/quizRules';
   import { importQwizSource } from '@/lib/utils/importQwiz';
@@ -52,7 +54,28 @@
   // `saveCopySource` is set only by the shared-link player (SharedQuizPlayPage): the `.qwiz`
   // document this run was decoded from, so the player can opt into keeping it. Absent for a quiz
   // that's already in this browser's library, where "save a copy" would just make a duplicate.
-  let { quiz, saveCopySource }: { quiz: Quiz; saveCopySource?: string } = $props();
+  //
+  // `onFinish` and `continueAction` exist for one caller: a group playing several quizzes in a row
+  // (GroupRunPage). They're the whole of this component's group support, deliberately — everything
+  // else about a run is identical whether it stands alone or sits in a playlist.
+  let {
+    quiz,
+    saveCopySource,
+    onFinish,
+    continueAction
+  }: {
+    quiz: Quiz;
+    saveCopySource?: string;
+    /** Fired once per run, the moment the results screen appears — NOT when Continue is pressed, so
+     * a group still records the outcome if the player walks away here. Reset by `playAgain`, so a
+     * replay reports again rather than double-firing or going silent. */
+    onFinish?: (result: QuizRunResult) => void;
+    /** Present only inside a chained group run. Its presence REPLACES the results screen's
+     * "Back to quizzes" and "Play again" pair with a single Continue button — "Play again" mid-run
+     * would let a player silently retry a stage, which is exactly what a sequenced group isn't.
+     * "Review answers" stays in both layouts: it reveals, it doesn't re-run. */
+    continueAction?: { label: string; onclick: () => void };
+  } = $props();
 
   let saved = $state(false);
   let saveErrors = $state<string[]>([]);
@@ -430,9 +453,22 @@
     reviewing = false;
     confirmingSubmit = false;
     clearTimeout(confirmSubmitTimeout);
+    reported = false;
   }
 
   const summary = $derived(finished ? gradeRun(results, quiz.settings) : null);
+
+  // Reported once per run rather than on every re-render of the results screen: `summary` is a
+  // `$derived` that recomputes freely, so an unguarded effect would tell a group its player had
+  // finished the same quiz several times over. `playAgain` clears the flag, so a replay does
+  // report again.
+  let reported = $state(false);
+  $effect(() => {
+    if (finished && summary && !reported) {
+      reported = true;
+      onFinish?.(summary);
+    }
+  });
 
   // Read only by the welcome screen; $derived is lazy, so it costs nothing once the run is under
   // way. Built from `run` rather than `quiz.questions` so that questions_per_run's sampling and
@@ -595,13 +631,18 @@
       {:else}
         <h2 class="text-xl font-bold text-ink">Quiz complete</h2>
       {/if}
+      <!-- Two layouts, not one with extras bolted on. A standalone run offers a way out, a review
+           and a replay; a run inside a group offers a review and Continue, because "Play again"
+           there would let a player quietly re-take a stage they'd already been scored on. -->
       <div class="flex flex-wrap items-center justify-center gap-3 pt-2">
-        <a
-          href="/"
-          class="rounded-md border border-line bg-surface-raised px-4 py-2 text-sm font-medium text-ink-muted hover:bg-surface"
-        >
-          Back to quizzes
-        </a>
+        {#if !continueAction}
+          <a
+            href="/"
+            class="rounded-md border border-line bg-surface-raised px-4 py-2 text-sm font-medium text-ink-muted hover:bg-surface"
+          >
+            Back to quizzes
+          </a>
+        {/if}
         <button
           type="button"
           class="flex items-center gap-1.5 rounded-md border border-line bg-surface-raised px-4 py-2 text-sm font-medium text-ink-muted hover:bg-surface"
@@ -609,13 +650,24 @@
         >
           <ListChecks size={15} /> Review answers
         </button>
-        <button
-          type="button"
-          class="flex items-center gap-1.5 rounded-md bg-accent px-4 py-2 text-sm font-medium text-ink-inverse hover:bg-accent-hover"
-          onclick={playAgain}
-        >
-          <RotateCcw size={15} /> Play again
-        </button>
+        {#if continueAction}
+          <button
+            type="button"
+            class="flex items-center gap-1.5 rounded-md bg-accent px-4 py-2 text-sm font-medium text-ink-inverse hover:bg-accent-hover"
+            onclick={continueAction.onclick}
+          >
+            {continueAction.label}
+            <ArrowRight size={15} />
+          </button>
+        {:else}
+          <button
+            type="button"
+            class="flex items-center gap-1.5 rounded-md bg-accent px-4 py-2 text-sm font-medium text-ink-inverse hover:bg-accent-hover"
+            onclick={playAgain}
+          >
+            <RotateCcw size={15} /> Play again
+          </button>
+        {/if}
       </div>
       {#if saveCopySource}
         <div class="flex flex-wrap items-center justify-center gap-3">

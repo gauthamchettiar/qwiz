@@ -1,12 +1,22 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
-  import { ExternalLink, FolderGit2, FolderTree as FolderTreeIcon, Loader2 } from '@lucide/svelte';
+  import {
+    ExternalLink,
+    FolderGit2,
+    FolderTree as FolderTreeIcon,
+    Loader2,
+    Play
+  } from '@lucide/svelte';
   import { parseRepoRef, repoBrowseUrl, type RepoRef } from '@/lib/utils/githubRef';
   import { pinnedRef, groupUrl } from '@/lib/utils/remoteSource';
   import { allFolderPaths, buildFolderTree } from '@/lib/utils/folderTree';
-  import { type QuizGroup } from '@/lib/utils/quizGroup';
-  import { loadQuizGroup, type LoadedQuizGroup } from '@/lib/remote/quizGroupSource';
+  import { groupMode, type QuizGroup } from '@/lib/utils/quizGroup';
+  import {
+    isPlayableAsRun,
+    loadQuizGroup,
+    type LoadedQuizGroup
+  } from '@/lib/remote/quizGroupSource';
   import ErrorList from './ErrorList.svelte';
   import FolderTree from './FolderTree.svelte';
 
@@ -25,6 +35,25 @@
   const tree = $derived(group && repo ? buildFolderTree(group.entries, repo.path ?? '') : null);
   const folderPaths = $derived(tree ? allFolderPaths(tree) : []);
   const allExpanded = $derived(folderPaths.length > 0 && expanded.size >= folderPaths.length);
+
+  // Only the modes that are actually a single sitting get a Play action; `folders` is a browser,
+  // and `journey` has its own screen where the order is the point.
+  const playable = $derived(group !== null && isPlayableAsRun(group));
+
+  /** What the one button promises, so a player knows what they're starting. */
+  const playLabel = $derived.by(() => {
+    if (!group) return 'Play';
+    switch (groupMode(group)) {
+      case 'merge':
+        return 'Play all as one quiz';
+      case 'playlist':
+        return 'Play all in order';
+      case 'shuffle':
+        return 'Play a random draw';
+      default:
+        return 'Play';
+    }
+  });
 
   function toggle(path: string) {
     if (expanded.has(path)) expanded.delete(path);
@@ -109,6 +138,20 @@
         {/if}
       </p>
     </div>
+
+    {#if playable}
+      <a
+        href={`/group/play?${new URLSearchParams({
+          repo: `${repo.owner}/${repo.repo}`,
+          ...(repo.path ? { path: repo.path } : {}),
+          ...(repo.ref ? { ref: repo.ref } : {})
+        }).toString()}`}
+        class="flex items-center justify-center gap-2 rounded-md bg-accent px-4 py-2.5 text-sm font-medium text-ink-inverse hover:bg-accent-hover"
+      >
+        <Play size={16} />
+        {playLabel}
+      </a>
+    {/if}
 
     {#if loaded.warnings.length > 0}
       <ul
