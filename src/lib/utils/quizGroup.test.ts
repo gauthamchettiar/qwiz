@@ -389,15 +389,7 @@ describe('examples/groups', () => {
       .map((path) => groupMode(parseQwizGroup(readFileSync(path, 'utf8')).group))
       .sort();
     // folders twice: the hub, and the folders example itself.
-    expect(modes).toEqual([
-      'folders',
-      'folders',
-      'gauntlet',
-      'journey',
-      'merge',
-      'playlist',
-      'shuffle'
-    ]);
+    expect(modes).toEqual(['folders', 'folders', 'gauntlet', 'journey', 'merge']);
   });
 
   it.each(manifests)('%s parses with no errors', (path) => {

@@ -9,7 +9,7 @@ export class PlayPage {
   readonly typedAnswerInput: Locator;
   readonly playAgainButton: Locator;
   readonly reviewAnswersButton: Locator;
-  readonly backToQuizzesLink: Locator;
+  readonly backLink: Locator;
   readonly notFoundMessage: Locator;
   readonly startQuizButton: Locator;
   readonly rulesHeading: Locator;
@@ -26,7 +26,9 @@ export class PlayPage {
     this.typedAnswerInput = page.getByPlaceholder('Type your answer');
     this.playAgainButton = page.getByRole('button', { name: 'Play again' });
     this.reviewAnswersButton = page.getByRole('button', { name: 'Review answers' });
-    this.backToQuizzesLink = page.getByRole('link', { name: 'Back to quizzes' });
+    // The header's Back link, which is now the only way out of a finished run — the results
+    // screen used to carry its own "Back to quizzes" as well, which was two doors to one room.
+    this.backLink = page.getByRole('link', { name: 'Back' });
     this.notFoundMessage = page.getByText("That quiz couldn't be found.");
   }
 

@@ -2,16 +2,15 @@
   import { onMount } from 'svelte';
   import { Loader2, Trophy } from '@lucide/svelte';
   import { parseRepoRef, type RepoRef } from '@/lib/utils/githubRef';
-  import { pinnedRef, groupUrl } from '@/lib/utils/remoteSource';
+  import { pinnedRef, groupUrl, readGroupRunOptions } from '@/lib/utils/remoteSource';
   import { entryLabel } from '@/lib/utils/folderTree';
   import { groupMode, type QuizGroup, type QuizGroupEntry } from '@/lib/utils/quizGroup';
-  import { mergeGroupDocument, selectSources, type MergeSource } from '@/lib/utils/mergeGroup';
+  import { mergeGroupDocument, orderSources, type MergeSource } from '@/lib/utils/mergeGroup';
   import { quizFromQwizSource } from '@/lib/utils/importQwiz';
   import { parseQwizFile, parseQuizScriptQuestion } from '@/lib/utils/quizScript';
   import type { QuizScriptQuestion } from '@/lib/utils/quizScript';
-  import { shuffledArray } from '@/lib/utils/shuffle';
-  import { loadQuizGroup } from '@/lib/remote/quizGroupSource';
-  import { fetchRepoFiles } from '@/lib/remote/github';
+  import { remoteGroupSource, savedGroupSource } from '@/lib/remote/groupSource';
+  import { getSavedGroup } from '@/lib/stores/savedGroups';
   import type { QuizRunResult } from '@/lib/utils/grading';
   import type { Quiz } from '@/lib/schemas/quiz';
   import QuizPlayer from './QuizPlayer.svelte';
@@ -20,9 +19,11 @@
 
   // Plays a whole group as one sitting. Two shapes share this component because they share every
   // question about state except how many quizzes there are:
-  //   merge / shuffle → one synthesised quiz, so `stages` has a single entry
-  //   playlist        → one stage per quiz, in order, with a scoreboard across them
-  // `folders` and `journey` never reach here; they're browsing screens, not runs.
+  //   merged     → one synthesised quiz, so `stages` has a single entry
+  //   sequential → one stage per quiz, in order, with a scoreboard across them
+  // Which of the two is a PLAYER choice now (the Merge toggle, carried in the URL), not an
+  // author's; `:mode=merge` in a manifest simply means the toggle starts on. Only `journey` never
+  // reaches here — its order is the content, so collapsing it would skip every gate it imposes.
   interface Stage {
     label: string;
     quiz: Quiz;
@@ -43,6 +44,7 @@
   // there's nothing for a reactive Map to buy. `$state.raw` for the same reason.
   let gauntletQuestions = $state.raw<Record<string, QuizScriptQuestion[]> | null>(null);
   let groupBase = $state('');
+  let shuffling = $state(false);
 
   const current = $derived(stages[index] ?? null);
   const done = $derived(stages.length > 0 && index >= stages.length);
@@ -80,18 +82,38 @@
   onMount(async () => {
     try {
       const params = new URLSearchParams(window.location.search);
-      const raw = params.get('repo');
-      const parsed = raw ? parseRepoRef(raw) : null;
-      if (!parsed) {
-        errors = ['This link doesn’t say which repository to play.'];
-        return;
+
+      // A saved group plays entirely from this browser; a repo one reads through the cache. Both
+      // present the same interface, so nothing below here knows which it got.
+      const savedParam = params.get('saved');
+      let source;
+      if (savedParam) {
+        const found = getSavedGroup(savedParam);
+        if (!found) {
+          errors = ["That saved group isn't in this browser any more."];
+          return;
+        }
+        repo = {
+          owner: found.owner,
+          repo: found.repo,
+          ...(found.path ? { path: found.path } : {}),
+          ...(found.ref ? { ref: found.ref } : {})
+        };
+        source = savedGroupSource(found);
+      } else {
+        const raw = params.get('repo');
+        const parsed = raw ? parseRepoRef(raw) : null;
+        if (!parsed) {
+          errors = ['This link doesn’t say which repository to play.'];
+          return;
+        }
+        const path = params.get('path') ?? parsed.path;
+        const ref: RepoRef = { ...pinnedRef(params, parsed), ...(path ? { path } : {}) };
+        repo = ref;
+        source = remoteGroupSource(ref);
       }
 
-      const path = params.get('path') ?? parsed.path;
-      const ref: RepoRef = { ...pinnedRef(params, parsed), ...(path ? { path } : {}) };
-      repo = ref;
-
-      const result = await loadQuizGroup(ref);
+      const result = await source.load();
       if (!result.loaded) {
         errors = [result.error ?? "That group couldn't be loaded."];
         return;
@@ -100,17 +122,14 @@
       warnings = result.loaded.warnings;
 
       const mode = groupMode(group);
-      // `selectSources` is where shuffle's draw happens; every other mode takes all of them in
-      // the manifest's order.
-      let entries = selectSources(group, group.entries);
-      if (mode === 'playlist' && group.settings.shuffle_quizzes === true) {
-        entries = shuffledArray(entries);
-      }
+      // A `merge` manifest means "merged" even without the toggle; anywhere else the player says.
+      const run = readGroupRunOptions(window.location.search);
+      const merged = mode === 'merge' || run.merge;
+      shuffling = run.shuffle;
 
-      const fetched = await fetchRepoFiles(
-        ref,
-        entries.map((entry) => entry.path)
-      );
+      const entries = orderSources(group.entries, run.shuffle);
+
+      const fetched = await source.readFiles(entries.map((entry) => entry.path));
       if (fetched.skipped.length > 0) {
         warnings = [
           ...warnings,
@@ -120,7 +139,7 @@
       const texts = new Map(fetched.files.map((file) => [file.path, file.content]));
 
       if (mode === 'gauntlet') {
-        groupBase = ref.path ?? '';
+        groupBase = repo?.path ?? '';
         const parsed: Record<string, QuizScriptQuestion[]> = {};
         for (const entry of entries) {
           const source = texts.get(entry.path);
@@ -142,13 +161,13 @@
         return;
       }
 
-      if (mode === 'playlist') {
+      if (!merged) {
         stages = buildStages(entries, texts);
         if (stages.length === 0) errors = ["None of this group's quizzes could be played."];
         return;
       }
 
-      // merge / shuffle: one synthesised document, played by the ordinary player.
+      // Merged: one synthesised document, played by the ordinary player.
       const sources: MergeSource[] = entries
         .filter((entry) => texts.has(entry.path))
         .map((entry) => ({
@@ -157,21 +176,21 @@
           source: texts.get(entry.path) as string
         }));
 
-      const merged = mergeGroupDocument(group, sources);
-      if (!merged.source) {
-        errors = merged.errors;
+      const document = mergeGroupDocument(group, sources, { shuffle: run.shuffle });
+      if (!document.source) {
+        errors = document.errors;
         return;
       }
-      if (merged.skipped.length > 0) {
-        warnings = [...warnings, `Skipped ${merged.skipped.join(', ')} — they don't parse.`];
+      if (document.skipped.length > 0) {
+        warnings = [...warnings, `Skipped ${document.skipped.join(', ')} — they don't parse.`];
       }
 
-      const { quiz, errors: buildErrors } = quizFromQwizSource(merged.source);
+      const { quiz, errors: buildErrors } = quizFromQwizSource(document.source);
       if (!quiz) {
         errors = buildErrors;
         return;
       }
-      stages = [{ label: quiz.title, quiz, source: merged.source }];
+      stages = [{ label: quiz.title, quiz, source: document.source }];
     } finally {
       loading = false;
     }
@@ -270,7 +289,7 @@
     {/if}
     {#if stages.length > 1}
       <p class="text-center text-xs font-medium text-ink-subtle">
-        Quiz {index + 1} of {stages.length}
+        Quiz {index + 1} of {stages.length}{shuffling ? ' · shuffled' : ''}
       </p>
     {/if}
     {#key current.label}

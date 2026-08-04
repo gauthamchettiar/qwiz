@@ -48,7 +48,7 @@ the mode folders beneath it.
 
 ## Building one from the app
 
-You don't have to write the manifest by hand. **Publish a group** on the home screen assembles one
+You don't have to write the manifest by hand. **Generate a Group** on the home screen assembles one
 from quizzes already in your library: pick them, choose how they play, and download the whole folder
 as a `.zip`.
 
@@ -68,7 +68,7 @@ text edit away afterwards. The file it produces is the same format documented be
 **You don't have to.** Point Qwiz at any public repository containing `.qwiz` files and it will list
 them, using the folder structure as the grouping. A manifest buys you three things:
 
-1. **Modes.** Journeys, merged mega-quizzes, playlists and the rest only exist because a manifest
+1. **Modes.** Journeys, merged mega-quizzes, gauntlets and the rest only exist because a manifest
    says so.
 2. **Titles without a wait.** A `title:` on each entry means the list renders immediately. Without
    one, Qwiz shows the filename, because knowing the real title would mean downloading every quiz
@@ -86,15 +86,13 @@ them, using the folder structure as the grouping. A manifest buys you three thin
 
 Written in the frontmatter as `:key=value`, exactly like a quiz's own settings.
 
-| Key                  | Accepted values                                                  | Default   | Applies to | What it does                                                                                                   |
-| -------------------- | ---------------------------------------------------------------- | --------- | ---------- | -------------------------------------------------------------------------------------------------------------- |
-| `discover`           | `true`, `false`                                                  | `false`   | `folders`  | Also list every `.qwiz` file found in the repository, not just the ones named here. Costs one GitHub API call. |
-| `mode`               | `folders`, `journey`, `merge`, `playlist`, `gauntlet`, `shuffle` | `folders` | all        | How the group is presented and played. See below.                                                              |
-| `pick`               | any number                                                       | `1`       | `shuffle`  | How many quizzes to draw.                                                                                      |
-| `questions_per_pick` | any number                                                       | `1`       | `gauntlet` | Questions answered before choosing a category again.                                                           |
-| `require_win`        | `true`, `false`                                                  | `false`   | `journey`  | Whether a quiz must be _won_ to unlock the next, rather than merely finished.                                  |
-| `rounds`             | any number                                                       | `10`      | `gauntlet` | How many category picks make up a full run.                                                                    |
-| `shuffle_quizzes`    | `true`, `false`                                                  | `false`   | `playlist` | Play the quizzes in a random order. Not the same as `shuffle_questions`, which randomises _within_ one quiz.   |
+| Key                  | Accepted values                           | Default   | Applies to | What it does                                                                                                   |
+| -------------------- | ----------------------------------------- | --------- | ---------- | -------------------------------------------------------------------------------------------------------------- |
+| `discover`           | `true`, `false`                           | `false`   | `folders`  | Also list every `.qwiz` file found in the repository, not just the ones named here. Costs one GitHub API call. |
+| `mode`               | `folders`, `journey`, `merge`, `gauntlet` | `folders` | all        | How the group is presented and played. See below.                                                              |
+| `questions_per_pick` | any number                                | `1`       | `gauntlet` | Questions answered before choosing a category again.                                                           |
+| `require_win`        | `true`, `false`                           | `false`   | `journey`  | Whether a quiz must be _won_ to unlock the next, rather than merely finished.                                  |
+| `rounds`             | any number                                | `10`      | `gauntlet` | How many category picks make up a full run.                                                                    |
 
 A key used in a mode it means nothing to is an **error**, not a silent no-op — writing `:rounds=5`
 under a journey would otherwise look like it did something.
@@ -161,6 +159,18 @@ and make the link lie about what it loaded.
 Browse the group as a folder tree and play any quiz in it. Folders come from the file paths, or from
 an explicit `group:` label. This is also what you get with no manifest at all.
 
+It's also how you play the **whole set**. One Play button, with two toggles beside it:
+
+| Toggle      | Off                                               | On                                              |
+| ----------- | ------------------------------------------------- | ----------------------------------------------- |
+| **Merge**   | Each quiz in turn, with one scoreboard at the end | Every question from every quiz, as a single run |
+| **Shuffle** | Manifest order                                    | Randomised                                      |
+
+Those were `playlist` and `shuffle` modes once. They're toggles now because "in what order, and as
+how many quizzes" is a choice the person playing makes, not one the author has to decide for
+everyone in advance. The choice is carried in the link (`&merge=1&shuffle=1`), so a particular way
+of playing is still shareable.
+
 ![A quiz group browsed as folders](./screenshots/group-folders.png)
 
 ### `journey`
@@ -203,11 +213,6 @@ other, is an error rather than something you discover as a permanently locked sc
 Every question from every listed quiz becomes one long quiz. The group's own frontmatter supplies
 its title, description and rules. Combine with `:questions_per_run=N` for an exam-style random draw.
 
-### `playlist`
-
-Play the quizzes back to back in the order listed, with one scoreboard across the whole run. Add
-`:shuffle_quizzes=true` to randomise that order.
-
 ### `gauntlet`
 
 The group's subfolders become categories. You pick one, answer `questions_per_pick` questions from
@@ -235,12 +240,6 @@ mark, the same setting a single quiz uses.
 A run never asks the same question twice, and a category with nothing left can't be picked. If the
 whole group runs dry before `rounds` is up, the run ends there rather than repeating itself — so
 `rounds × questions_per_pick` is a ceiling, not a promise.
-
-### `shuffle`
-
-Draw `pick` quizzes from the group at random and play those.
-
----
 
 ## Several groups in one repository
 

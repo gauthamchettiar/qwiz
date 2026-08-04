@@ -76,7 +76,7 @@
 
 <div class="space-y-6">
   <div class="space-y-1">
-    <h1 class="text-2xl font-bold text-ink">Publish a group</h1>
+    <h1 class="text-2xl font-bold text-ink">Generate a Group</h1>
     <p class="text-sm text-ink-subtle">
       Pick quizzes from your library, choose how they should be played, and download the folder.
       Push it to a public GitHub repository and it becomes a link anyone can open.
@@ -149,21 +149,6 @@
         <label class="flex items-center gap-2 text-sm text-ink-muted">
           <input type="checkbox" bind:checked={draft.requireWin} />
           Each quiz must be won, not just finished, to unlock the next
-        </label>
-      {:else if draft.mode === 'playlist'}
-        <label class="flex items-center gap-2 text-sm text-ink-muted">
-          <input type="checkbox" bind:checked={draft.shuffleQuizzes} />
-          Play the quizzes in a random order
-        </label>
-      {:else if draft.mode === 'shuffle'}
-        <label class="flex items-center gap-2 text-sm text-ink-muted">
-          How many quizzes to draw
-          <input
-            type="number"
-            min="1"
-            class="w-20 rounded-md border border-line-subtle bg-surface px-2 py-1 text-sm text-ink"
-            bind:value={draft.pick}
-          />
         </label>
       {:else if draft.mode === 'merge'}
         <label class="flex items-center gap-2 text-sm text-ink-muted">

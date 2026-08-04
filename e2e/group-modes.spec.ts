@@ -60,7 +60,7 @@ test('merge plays every question from every quiz as one run', async ({ page }) =
   });
 
   await page.goto('/group?repo=owner%2Frepo');
-  await page.getByRole('link', { name: 'Play all as one quiz' }).click();
+  await page.getByRole('link', { name: /^Play all 2 as one quiz/ }).click();
 
   const play = new PlayPage(page);
   await play.startQuizButton.waitFor({ state: 'visible' });
@@ -125,13 +125,16 @@ test('a merged run keeps each source quiz own inheritable settings', async ({ pa
   await expect(page.getByText('5 / 5 points')).toBeVisible();
 });
 
-test('playlist chains the quizzes and totals them on one scoreboard', async ({ page }) => {
+test('a folders group plays its quizzes in turn, totalling them on one scoreboard', async ({
+  page
+}) => {
   await stubRepo(page, 'owner', 'repo', {
-    files: { '.qwizgroup': manifest('playlist'), ...QUIZZES }
+    files: { '.qwizgroup': manifest('folders'), ...QUIZZES }
   });
 
   await page.goto('/group?repo=owner%2Frepo');
-  await page.getByRole('link', { name: 'Play all in order' }).click();
+  // Merge off is the default: each quiz in turn, which is what `playlist` mode used to be.
+  await page.getByRole('link', { name: /^Play all 2 in order/ }).click();
 
   const play = new PlayPage(page);
   await play.startQuizButton.waitFor({ state: 'visible' });
@@ -159,37 +162,76 @@ test('playlist chains the quizzes and totals them on one scoreboard', async ({ p
   await page.getByRole('button', { name: 'See group results' }).click();
 
   // One scoreboard across both quizzes.
-  await expect(page.getByRole('heading', { name: 'The playlist Group' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'The folders Group' })).toBeVisible();
   await expect(page.getByText('across 2 quizzes')).toBeVisible();
   await expect(page.getByText('Quiz One')).toBeVisible();
   await expect(page.getByText('Quiz Two')).toBeVisible();
   expect(await storedQuizCount(page)).toBe(0);
 });
 
-test('shuffle draws a subset of the group', async ({ page }) => {
-  await stubRepo(page, 'owner', 'repo', {
-    files: { '.qwizgroup': manifest('shuffle', ':pick=1'), ...QUIZZES }
-  });
-
-  await page.goto('/group?repo=owner%2Frepo');
-  await page.getByRole('link', { name: 'Play a random draw' }).click();
-
-  const play = new PlayPage(page);
-  await play.startQuizButton.waitFor({ state: 'visible' });
-  await play.start();
-
-  // One of the two quizzes was drawn, so two questions rather than four — whichever it was.
-  await expect(play.progressLabel()).toHaveText('Question 1 of 2');
-});
-
-test('folders offers no Play action, because it is a browser and not a run', async ({ page }) => {
+test('the Merge toggle turns the set into one run, and says so before you press Play', async ({
+  page
+}) => {
   await stubRepo(page, 'owner', 'repo', {
     files: { '.qwizgroup': manifest('folders'), ...QUIZZES }
   });
 
   await page.goto('/group?repo=owner%2Frepo');
-  await expect(page.getByRole('link', { name: 'one' })).toBeVisible();
+  await expect(page.getByText('Each quiz in turn, with one scoreboard at the end.')).toBeVisible();
+
+  await page.getByLabel('Merge').check();
+  await expect(page.getByText('Every question from every quiz, as one run.')).toBeVisible();
+  await page.getByRole('link', { name: /^Play all 2 as one quiz/ }).click();
+
+  const play = new PlayPage(page);
+  await play.startQuizButton.waitFor({ state: 'visible' });
+  await play.start();
+  // 2 + 2, in one run, rather than two quizzes chained.
+  await expect(play.progressLabel()).toHaveText('Question 1 of 4');
+});
+
+test('the toggles travel in the link, so a way of playing is shareable', async ({ page }) => {
+  await stubRepo(page, 'owner', 'repo', {
+    files: { '.qwizgroup': manifest('folders'), ...QUIZZES }
+  });
+
+  await page.goto('/group?repo=owner%2Frepo');
+  await page.getByLabel('Merge').check();
+  await page.getByLabel('Shuffle').check();
+
+  await page.getByRole('link', { name: /^Play all/ }).click();
+  await expect(page).toHaveURL(/merge=1/);
+  await expect(page).toHaveURL(/shuffle=1/);
+});
+
+test('a merge manifest starts with Merge already ticked', async ({ page }) => {
+  await stubRepo(page, 'owner', 'repo', {
+    files: { '.qwizgroup': manifest('merge'), ...QUIZZES }
+  });
+
+  await page.goto('/group?repo=owner%2Frepo');
+  await expect(page.getByLabel('Merge')).toBeChecked();
+});
+
+test('a journey offers no whole-set Play, because its order is the content', async ({ page }) => {
+  await stubRepo(page, 'owner', 'repo', {
+    files: {
+      '.qwizgroup': [
+        '---',
+        'title: The Trail',
+        ':mode=journey',
+        '---',
+        '',
+        'quiz: one.qwiz',
+        'id: one'
+      ].join('\n'),
+      ...QUIZZES
+    }
+  });
+
+  await page.goto('/group?repo=owner%2Frepo');
   await expect(page.getByRole('link', { name: /^Play all/ })).toBeHidden();
+  await expect(page.getByLabel('Merge')).toBeHidden();
 });
 
 test('a group whose quizzes cannot be read says so rather than playing nothing', async ({

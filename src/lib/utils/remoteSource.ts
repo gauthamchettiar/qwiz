@@ -23,7 +23,9 @@ export type QuizSourceRef =
    * more than one becomes a picker. */
   | { kind: 'gist'; gistId: string; file?: string }
   /** One `.qwiz` file in a public repository. */
-  | { kind: 'repo'; repo: RepoRef; path: string };
+  | { kind: 'repo'; repo: RepoRef; path: string }
+  /** One `.qwiz` inside a group saved to this browser — read from the saved copy, never fetched. */
+  | { kind: 'saved'; savedId: string; path: string };
 
 /** `{}` means "this link carries no quiz at all", which the page reports differently from a
  * malformed pointer — the first is usually a truncated link, the second a typo. */
@@ -32,6 +34,16 @@ export function readQuizSourceRef(
   hash: string
 ): { ref?: QuizSourceRef; error?: string } {
   const params = new URLSearchParams(search);
+
+  // A quiz inside a saved group. Checked first: a saved group records the repository it came from,
+  // and reading THAT would put this straight back on the network, which is the one thing saving it
+  // was meant to avoid.
+  const saved = params.get('saved');
+  if (saved !== null) {
+    const path = params.get('path');
+    if (!path) return { error: 'That link points at a saved group but not at a quiz inside it.' };
+    return { ref: { kind: 'saved', savedId: saved, path } };
+  }
 
   const gist = params.get('gist');
   if (gist !== null) {
@@ -89,10 +101,44 @@ export function repoQuizUrl(repo: RepoRef, path: string): string {
   return `/play?${params.toString()}`;
 }
 
+/** The `/play` link for one quiz inside a group saved to this browser. */
+export function savedQuizUrl(savedId: string, path: string): string {
+  return `/play?${new URLSearchParams({ saved: savedId, path }).toString()}`;
+}
+
 /** The `/group` link for a repository, optionally scoped to a folder inside it. */
 export function groupUrl(repo: RepoRef, path?: string): string {
   const params = new URLSearchParams({ repo: `${repo.owner}/${repo.repo}` });
   if (path) params.set('path', path);
   if (repo.ref) params.set('ref', repo.ref);
   return `/group?${params.toString()}`;
+}
+
+/** How a folders group is being played this time round.
+ *
+ * Carried in the URL rather than held in component state so a run is linkable and survives a
+ * reload — the same reason `?path=` and `?ref=` are there. `merge` and `shuffle` used to be modes
+ * an author chose in the manifest; they're player choices now. */
+export interface GroupRunOptions {
+  merge: boolean;
+  shuffle: boolean;
+}
+
+export function readGroupRunOptions(search: string): GroupRunOptions {
+  const params = new URLSearchParams(search);
+  return { merge: params.get('merge') === '1', shuffle: params.get('shuffle') === '1' };
+}
+
+/** The `/group/play` link for a repository, carrying how it should be played. */
+export function groupPlayUrl(
+  repo: RepoRef,
+  path: string | undefined,
+  options: Partial<GroupRunOptions> = {}
+): string {
+  const params = new URLSearchParams({ repo: `${repo.owner}/${repo.repo}` });
+  if (path) params.set('path', path);
+  if (repo.ref) params.set('ref', repo.ref);
+  if (options.merge) params.set('merge', '1');
+  if (options.shuffle) params.set('shuffle', '1');
+  return `/group/play?${params.toString()}`;
 }

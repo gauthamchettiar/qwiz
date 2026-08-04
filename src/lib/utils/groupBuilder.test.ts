@@ -99,7 +99,7 @@ describe('buildQuizGroup — mode-scoped settings', () => {
     expect(journey.settings).toEqual({ mode: 'journey', require_win: true });
 
     const gauntlet = buildQuizGroup(
-      draft({ mode: 'gauntlet', questionsPerPick: 2, rounds: 4, pick: 7 }),
+      draft({ mode: 'gauntlet', questionsPerPick: 2, rounds: 4 }),
       LIBRARY
     );
     expect(gauntlet.settings).toEqual({
@@ -133,7 +133,7 @@ describe('buildQuizGroup — mode-scoped settings', () => {
   });
 
   it('never writes requires: outside a journey, where it is a parse error', () => {
-    for (const mode of ['folders', 'merge', 'playlist', 'shuffle', 'gauntlet'] as const) {
+    for (const mode of ['folders', 'merge', 'gauntlet'] as const) {
       const group = buildQuizGroup(draft({ mode }), LIBRARY);
       expect(
         group.entries.every((e) => e.requires.length === 0),
@@ -193,8 +193,6 @@ describe('buildGroupFiles — the output is validated by being parsed back', () 
       folders: draft({ mode: 'folders' }),
       journey: draft({ mode: 'journey' }),
       merge: draft({ mode: 'merge', questionsPerRun: 5 }),
-      playlist: draft({ mode: 'playlist', shuffleQuizzes: true }),
-      shuffle: draft({ mode: 'shuffle', pick: 2 }),
       gauntlet: draft({
         mode: 'gauntlet',
         entries: [
@@ -305,7 +303,7 @@ describe('helpers', () => {
   it('knows which modes actually use folders', () => {
     expect(modeUsesFolders('folders')).toBe(true);
     expect(modeUsesFolders('gauntlet')).toBe(true);
-    for (const mode of ['journey', 'merge', 'playlist', 'shuffle'] as const) {
+    for (const mode of ['journey', 'merge'] as const) {
       expect(modeUsesFolders(mode), mode).toBe(false);
     }
   });

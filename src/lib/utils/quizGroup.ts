@@ -46,16 +46,9 @@ import {
 } from './quizScript';
 import { fileNameOf, isQwizPath, isSafePath } from './githubRef';
 
-export type QuizGroupMode = 'folders' | 'journey' | 'merge' | 'playlist' | 'gauntlet' | 'shuffle';
+export type QuizGroupMode = 'folders' | 'journey' | 'merge' | 'gauntlet';
 
-export const GROUP_MODES: readonly QuizGroupMode[] = [
-  'folders',
-  'journey',
-  'merge',
-  'playlist',
-  'gauntlet',
-  'shuffle'
-];
+export const GROUP_MODES: readonly QuizGroupMode[] = ['folders', 'journey', 'merge', 'gauntlet'];
 
 /** Group-wide keys. Shaped as `SettingRule` so `validateSettingValue` — the single function every
  * `:key=value` in this project goes through — validates these with no special case, and so
@@ -67,7 +60,7 @@ export const GROUP_SETTING_RULES: Record<string, SettingRule> = {
     values: [...GROUP_MODES],
     default: 'folders',
     description:
-      'How this group\'s quizzes are presented and played. "folders": browse them as a tree and play any one (the default). "journey": each quiz unlocks the next, per its own "requires". "merge": every question from every quiz becomes one long quiz. "playlist": play them back to back in order, with one scoreboard. "gauntlet": pick a category each round from the group\'s subfolders. "shuffle": draw quizzes at random.\n\nAccepted values: folders, journey, merge, playlist, gauntlet, shuffle\nDefault: folders'
+      'How this group\'s quizzes are presented and played. "folders": browse them as a tree and play any one, or play the whole set with the Merge and Shuffle toggles (the default). "journey": each quiz unlocks the next, per its own "requires". "merge": every question from every quiz becomes one long quiz. "gauntlet": pick a category each round from the group\'s subfolders.\n\nAccepted values: folders, journey, merge, gauntlet\nDefault: folders'
   },
   require_win: {
     group: 'Group',
@@ -75,20 +68,6 @@ export const GROUP_SETTING_RULES: Record<string, SettingRule> = {
     default: false,
     description:
       'Whether clearing a quiz requires actually winning it (see points_to_win/percent_to_win) rather than merely finishing it. Set per entry to override it for one quiz. Only meaningful in "journey", where it decides what unlocks the next step.\n\nAccepted values: true, false\nDefault: false'
-  },
-  shuffle_quizzes: {
-    group: 'Group',
-    kind: 'boolean',
-    default: false,
-    description:
-      'Whether the quizzes themselves are played in a random order, as opposed to shuffle_questions which randomises within one quiz. Only meaningful in "playlist".\n\nAccepted values: true, false\nDefault: false'
-  },
-  pick: {
-    group: 'Group',
-    kind: 'number',
-    default: 1,
-    description:
-      'How many quizzes to draw from the group. Only meaningful in "shuffle".\n\nAccepted values: any number\nDefault: 1'
   },
   questions_per_pick: {
     group: 'Gauntlet',
@@ -123,8 +102,6 @@ export const GROUP_SETTING_RULES: Record<string, SettingRule> = {
 export const GROUP_SETTING_MODES: Record<string, readonly QuizGroupMode[]> = {
   mode: GROUP_MODES,
   require_win: ['journey'],
-  shuffle_quizzes: ['playlist'],
-  pick: ['shuffle'],
   questions_per_pick: ['gauntlet'],
   rounds: ['gauntlet'],
   discover: ['folders']

@@ -48,10 +48,6 @@ export interface GroupDraft {
   /** gauntlet */
   questionsPerPick: number;
   rounds: number;
-  /** shuffle */
-  pick: number;
-  /** playlist */
-  shuffleQuizzes: boolean;
   /** merge — 0 means "every question", matching the setting being absent. */
   questionsPerRun: number;
   entries: GroupEntryDraft[];
@@ -67,8 +63,6 @@ export function emptyGroupDraft(): GroupDraft {
     requireWin: false,
     questionsPerPick: 1,
     rounds: 5,
-    pick: 1,
-    shuffleQuizzes: false,
     questionsPerRun: 0,
     entries: []
   };
@@ -110,8 +104,6 @@ function settingsFor(draft: GroupDraft): QuizGroup['settings'] {
   const settings: QuizGroup['settings'] = { mode: draft.mode };
 
   if (draft.mode === 'journey' && draft.requireWin) settings.require_win = true;
-  if (draft.mode === 'playlist' && draft.shuffleQuizzes) settings.shuffle_quizzes = true;
-  if (draft.mode === 'shuffle') settings.pick = Math.max(1, Math.floor(draft.pick));
   if (draft.mode === 'gauntlet') {
     settings.questions_per_pick = Math.max(1, Math.floor(draft.questionsPerPick));
     settings.rounds = Math.max(1, Math.floor(draft.rounds));
@@ -235,7 +227,7 @@ export function groupZipName(draft: GroupDraft): string {
 }
 
 /** Whether this mode uses per-entry folders at all, so the form can hide a column that would mean
- * nothing — `journey`, `merge`, `playlist` and `shuffle` all ignore where a file sits. */
+ * nothing — `journey` and `merge` both ignore where a file sits. */
 export function modeUsesFolders(mode: QuizGroupMode): boolean {
   return mode === 'folders' || mode === 'gauntlet';
 }
@@ -247,14 +239,10 @@ export function modeSummary(mode: QuizGroupMode): string {
       return 'Each quiz unlocks the next, in the order below.';
     case 'merge':
       return 'Every question from every quiz becomes one long quiz.';
-    case 'playlist':
-      return 'The quizzes are played back to back, with one scoreboard.';
     case 'gauntlet':
       return 'Players pick a category each round. Put each quiz in a category folder.';
-    case 'shuffle':
-      return 'Quizzes are drawn at random.';
     default:
-      return 'Players browse a folder tree and play any quiz in it.';
+      return 'Players browse a folder tree, play any quiz, or play the whole set with the Merge and Shuffle toggles.';
   }
 }
 

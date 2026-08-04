@@ -581,10 +581,8 @@ requires: [spelling]
 **Frontmatter** takes `title`, `description`, `category`, `tags` — as a quiz does — plus these
 `:key=value` settings:
 
-- `mode` — `folders` (default) / `journey` / `merge` / `playlist` / `gauntlet` / `shuffle`
+- `mode` — `folders` (default) / `journey` / `merge` / `gauntlet`
 - `require_win` — `true`/`false`, default `false`. `journey` only.
-- `shuffle_quizzes` — `true`/`false`, default `false`. `playlist` only.
-- `pick` — number, default `1`. `shuffle` only.
 - `questions_per_pick` — number, default `1`. `gauntlet` only.
 - `rounds` — number, default `10`. `gauntlet` only.
 - `discover` — `true`/`false`, default `false`. `folders` only.
@@ -605,6 +603,8 @@ own frontmatter. That is how an exam-style draw is written: `:mode=merge` with
 Rules that are parse errors, not warnings:
 
 1. A key used in a mode it doesn't apply to (e.g. `:rounds` outside `gauntlet`).
+   There is no `playlist` or `shuffle` mode — playing a whole set in order, or shuffled, is a
+   toggle on the folders screen rather than something a manifest declares.
 2. An unknown frontmatter field, an unknown block key, or an unknown setting.
 3. A block with no `quiz:` line, or one not ending in `.qwiz`.
 4. Two entries sharing an `id`.
