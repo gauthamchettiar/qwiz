@@ -4,13 +4,14 @@ import ImportQuizDialog from '@/components/svelte/ImportQuizDialog.svelte';
 import ThemePicker from '@/components/svelte/ThemePicker.svelte';
 import Button from '@/components/svelte/Button.svelte';
 import Wordmark from '@/components/astro/Wordmark.astro';
-import { ArrowLeft } from '@lucide/svelte';
+import BackLink from '@/components/svelte/BackLink.svelte';
 
 interface Props {
   title?: string;
   description?: string;
-  /** Swaps the standard header (logo, Import, + New) for just a back-to-home link — the
-   * play screen's own request to stay out of the way of the quiz itself. */
+  /** Swaps the standard header (logo, Import, + New) for just a Back link — the play screen's own
+   * request to stay out of the way of the quiz itself. Where Back goes is decided at runtime from
+   * the URL (see `BackLink`/`backTarget`), not fixed to home. */
   minimal?: boolean;
 }
 
@@ -66,12 +67,7 @@ const {
       {
         minimal ? (
           <header class="mb-6 flex items-center justify-between gap-2">
-            <a
-              href="/"
-              class="inline-flex items-center gap-1.5 text-sm font-medium text-ink-soft hover:text-ink"
-            >
-              <ArrowLeft size={16} /> Back
-            </a>
+            <BackLink client:load />
             <ThemePicker client:load />
           </header>
         ) : (

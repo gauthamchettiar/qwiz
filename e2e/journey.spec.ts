@@ -163,7 +163,7 @@ test('playing a journey never adds anything to the library', async ({ page }) =>
   expect(await storedQuizCount(page)).toBe(0);
 });
 
-test('a journey mid-run offers no Play again, and no Back to quizzes', async ({ page }) => {
+test('a journey mid-run offers no Play again, only a way back to the map', async ({ page }) => {
   await stubRepo(page, 'owner', 'repo', { files: FILES });
   await page.goto('/group?repo=owner%2Frepo');
 
@@ -178,7 +178,6 @@ test('a journey mid-run offers no Play again, and no Back to quizzes', async ({ 
   // Replaying a scored node from inside its own results screen would let a player quietly retake
   // it; the way back is through the map.
   await expect(play.playAgainButton).toBeHidden();
-  await expect(play.backToQuizzesLink).toBeHidden();
   await expect(page.getByRole('button', { name: 'Back to the journey' })).toBeVisible();
   // Reviewing stays available in both layouts: it reveals, it doesn't re-run.
   await expect(play.reviewAnswersButton).toBeVisible();

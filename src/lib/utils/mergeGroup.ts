@@ -20,7 +20,7 @@ import {
   type QuizScriptFrontmatter,
   type QuizScriptSettings
 } from './quizScript';
-import { GROUP_SETTING_RULES, groupMode, type QuizGroup } from './quizGroup';
+import { GROUP_SETTING_RULES, type QuizGroup } from './quizGroup';
 import { shuffledArray } from './shuffle';
 
 /** One source quiz, as fetched. */
@@ -100,7 +100,8 @@ function formatValue(value: string | number | boolean): string {
  * drawn and ordered them — this function stays deterministic so it can be tested as one. */
 export function mergeGroupDocument(
   group: QuizGroup,
-  sources: readonly MergeSource[]
+  sources: readonly MergeSource[],
+  options: { shuffle?: boolean } = {}
 ): MergedDocument {
   const codes: string[] = [];
   const skipped: string[] = [];
@@ -130,22 +131,22 @@ export function mergeGroupDocument(
     description: group.description,
     category: group.category,
     tags: group.tags,
-    settings: quizSettingsFrom(group)
+    // An explicit Shuffle overrides whatever the manifest said. It already defaults to true, so
+    // this only bites when an author pinned it off — and a player who ticked the box meant it.
+    settings: options.shuffle
+      ? { ...quizSettingsFrom(group), shuffle_questions: true }
+      : quizSettingsFrom(group)
   };
 
   return { source: serializeQuizScript(frontmatter, codes), skipped, errors: [] };
 }
 
-/** Which source quizzes a run should include, in what order.
+/** The order a run plays its source quizzes in.
  *
- * `merge` takes them all in the manifest's order. `shuffle` draws `:pick=N` of them at random —
- * which is the whole of that mode, because randomising the QUESTIONS is already what
- * `shuffle_questions` does by default, and drawing a subset of them is already `questions_per_run`.
- * Shipping it as a mode name rather than as machinery is the deliberate part.
- */
-export function selectSources<T>(group: QuizGroup, sources: readonly T[]): T[] {
-  if (groupMode(group) !== 'shuffle') return [...sources];
-
-  const pick = typeof group.settings.pick === 'number' ? group.settings.pick : 1;
-  return shuffledArray([...sources]).slice(0, Math.max(1, Math.min(pick, sources.length)));
+ * Shuffling used to be a MODE (`shuffle`, drawing `:pick=N`); it's now a toggle on the folders
+ * screen, because "in what order" is a choice the player makes at play time rather than a property
+ * the author bakes into the file. Drawing a subset is still expressible, and still by the setting
+ * that already did it: `questions_per_run`. */
+export function orderSources<T>(sources: readonly T[], shuffle: boolean): T[] {
+  return shuffle ? shuffledArray([...sources]) : [...sources];
 }

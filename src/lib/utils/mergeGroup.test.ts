@@ -5,7 +5,7 @@ import {
   inlineQuizSettings,
   mergeGroupDocument,
   quizSettingsFrom,
-  selectSources,
+  orderSources,
   type MergeSource
 } from './mergeGroup';
 
@@ -75,14 +75,25 @@ describe('mergeGroupDocument', () => {
   });
 
   it('drops group-shape settings, which describe assembly rather than how the quiz plays', () => {
-    const merged = mergeGroupDocument(group(':mode=shuffle', ':pick=1', ':questions_per_run=1'), [
-      QUIZ_A
-    ]);
+    const merged = mergeGroupDocument(group(':mode=merge', ':questions_per_run=1'), [QUIZ_A]);
 
     const { frontmatter } = parseQwizFile(merged.source!);
     expect(frontmatter.settings.questions_per_run).toBe(1);
     expect(frontmatter.settings.mode).toBeUndefined();
-    expect(frontmatter.settings.pick).toBeUndefined();
+  });
+
+  it('forces shuffling on when the player asked for it, overriding a pinned manifest', () => {
+    const merged = mergeGroupDocument(
+      group(':mode=merge', ':shuffle_questions=false'),
+      [QUIZ_A, QUIZ_B],
+      { shuffle: true }
+    );
+    expect(parseQwizFile(merged.source!).frontmatter.settings.shuffle_questions).toBe(true);
+  });
+
+  it('leaves the manifest alone when the player did not ask to shuffle', () => {
+    const merged = mergeGroupDocument(group(':mode=merge', ':shuffle_questions=false'), [QUIZ_A]);
+    expect(parseQwizFile(merged.source!).frontmatter.settings.shuffle_questions).toBe(false);
   });
 
   it('skips a source that does not parse, and still merges the rest', () => {
@@ -198,39 +209,35 @@ describe('inlineQuizSettings — the subtlety that makes merging correct', () =>
 
 describe('quizSettingsFrom', () => {
   it('keeps quiz-wide keys and drops group-shape ones', () => {
-    // `:pick` is legal only under shuffle — the parser rejects it anywhere else, which is why this
-    // uses shuffle rather than merge to get a group-shape key into the settings at all.
+    // `mode` is the group-shape key every manifest has; it describes how the set is assembled, not
+    // how the resulting quiz plays, so it must not reach the merged document's frontmatter.
     const settings = quizSettingsFrom(
-      group(':mode=shuffle', ':pick=2', ':questions_per_run=5', ':shuffle_questions=false')
+      group(':mode=gauntlet', ':rounds=3', ':questions_per_run=5', ':shuffle_questions=false')
     );
     expect(settings).toEqual({ questions_per_run: 5, shuffle_questions: false });
   });
 });
 
-describe('selectSources', () => {
-  it('takes every source, in order, for merge', () => {
-    expect(selectSources(group(':mode=merge'), ['a', 'b', 'c'])).toEqual(['a', 'b', 'c']);
+describe('orderSources', () => {
+  it('keeps the manifest order when shuffle is off', () => {
+    expect(orderSources(['a', 'b', 'c'], false)).toEqual(['a', 'b', 'c']);
   });
 
-  it('draws :pick sources for shuffle', () => {
-    const picked = selectSources(group(':mode=shuffle', ':pick=2'), ['a', 'b', 'c']);
-    expect(picked).toHaveLength(2);
-    expect(new Set(picked).size).toBe(2);
-  });
-
-  it('defaults shuffle to a single draw', () => {
-    expect(selectSources(group(':mode=shuffle'), ['a', 'b', 'c'])).toHaveLength(1);
-  });
-
-  it('never asks for more than the group holds', () => {
-    expect(selectSources(group(':mode=shuffle', ':pick=99'), ['a', 'b'])).toHaveLength(2);
-  });
-
-  it('actually randomises rather than always taking the first', () => {
-    // Pinned to 0 so the assertion is about the selection, not about Math.random. A Fisher-Yates
-    // pass with j=0 every time rotates the array, so the drawn item is provably not the first —
-    // pinning to 0.99 would have made every swap a no-op and asserted nothing.
+  it('randomises when shuffle is on', () => {
+    // Pinned to 0 so the assertion is about the ordering, not about Math.random: a Fisher-Yates
+    // pass with j=0 every time rotates the array, so the result is provably not the input.
     vi.spyOn(Math, 'random').mockReturnValue(0);
-    expect(selectSources(group(':mode=shuffle'), ['a', 'b', 'c'])).not.toEqual(['a']);
+    expect(orderSources(['a', 'b', 'c'], true)).not.toEqual(['a', 'b', 'c']);
+  });
+
+  it('never drops or duplicates a source', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    expect([...orderSources(['a', 'b', 'c'], true)].sort()).toEqual(['a', 'b', 'c']);
+  });
+
+  it('does not mutate its input', () => {
+    const sources = ['a', 'b', 'c'];
+    orderSources(sources, true);
+    expect(sources).toEqual(['a', 'b', 'c']);
   });
 });

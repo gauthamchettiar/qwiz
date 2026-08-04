@@ -73,7 +73,7 @@ test("clicking an in-page link mid-run shows this app's own leave-confirmation m
   await expect(play.resultHeading()).toBeVisible();
 
   // ...and now leaving prompts nothing, whether by link click or by the browser back button.
-  await page.getByRole('link', { name: 'Back to quizzes' }).click();
+  await play.backLink.click();
   await expect(page).toHaveURL('/');
   expect(dialogCount).toBe(1); // unchanged — no new dialog after finishing
 });

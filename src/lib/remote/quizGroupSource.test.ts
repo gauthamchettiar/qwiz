@@ -175,20 +175,19 @@ describe('loadQuizGroup — failure and degradation', () => {
 });
 
 describe('isPlayableAsRun', () => {
-  it('is false for the browsing modes, where the player chooses what to open next', () => {
-    const folders = parseQwizGroup(['---', '---', '', 'quiz: a.qwiz'].join('\n')).group;
-    expect(isPlayableAsRun(folders)).toBe(false);
-
-    // A journey's ORDER is the content — playing it as one run would skip every gate it exists to
-    // impose, so the lobby must not offer that.
+  it('is false for a journey, whose ORDER is the content', () => {
+    // Playing it as one run would skip every gate the mode exists to impose, so the lobby must
+    // not offer that.
     const journey = parseQwizGroup(
       ['---', ':mode=journey', '---', '', 'quiz: a.qwiz', 'id: a'].join('\n')
     ).group;
     expect(isPlayableAsRun(journey)).toBe(false);
   });
 
-  it('is true for a mode that chains or merges', () => {
-    for (const mode of ['merge', 'playlist', 'shuffle', 'gauntlet']) {
+  it('is true everywhere else, including folders', () => {
+    // folders used to be excluded, back when playing a whole set meant picking a different MODE.
+    // The Merge and Shuffle toggles on that screen are that action now.
+    for (const mode of ['folders', 'merge', 'gauntlet']) {
       const { group } = parseQwizGroup(
         ['---', `:mode=${mode}`, '---', '', 'quiz: a.qwiz'].join('\n')
       );

@@ -29,7 +29,9 @@ test('playing a quiz end to end, answering everything correctly, wins', async ({
   await play.seeResultsButton.click();
 
   await expect(play.resultHeading()).toHaveText('You won!');
-  await expect(page.getByText('2 / 2 points (100%)')).toBeVisible();
+  // The results card shows the percentage in its ring and the raw score beside it.
+  await expect(page.getByText('100%')).toBeVisible();
+  await expect(page.getByText('2 of 2 points across 2 questions')).toBeVisible();
 
   await play.playAgainButton.click();
   await expect(play.progressLabel()).toHaveText('Question 1 of 2');

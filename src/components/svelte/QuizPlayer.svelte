@@ -458,6 +458,21 @@
 
   const summary = $derived(finished ? gradeRun(results, quiz.settings) : null);
 
+  function plural(count: number, word: string): string {
+    return `${count} ${word}${count === 1 ? '' : 's'}`;
+  }
+
+  /** One class string per outcome, never two layered — which of `bg-positive-surface` and
+   * `bg-surface-hover` wins is decided by their order in the generated stylesheet, not by the
+   * order they're written (CLAUDE.md §5). */
+  function questionChipTone(result: QuestionResult, skipped: boolean): string {
+    if (skipped) return 'bg-surface-hover text-ink-subtle';
+    if (result.max === 0) return 'bg-surface-hover text-ink-subtle';
+    if (result.earned >= result.max) return 'bg-positive-surface text-positive-ink-strong';
+    if (result.earned > 0) return 'bg-warning-surface text-warning-ink-strong';
+    return 'bg-negative-surface text-negative-ink-strong';
+  }
+
   // Reported once per run rather than on every re-render of the results screen: `summary` is a
   // `$derived` that recomputes freely, so an unguarded effect would tell a group its player had
   // finished the same quiz several times over. `playAgain` clears the flag, so a replay does
@@ -596,56 +611,91 @@
       {/each}
     </div>
   {:else if finished && summary}
-    <div class="space-y-4 rounded-lg border border-line-subtle bg-surface-raised p-6 text-center">
+    <!-- The result, as one composed card rather than a stack of centred paragraphs: a score dial
+         carrying the verdict, then the per-question breakdown as a grid of chips. The old layout
+         put four separate lines of centred text above a list of "Question N   1 / 1" rows, which
+         read as a receipt and buried the one number anyone came for. -->
+    <div class="overflow-hidden rounded-xl border border-line-subtle bg-surface-raised">
       {#if showScoresAtEnd}
-        <div class="flex justify-center">
+        <div
+          class="flex flex-col items-center gap-4 px-6 py-8 text-center sm:flex-row sm:gap-6 sm:text-left {summary.won
+            ? 'bg-positive-surface'
+            : 'bg-surface-hover'}"
+        >
+          <!-- A ring rather than a bar: the reading is "how much of it did I get", and a circle
+               shows a proportion without needing a scale to compare against. -->
           <div
-            class="rounded-full p-3 {summary.won
-              ? 'bg-positive-surface text-positive-ink-soft'
-              : 'bg-surface-hover text-ink-faint'}"
+            class="relative grid h-24 w-24 shrink-0 place-items-center rounded-full"
+            style={`background: conic-gradient(currentColor ${Math.round(summary.percentage) * 3.6}deg, transparent 0deg)`}
+            class:text-positive-ink={summary.won}
+            class:text-accent={!summary.won}
           >
-            <Trophy size={28} />
+            <div
+              class="grid h-[4.5rem] w-[4.5rem] place-items-center rounded-full {summary.won
+                ? 'bg-positive-surface'
+                : 'bg-surface-hover'}"
+            >
+              <span class="text-xl font-bold text-ink">{Math.round(summary.percentage)}%</span>
+            </div>
+          </div>
+
+          <div class="space-y-1">
+            <!-- A real heading, not styled text: it's the outcome of the whole run, and it's what
+                 a screen reader should land on when the results appear. -->
+            <h2
+              class="flex items-center justify-center gap-1.5 text-lg font-bold sm:justify-start {summary.won
+                ? 'text-positive-ink-strong'
+                : 'text-ink'}"
+            >
+              {#if summary.won}
+                <Trophy size={18} />
+              {/if}
+              {summary.won ? 'You won!' : 'Quiz complete'}
+            </h2>
+            <p class="text-sm text-ink-subtle">
+              {summary.earned} of {summary.max} points across {plural(results.length, 'question')}
+            </p>
           </div>
         </div>
-        <h2 class="text-xl font-bold text-ink">
-          {summary.won ? 'You won!' : 'Quiz complete'}
-        </h2>
-        <p class="text-sm text-ink-subtle">
-          {summary.earned} / {summary.max} points ({Math.round(summary.percentage)}%)
-        </p>
-        <div class="mx-auto max-w-xs space-y-1">
+
+        <div class="flex flex-wrap justify-center gap-1.5 px-6 py-4 sm:justify-start">
           {#each results as result, i (i)}
             {@const answer = answers[i]}
             {@const wasSkipped =
               answer !== undefined &&
               run[i] !== undefined &&
               isAnswerEmpty(run[i].question, answer)}
-            <div class="flex items-center justify-between text-xs text-ink-subtle">
-              <span>Question {i + 1}</span>
-              <!-- A skipped question and a wrong one both score 0, so the number alone can't tell
-                   them apart — which is the single most useful thing this list can say. -->
-              <span>{wasSkipped ? 'Skipped' : `${result.earned} / ${result.max}`}</span>
-            </div>
+            <!-- One chip per question, coloured by outcome. A skipped question and a wrong one
+                 both score 0, so the number alone can't tell them apart — which is the single
+                 most useful thing this breakdown can say. -->
+            <span
+              class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium {questionChipTone(
+                result,
+                wasSkipped
+              )}"
+              title={wasSkipped ? 'Skipped' : `${result.earned} / ${result.max} points`}
+            >
+              <span class="opacity-70">{i + 1}</span>
+              {wasSkipped ? 'Skipped' : `${result.earned}/${result.max}`}
+            </span>
           {/each}
         </div>
       {:else}
-        <h2 class="text-xl font-bold text-ink">Quiz complete</h2>
+        <div class="px-6 py-8 text-center">
+          <h2 class="text-lg font-bold text-ink">Quiz complete</h2>
+        </div>
       {/if}
-      <!-- Two layouts, not one with extras bolted on. A standalone run offers a way out, a review
-           and a replay; a run inside a group offers a review and Continue, because "Play again"
-           there would let a player quietly re-take a stage they'd already been scored on. -->
-      <div class="flex flex-wrap items-center justify-center gap-3 pt-2">
-        {#if !continueAction}
-          <a
-            href="/"
-            class="rounded-md border border-line bg-surface-raised px-4 py-2 text-sm font-medium text-ink-muted hover:bg-surface"
-          >
-            Back to quizzes
-          </a>
-        {/if}
+
+      <!-- No "Back to quizzes" here: the header already carries a Back link, and two ways out of
+           the same screen only makes the one that matters harder to find. A run inside a group
+           swaps Play again for Continue — replaying a scored stage is what a sequenced group
+           isn't. Review stays in both: it reveals, it doesn't re-run. -->
+      <div
+        class="flex flex-wrap items-center justify-center gap-2 border-t border-line-faint px-6 py-4"
+      >
         <button
           type="button"
-          class="flex items-center gap-1.5 rounded-md border border-line bg-surface-raised px-4 py-2 text-sm font-medium text-ink-muted hover:bg-surface"
+          class="flex items-center gap-1.5 rounded-md border border-line bg-surface px-4 py-2 text-sm font-medium text-ink-muted hover:bg-surface-hover"
           onclick={() => (reviewing = true)}
         >
           <ListChecks size={15} /> Review answers
@@ -668,13 +718,9 @@
             <RotateCcw size={15} /> Play again
           </button>
         {/if}
+        {@render saveCopyAction()}
       </div>
-      {#if saveCopySource}
-        <div class="flex flex-wrap items-center justify-center gap-3">
-          {@render saveCopyAction()}
-        </div>
-        <ErrorList errors={saveErrors} />
-      {/if}
+      <ErrorList errors={saveErrors} />
     </div>
   {:else if current}
     <div class="space-y-1">

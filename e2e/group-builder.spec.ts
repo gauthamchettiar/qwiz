@@ -28,11 +28,11 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/local/group');
 });
 
-test('the builder is reachable from the quiz list', async ({ page }) => {
+test('the builder is reachable from the Saved Groups section', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('link', { name: 'Publish a group' }).click();
+  await page.getByRole('link', { name: 'Generate a Group' }).click();
   await expect(page).toHaveURL(/\/local\/group/);
-  await expect(page.getByRole('heading', { name: 'Publish a group', level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Generate a Group', level: 1 })).toBeVisible();
 });
 
 test('a folders group builds a manifest naming every quiz picked', async ({ page }) => {

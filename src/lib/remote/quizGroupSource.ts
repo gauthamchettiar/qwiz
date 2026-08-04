@@ -119,14 +119,15 @@ function hasAnyQwiz(paths: readonly string[]): boolean {
   return paths.some((path) => isQwizPath(path));
 }
 
-/** Whether this group is played as ONE sitting on `/group/play`, which decides whether the lobby
- * offers a "Play all" action at all.
+/** Whether this group can be played as ONE sitting on `/group/play`.
  *
- * `folders` and `journey` are both excluded, for the same underlying reason and it's worth naming:
- * they are browsing screens where the player chooses what to open next. A journey in particular has
- * an order that IS the content — collapsing it into a single run would skip past every gate it
- * exists to impose. Both play their quizzes one at a time from the lobby itself. */
+ * `journey` is the exclusion, and it's the interesting one: its order IS the content, so
+ * collapsing it into a single run would skip past every gate the mode exists to impose. It plays
+ * its quizzes one at a time from the lobby instead.
+ *
+ * `folders` used to be excluded too, back when playing a whole set meant picking a different MODE.
+ * It isn't any more — the Merge and Shuffle toggles on that screen are exactly that action, moved
+ * to where a player rather than an author makes it. */
 export function isPlayableAsRun(group: QuizGroup): boolean {
-  const mode = groupMode(group);
-  return mode !== 'folders' && mode !== 'journey' && group.entries.length > 0;
+  return groupMode(group) !== 'journey' && group.entries.length > 0;
 }
