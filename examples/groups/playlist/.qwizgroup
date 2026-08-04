@@ -1,0 +1,17 @@
+---
+title: Pub Quiz Night
+description: Three rounds, played back to back, with one scoreboard at the end.
+category: general knowledge
+tags: [playlist, pub quiz]
+:mode=playlist
+---
+
+quiz: round-1-warm-up.qwiz
+title: Round 1 — Warm Up
+
+quiz: round-2-music.qwiz
+title: Round 2 — Music
+
+quiz: round-3-decider.qwiz
+title: Round 3 — The Decider
+

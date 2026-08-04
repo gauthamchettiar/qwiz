@@ -1,8 +1,8 @@
 ---
 title: The Qwiz Trail
-description: A short guided path through three rounds. Clear one to unlock the next, then face the final boss — you'll need to actually win that one.
+description: Clear one round to unlock the next, then face a final boss you have to actually win.
 category: general knowledge
-tags: [trail, journey]
+tags: [journey, trail]
 :mode=journey
 :require_win=false
 ---
@@ -22,3 +22,4 @@ title: The Grand Finale
 requires: [spelling]
 :require_win=true
 :points_to_win=6
+

@@ -15,6 +15,7 @@ pick_one: Which city is the capital of Australia?
 }
 
 pick_one: Which city is the capital of Canada?
+!<analysis>[Why?](Toronto is the largest city, which is why it's the usual wrong guess — but Ottawa was chosen in 1857 precisely because it sat on the border between Upper and Lower Canada.)
 {
 =Ottawa
 ~Toronto
@@ -26,3 +27,4 @@ type_answer: Which city is the capital of Japan?
 {
 =Tokyo
 }
+

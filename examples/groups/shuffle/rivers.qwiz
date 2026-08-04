@@ -1,0 +1,22 @@
+---
+title: Rivers
+description: Where the water goes.
+category: geography
+tags: [rivers]
+---
+
+pick_one: Which river flows through Cairo?
+{
+=The Nile
+~The Congo
+~The Niger
+~The Zambezi
+}
+
+order_items: Order these rivers from longest to shortest.
+{
+=Nile
+=Danube
+=Thames
+}
+

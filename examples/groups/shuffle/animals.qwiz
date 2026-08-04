@@ -1,0 +1,21 @@
+---
+title: Animals
+description: Collective nouns and odd facts.
+category: nature
+tags: [animals]
+---
+
+pick_one: A "murmuration" is a group of which bird?
+{
+=Starlings
+~Herons
+~Swifts
+~Crows
+}
+
+type_answer: What is the largest mammal on Earth?
+{
+=blue whale
+}
+:typo_tolerance=1
+

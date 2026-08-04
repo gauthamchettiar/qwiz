@@ -1,0 +1,29 @@
+---
+title: Tudors
+description: Kings, queens and a great many wives.
+category: history
+tags: [tudors]
+---
+
+pick_one: How many wives did Henry VIII have?
+{
+=Six
+~Four
+~Five
+~Seven
+}
+
+type_answer: Which queen reigned from 1558 to 1603?
+{
+=Elizabeth I
+=Elizabeth the First
+}
+
+pick_one: In which year was the Spanish Armada defeated?
+{
+=1588
+~1492
+~1601
+~1666
+}
+

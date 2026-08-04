@@ -1,0 +1,18 @@
+---
+title: Random Round
+description: One of these three quizzes, picked at random. Reload for a different one.
+category: general knowledge
+tags: [shuffle, random]
+:mode=shuffle
+:pick=1
+---
+
+quiz: animals.qwiz
+title: Animals
+
+quiz: rivers.qwiz
+title: Rivers
+
+quiz: inventions.qwiz
+title: Inventions
+

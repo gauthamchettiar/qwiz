@@ -1,0 +1,31 @@
+---
+title: Decades
+description: Which era did it come from?
+category: music
+tags: [decades]
+---
+
+pick_one: In which decade did The Beatles release "Abbey Road"?
+{
+=1960s
+~1950s
+~1970s
+~1980s
+}
+
+order_items: Order these musical formats by when they arrived, earliest first.
+{
+=Vinyl LP
+=Cassette
+=Compact disc
+=Streaming
+}
+
+pick_one: Which instrument has 88 keys in its standard form?
+{
+=Piano
+~Accordion
+~Organ
+~Harpsichord
+}
+

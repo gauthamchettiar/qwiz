@@ -1,0 +1,29 @@
+---
+title: Space
+description: Planets, moons and one dwarf.
+category: science
+tags: [space]
+---
+
+pick_one: Which planet has the most moons?
+{
+=Saturn
+~Jupiter
+~Neptune
+~Uranus
+}
+
+type_answer: What is the name of the galaxy we live in?
+{
+=The Milky Way
+=Milky Way
+}
+
+pick_one: What was reclassified as a dwarf planet in 2006?
+{
+=Pluto
+~Ceres
+~Eris
+~Charon
+}
+

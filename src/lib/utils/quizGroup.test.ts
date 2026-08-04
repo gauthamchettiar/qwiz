@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parseQwizFile } from './quizScript';
 import {
@@ -342,34 +342,81 @@ describe('round-tripping', () => {
   });
 });
 
-// The example group is the worked reference the docs point at, and a broken one is worse than
-// none — it's the first thing anyone copies. Same reasoning as e2e/examples.spec.ts playing every
-// example quiz: a shipped sample that doesn't parse is a bug with an audience.
-describe('examples/group', () => {
-  const manifest = readFileSync('examples/group/.qwizgroup', 'utf8');
+// The example groups are the worked reference the docs link to and the app itself offers as
+// "load an example" — the first thing anyone copies, so a broken one is a bug with an audience.
+// Same reasoning as e2e/examples.spec.ts playing every example quiz.
+describe('examples/groups', () => {
+  const ROOT = 'examples/groups';
 
-  it('parses with no errors', () => {
-    expect(parseQwizGroup(manifest).errors).toEqual([]);
+  /** Every `.qwizgroup` under examples/, hub included, found the way the app's own discovery does
+   * rather than from a hard-coded list — adding a mode folder must not need this test edited. */
+  const manifests = readdirSync(ROOT, { recursive: true, encoding: 'utf8' })
+    .filter((entry) => entry.endsWith('.qwizgroup'))
+    .map((entry) => `${ROOT}/${entry}`)
+    .sort();
+
+  it('ships one group per mode, plus the hub that lists them', () => {
+    const modes = manifests
+      .map((path) => groupMode(parseQwizGroup(readFileSync(path, 'utf8')).group))
+      .sort();
+    // folders twice: the hub, and the folders example itself.
+    expect(modes).toEqual([
+      'folders',
+      'folders',
+      'gauntlet',
+      'journey',
+      'merge',
+      'playlist',
+      'shuffle'
+    ]);
   });
 
-  it('is a journey whose every requires: names a real entry', () => {
-    const { group } = parseQwizGroup(manifest);
-    expect(groupMode(group)).toBe('journey');
+  it.each(manifests)('%s parses with no errors', (path) => {
+    expect(parseQwizGroup(readFileSync(path, 'utf8')).errors).toEqual([]);
+  });
 
+  it.each(manifests)('%s names quiz files that exist and themselves parse', (path) => {
+    const { group } = parseQwizGroup(readFileSync(path, 'utf8'));
+    const dir = path.slice(0, path.lastIndexOf('/'));
+
+    for (const entry of group.entries) {
+      const source = readFileSync(`${dir}/${entry.path}`, 'utf8');
+      expect(parseQwizFile(source).errors, `${entry.path} should parse`).toEqual([]);
+    }
+  });
+
+  it('gives the journey a coherent set of prerequisites', () => {
+    const { group } = parseQwizGroup(readFileSync(`${ROOT}/journey/.qwizgroup`, 'utf8'));
     const ids = new Set(group.entries.map((e) => e.id));
     for (const entry of group.entries) {
       for (const required of entry.requires) expect(ids).toContain(required);
     }
   });
 
-  it('names quiz files that exist and themselves parse', () => {
-    const { group } = parseQwizGroup(manifest);
-    expect(group.entries.length).toBeGreaterThan(0);
+  it('gives the gauntlet enough questions for a full run', () => {
+    const path = `${ROOT}/gauntlet/.qwizgroup`;
+    const { group } = parseQwizGroup(readFileSync(path, 'utf8'));
+    const total = group.entries.reduce(
+      (sum, entry) =>
+        sum +
+        parseQwizFile(readFileSync(`${ROOT}/gauntlet/${entry.path}`, 'utf8')).questionCodes.length,
+      0
+    );
+    // rounds x questions_per_pick, or the example runs dry before it finishes and demonstrates
+    // the wrong thing.
+    const needed =
+      (typeof group.settings.rounds === 'number' ? group.settings.rounds : 10) *
+      (typeof group.settings.questions_per_pick === 'number'
+        ? group.settings.questions_per_pick
+        : 1);
+    expect(total).toBeGreaterThanOrEqual(needed);
+  });
 
-    for (const entry of group.entries) {
-      const source = readFileSync(`examples/group/${entry.path}`, 'utf8');
-      expect(parseQwizFile(source).errors, `${entry.path} should parse`).toEqual([]);
-    }
+  it('files every gauntlet quiz under a category subfolder', () => {
+    // Categories are top-level subfolders; a quiz at the gauntlet root would land in "General"
+    // and make the example look like it had a stray category.
+    const { group } = parseQwizGroup(readFileSync(`${ROOT}/gauntlet/.qwizgroup`, 'utf8'));
+    for (const entry of group.entries) expect(entry.path).toContain('/');
   });
 });
 

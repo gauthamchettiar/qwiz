@@ -1,6 +1,6 @@
 ---
 title: The Grand Finale
-description: Six points on offer, and you need six to clear it.
+description: Six points on the table, and you need all six to clear it.
 category: general knowledge
 tags: [finale]
 :shuffle_questions=false
@@ -8,6 +8,7 @@ tags: [finale]
 ---
 
 pick_many: Which of these countries have a coastline on the Mediterranean Sea?
+!<analysis>[Why?](Slovenia's coast is about 46 km long — the shortest Mediterranean coastline of any country that has one, which is why it's so often missed.)
 {
 =Slovenia
 =Albania
@@ -16,7 +17,7 @@ pick_many: Which of these countries have a coastline on the Mediterranean Sea?
 ~Bulgaria
 }
 :partial_credit=true
-:points_correct=2
+:points_correct=3
 
 order_items: Put these in the order they happened, earliest first.
 {
@@ -25,3 +26,4 @@ order_items: Put these in the order they happened, earliest first.
 =The first iPhone
 }
 :points_correct=3
+

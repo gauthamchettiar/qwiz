@@ -33,7 +33,16 @@ and open:
 https://qwiz.gauthamchettiar.com/group?repo=your-name/your-repo
 ```
 
-A worked example ships with Qwiz in [`examples/group/`](../examples/group/).
+**Try one first.** Qwiz's own repository carries a worked example of every mode in
+[`examples/groups/`](../examples/groups/) — open it from **Import → "Open the example groups"**, or
+go straight there:
+
+```
+https://qwiz.gauthamchettiar.com/group?repo=gauthamchettiar/qwiz&path=examples/groups
+```
+
+That hub is itself a `folders` group with no entries of its own, which is what makes Qwiz discover
+the mode folders beneath it.
 
 ---
 

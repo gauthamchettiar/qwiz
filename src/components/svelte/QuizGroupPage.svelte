@@ -123,6 +123,13 @@
     progress = readJourneyProgress(groupKey);
   }
 
+  /** A sub-group's name relative to the folder this screen is already showing. Without this a card
+   * reads "examples/groups/journey" — a file path rather than a group. */
+  function subGroupLabel(sub: string): string {
+    const base = repo?.path ? `${repo.path.replace(/\/+$/, '')}/` : '';
+    return sub.startsWith(base) ? sub.slice(base.length) : sub;
+  }
+
   function toggle(path: string) {
     if (expanded.has(path)) expanded.delete(path);
     else expanded.add(path);
@@ -256,7 +263,7 @@
                 class="flex items-center gap-2 rounded-lg border border-line-subtle bg-surface-raised px-3 py-2 text-sm font-medium text-ink transition-colors hover:border-line hover:bg-surface-hover"
               >
                 <FolderTreeIcon size={15} class="shrink-0 text-ink-faint" />
-                <span class="truncate">{sub}</span>
+                <span class="truncate">{subGroupLabel(sub)}</span>
               </a>
             </li>
           {/each}

@@ -1,0 +1,26 @@
+---
+title: Physics
+description: Forces, light and space.
+category: science
+tags: [physics]
+---
+
+pick_one: What travels faster?
+{
+=Light
+~Sound
+}
+
+group_items: Sort each of these as a form of energy or a unit of measurement.
+{
+=Kinetic -> Energy
+=Potential -> Energy
+=Joule -> Unit
+=Watt -> Unit
+}
+
+type_answer: What force keeps the planets in orbit around the Sun?
+{
+=gravity
+}
+

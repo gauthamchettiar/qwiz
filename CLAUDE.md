@@ -175,8 +175,12 @@ migration.
 │                                # hand-captured; see screenshots/ below
 ├── examples/                    # *.qwiz files — the app's "Load a sample" list, loaded via
 │                                # import.meta.glob ?raw; cover every variant and setting
-│   └── group/                   # a worked .qwizgroup + the three quizzes it lists. NOT in the
-│                                # sample list: that glob is examples/*.qwiz, non-recursive
+│   └── groups/                  # one worked .qwizgroup per mode (journey, merge, playlist,
+│                                # shuffle, gauntlet, folders) under a folders hub that discovers
+│                                # them. The Import dialog links here as a live example, so these
+│                                # are FETCHED from the default branch at runtime, not inlined —
+│                                # they must be pushed to work. NOT in the "Load a sample" list:
+│                                # that glob is examples/*.qwiz, non-recursive
 ├── e2e/                         # Playwright specs
 │   ├── fixtures/                # quizzes.ts — buildQuiz() factory, sample .qwiz source
 │   ├── pages/                   # Page Object Models: HomePage, BuilderPage, PlayPage

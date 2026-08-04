@@ -199,3 +199,52 @@ test('the import dialog rejects something that is neither a gist nor a repo', as
 
   await expect(page.getByRole('alert')).toContainText(/doesn't look like a GitHub gist/);
 });
+
+test('the import dialog links to the example groups, and they load', async ({ page }) => {
+  // The link points at Qwiz's own repository, so the fixture mirrors what examples/groups/ really
+  // contains: a hub with no entries of its own (which is what makes the app discover the mode
+  // folders below it) and one sub-group per mode.
+  await stubRepo(page, 'gauthamchettiar', 'qwiz', {
+    files: {
+      'examples/groups/.qwizgroup': [
+        '---',
+        'title: Qwiz Example Groups',
+        'description: One folder for each way a set of quizzes can be grouped.',
+        ':mode=folders',
+        '---'
+      ].join('\n'),
+      'examples/groups/journey/.qwizgroup': [
+        '---',
+        'title: The Qwiz Trail',
+        ':mode=journey',
+        '---',
+        '',
+        'quiz: world-capitals.qwiz',
+        'id: capitals'
+      ].join('\n'),
+      'examples/groups/journey/world-capitals.qwiz': quiz('World Capitals'),
+      'examples/groups/merge/.qwizgroup': [
+        '---',
+        'title: Science Revision Exam',
+        ':mode=merge',
+        '---',
+        '',
+        'quiz: biology.qwiz'
+      ].join('\n'),
+      'examples/groups/merge/biology.qwiz': quiz('Biology')
+    }
+  });
+
+  await page.getByRole('button', { name: 'Import' }).click();
+  await page.getByRole('link', { name: 'Open the example groups' }).click();
+
+  await expect(page).toHaveURL(/\/group\?repo=gauthamchettiar%2Fqwiz&path=examples%2Fgroups/);
+  await expect(page.getByRole('heading', { name: 'Qwiz Example Groups' })).toBeVisible();
+
+  // The hub lists the mode folders as their own screens rather than flattening every quiz in.
+  await expect(page.getByRole('link', { name: 'journey' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'merge' })).toBeVisible();
+
+  await page.getByRole('link', { name: 'journey' }).click();
+  await expect(page.getByRole('heading', { name: 'The Qwiz Trail' })).toBeVisible();
+});

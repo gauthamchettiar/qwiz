@@ -18,6 +18,15 @@
   let dragging = $state(false);
   let githubRef = $state('');
 
+  /** Qwiz's own repository, which carries `examples/groups/` — one folder per grouping mode. It's
+   * loaded over the network like any other group rather than inlined at build time (the way
+   * "Load a sample" inlines `examples/*.qwiz` via `import.meta.glob`), and that's the point: this
+   * link is also the shortest demonstration that opening someone else's repository works.
+   *
+   * A consequence worth knowing: it resolves against the repository's DEFAULT BRANCH, so these
+   * examples have to be merged and pushed before the link does anything. */
+  const EXAMPLE_GROUP_URL = groupUrl({ owner: 'gauthamchettiar', repo: 'qwiz' }, 'examples/groups');
+
   function openDialog() {
     errors = [];
     code = '';
@@ -181,6 +190,15 @@ pick_one: ..."
         <FolderGit2 size={15} /> Open
       </Button>
     </div>
+
+    <p class="text-xs text-ink-subtle">
+      Nothing to hand? <a
+        href={EXAMPLE_GROUP_URL}
+        class="font-medium text-accent-ink hover:underline"
+      >
+        Open the example groups
+      </a> — one folder for each way a set of quizzes can be grouped.
+    </p>
 
     <ErrorList {errors} />
   {/snippet}

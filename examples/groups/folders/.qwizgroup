@@ -1,0 +1,23 @@
+---
+title: The Quiz Archive
+description: Every quiz we have ever run, filed by year. Browse the tree and play any one of them.
+category: general knowledge
+tags: [folders, archive]
+:mode=folders
+---
+
+quiz: 2024/spring.qwiz
+id: spring-2024
+title: Spring 2024
+
+quiz: 2024/autumn.qwiz
+id: autumn-2024
+title: Autumn 2024
+
+quiz: 2025/spring.qwiz
+id: spring-2025
+title: Spring 2025
+
+quiz: oddities.qwiz
+title: The Odd One Out
+group: Uncategorised
