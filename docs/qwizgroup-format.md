@@ -135,6 +135,8 @@ and make the link lie about what it loaded.
 Browse the group as a folder tree and play any quiz in it. Folders come from the file paths, or from
 an explicit `group:` label. This is also what you get with no manifest at all.
 
+![A quiz group browsed as folders](./screenshots/group-folders.png)
+
 ### `journey`
 
 Each quiz unlocks the next, per its `requires:`. `require_win` decides whether _finishing_ a quiz
@@ -153,7 +155,9 @@ playable in any order is shown side by side rather than as a false sequence.
 
 Each node says where you stand: **Ready**, **Played**, **Cleared**, or _Played — win it to clear it_
 for a `require_win` quiz you finished but didn't win. A locked node names what's blocking it
-("Clear World Capitals to unlock") rather than just refusing.
+rather than just refusing:
+
+![A journey part-way through](./screenshots/group-journey.png)
 
 **A clear is permanent.** Replaying a quiz and doing worse never re-locks what it already opened, so
 you can revisit anything without risking your progress.

@@ -50,6 +50,12 @@ Hard constraints — never violate without explicit approval:
   recursive tree call, against a limit of 60/hour shared per IP. That difference is the whole reason
   to publish a manifest, it's what the rate-limit error points at, and it's asserted by tests in
   both `quizGroupSource.test.ts` and `repo-group.spec.ts` rather than left as a comment.
+  **Six modes, and only one of them is real machinery.** `merge`/`shuffle` synthesise a `.qwiz`
+  document the ordinary player runs (`mergeGroup.ts`), so they cost nothing; `folders` is a tree and
+  `playlist` is a loop over `QuizPlayer`'s two optional props (`onFinish`, `continueAction` — its
+  entire group support). `journey` adds an unlock DAG plus the `groupProgress.ts` store, and
+  `gauntlet` is the only one that needed a session of its own, because it draws questions ACROSS
+  quizzes mid-run and so can't be either a synthesised document or a sequence of whole quizzes.
 - **This means the app makes runtime network requests, which it did not before.** It reads public
   files from GitHub, signed out (`credentials: 'omit'`), and persists nothing unless the visitor
   presses "Save a copy". The user's own quizzes still never leave the browser — which is why
@@ -220,6 +226,9 @@ migration.
 │   │   │                        # fetched from a gist/repo pointer. Deliberately NOT under local/,
 │   │   │                        # which means "from this browser's storage"
 │   │   ├── group.astro          # QuizGroupPage, client:only — a .qwizgroup collection in a repo
+│   │   ├── group/play.astro     # GroupRunPage, client:only — merge/shuffle/playlist/gauntlet as
+│   │   │                        # one sitting. folders and journey stay on /group: they're
+│   │   │                        # browsing screens where the player chooses what to open next
 │   │   └── local/
 │   │       ├── create.astro     # QuizBuilder, client:load
 │   │       ├── edit.astro       # QuizEditPage, client:only (reads ?id= at runtime)
@@ -680,6 +689,9 @@ Rules for it:
 
 - **Re-run it after any UI change a documented screen would show, and commit the diff.** A doc
   screenshot showing a control that no longer exists is worse than no screenshot.
+- **The GitHub shots stub GitHub**, via the same `e2e/utils/github.ts` the suite uses. A screenshot
+  run must no more depend on a real repository being reachable than a test run does — and a stub is
+  also what keeps the content deterministic.
 - Everything nondeterministic is pinned, so a re-run with no UI change produces a byte-identical
   image and an empty diff. Keep it that way — anything unpinned puts a spurious binary diff in
   every commit that touches this. Four separate sources had to be nailed down, and all four are

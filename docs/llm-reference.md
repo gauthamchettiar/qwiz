@@ -551,11 +551,70 @@ fill_blanks: A ___ angle is exactly 90 degrees.
 
 ---
 
-## 11. Checklist before emitting a file
+## 11. Publishing a set: the `.qwizgroup` file
+
+A `.qwizgroup` file groups several `.qwiz` files published in a public GitHub repository. It is the
+**same syntax** as a `.qwiz` file — a `---` frontmatter fence, then blank-line-separated blocks — so
+everything in §1 about escaping and `:key=value` lines applies unchanged.
+
+```
+---
+title: The Qwiz Trail
+description: Clear one to unlock the next.
+:mode=journey
+:require_win=false
+---
+
+quiz: world-capitals.qwiz
+id: capitals
+
+quiz: spelling-bee.qwiz
+id: spelling
+requires: [capitals]
+
+quiz: grand-finale.qwiz
+id: finale
+requires: [spelling]
+:require_win=true
+```
+
+**Frontmatter** takes `title`, `description`, `category`, `tags` — as a quiz does — plus these
+`:key=value` settings:
+
+- `mode` — `folders` (default) / `journey` / `merge` / `playlist` / `gauntlet` / `shuffle`
+- `require_win` — `true`/`false`, default `false`. `journey` only.
+- `shuffle_quizzes` — `true`/`false`, default `false`. `playlist` only.
+- `pick` — number, default `1`. `shuffle` only.
+- `questions_per_pick` — number, default `1`. `gauntlet` only.
+- `rounds` — number, default `10`. `gauntlet` only.
+- `discover` — `true`/`false`, default `false`. `folders` only.
+
+**Every quiz-wide setting from §6 also works here**, and in `merge` mode becomes the merged quiz's
+own frontmatter. That is how an exam-style draw is written: `:mode=merge` with
+`:questions_per_run=20`.
+
+**Each block** describes one quiz:
+
+- `quiz:` — required. Path to a `.qwiz`, relative to the manifest's folder. Never a URL.
+- `id:` — required in `journey`, optional elsewhere. Defaults to the filename slug.
+- `title:` — optional display name.
+- `group:` — optional section label. `folders` only.
+- `requires:` — inline array of ids. `journey` only.
+- `:key=value` — `require_win` plus any quiz-wide setting, applied to that one quiz.
+
+Rules that are parse errors, not warnings:
+
+1. A key used in a mode it doesn't apply to (e.g. `:rounds` outside `gauntlet`).
+2. An unknown frontmatter field, an unknown block key, or an unknown setting.
+3. A block with no `quiz:` line, or one not ending in `.qwiz`.
+4. Two entries sharing an `id`.
+5. In `journey`: a missing `id:`, a `requires:` naming an id that doesn't exist, or a cycle.
+
+## 12. Checklist before emitting a file
 
 1. Starts with `---`, frontmatter closed with `---`, `title` present.
 2. Every question has a `{ … }` block with at least one option.
-3. Every variant name is one of the eight in §3.
+3. Every variant name is one of the nine in §3.
 4. Every setting key appears in §5 or §6, and every value is in range.
 5. Every setting is allowed on the variant it's attached to.
 6. `order_items`/`match_pairs`/`group_items` use only `=` options; `match_pairs`/`group_items` give every option a

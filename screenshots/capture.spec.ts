@@ -4,6 +4,7 @@ import type { Quiz } from '../src/lib/schemas/quiz';
 import { BuilderPage } from '../e2e/pages/BuilderPage';
 import { PlayPage } from '../e2e/pages/PlayPage';
 import { resetStorage, seedQuizzes } from '../e2e/utils/storage';
+import { stubRepo } from '../e2e/utils/github';
 
 // Generates every screenshot in docs/screenshots/, so the images in the README and the docs can be
 // REGENERATED rather than re-captured by hand. The three that existed before this file were taken
@@ -467,4 +468,125 @@ test('settings and import', async ({ page }) => {
   await builder.gotoEdit('shot-settings');
   await builder.shareLink();
   await shotPadded(page, 'share-dialog', page.getByRole('dialog'));
+});
+
+// A quiz group published on GitHub. Stubbed exactly as the e2e suite stubs it (see
+// e2e/utils/github.ts) — a screenshot run must no more depend on a real repository being reachable
+// than a test run does, and a stub also keeps the content deterministic.
+test('quiz groups from GitHub', async ({ page }) => {
+  await page.goto('/');
+  await resetStorage(page);
+
+  const round = (title: string, question: string, right: string, wrong: string) =>
+    [
+      '---',
+      `title: ${title}`,
+      ':shuffle_questions=false',
+      '---',
+      '',
+      question,
+      '{',
+      `=${right}`,
+      `~${wrong}`,
+      '}'
+    ].join('\n');
+
+  await stubRepo(page, 'qwiz-quizzes', 'pub-quiz', {
+    files: {
+      '.qwizgroup': [
+        '---',
+        'title: Thursday Night Quiz',
+        'description: Every round we have ever run, from the easy opener to the decider.',
+        ':mode=folders',
+        '---',
+        '',
+        'quiz: rounds/general-knowledge.qwiz',
+        'title: General Knowledge',
+        '',
+        'quiz: rounds/music.qwiz',
+        'title: Music and Lyrics',
+        '',
+        'quiz: finals/the-decider.qwiz',
+        'title: The Decider'
+      ].join('\n'),
+      'rounds/general-knowledge.qwiz': round(
+        'General Knowledge',
+        'Which planet is closest to the Sun?',
+        'Mercury',
+        'Venus'
+      ),
+      'rounds/music.qwiz': round(
+        'Music and Lyrics',
+        'Who released "Rumours" in 1977?',
+        'Fleetwood Mac',
+        'The Eagles'
+      ),
+      'finals/the-decider.qwiz': round(
+        'The Decider',
+        'What is the capital of Australia?',
+        'Canberra',
+        'Sydney'
+      )
+    }
+  });
+
+  await page.goto('/group?repo=qwiz-quizzes%2Fpub-quiz');
+  await page.getByRole('heading', { name: 'Thursday Night Quiz' }).waitFor();
+  await shotPadded(page, 'group-folders', page.locator('main'));
+
+  // The journey map, part-way through: one cleared, one open, one still locked — the only state
+  // that shows what the mode actually does.
+  await stubRepo(page, 'qwiz-quizzes', 'trail', {
+    files: {
+      '.qwizgroup': [
+        '---',
+        'title: The Qwiz Trail',
+        'description: Clear one to unlock the next, then face the final boss.',
+        ':mode=journey',
+        ':require_win=false',
+        '---',
+        '',
+        'quiz: world-capitals.qwiz',
+        'id: capitals',
+        'title: World Capitals',
+        '',
+        'quiz: spelling-bee.qwiz',
+        'id: spelling',
+        'title: Spelling Bee',
+        'requires: [capitals]',
+        '',
+        'quiz: grand-finale.qwiz',
+        'id: finale',
+        'title: The Grand Finale',
+        'requires: [spelling]',
+        ':require_win=true'
+      ].join('\n'),
+      'world-capitals.qwiz': round('World Capitals', 'Capital of Japan?', 'Tokyo', 'Osaka'),
+      'spelling-bee.qwiz': round(
+        'Spelling Bee',
+        'Which is spelled correctly?',
+        'necessary',
+        'neccessary'
+      ),
+      'grand-finale.qwiz': round('The Grand Finale', 'Capital of Canada?', 'Ottawa', 'Toronto')
+    }
+  });
+
+  // Seeded directly rather than played through: the image needs a specific mid-journey state, and
+  // the store is the honest way to arrange one (same rule the e2e suite follows for seeding).
+  await page.goto('/group?repo=qwiz-quizzes%2Ftrail');
+  await page.evaluate(() =>
+    localStorage.setItem(
+      'qwiz:group-progress',
+      JSON.stringify({
+        'qwiz-quizzes/trail': {
+          plays: { capitals: { completed: true, won: true } },
+          updatedAt: '2025-01-01T00:00:00.000Z'
+        }
+      })
+    )
+  );
+  await page.reload();
+  await page.getByText('1 of 3 cleared').waitFor();
+  await shotPadded(page, 'group-journey', page.locator('main'));
 });

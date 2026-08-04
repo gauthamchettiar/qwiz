@@ -134,6 +134,8 @@ open them by pointer instead:
 
 You can also paste any of those into **Import → "or open one published on GitHub"**.
 
+![A quiz group browsed as folders](./screenshots/group-folders.png)
+
 A repository needs nothing special: point Qwiz at one and it lists every `.qwiz` file in it, using
 the folders as the grouping. Adding a [`.qwizgroup` manifest](./qwizgroup-format.md) is what lets
 you order them, name them, and choose how they're played — as an unlocking journey, one merged
