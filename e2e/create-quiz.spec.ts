@@ -15,7 +15,7 @@ test('creating a quiz through the builder saves it and lists it on the home page
 }) => {
   const home = new HomePage(page);
   await home.goto();
-  await home.newQuizLink.click();
+  await home.openNewQuiz();
   await expect(page).toHaveURL('/local/create');
 
   const builder = new BuilderPage(page);

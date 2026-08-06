@@ -69,6 +69,12 @@
       const anchor = (e.target as HTMLElement).closest('a');
       if (!anchor || !anchor.href) return;
       if (anchor.target && anchor.target !== '_self') return;
+      // A download anchor doesn't unload anything — it saves a file and leaves the page exactly
+      // where it is. Intercepting it swallowed the click outright, so "Download .qwiz" and
+      // "Download .zip" silently did nothing (and popped a leave prompt) whenever there were
+      // unsaved edits, which is precisely when someone reaches for them. `downloadBlobFile`
+      // (download.ts) builds one of these, attaches it and clicks it.
+      if (anchor.hasAttribute('download')) return;
       const url = new URL(anchor.href, window.location.href);
       if (url.href === window.location.href) return;
       e.preventDefault();

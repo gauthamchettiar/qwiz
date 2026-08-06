@@ -62,9 +62,9 @@
       <li
         class="relative rounded-lg border border-line-subtle bg-surface-raised transition-colors hover:border-line hover:shadow-sm"
       >
-        <a href={`/local/edit?id=${quiz.id}`} class="block p-4 pr-10">
+        <a href={`/local/edit?id=${quiz.id}`} class="block p-3.5 pr-10">
           <div class="flex items-baseline justify-between gap-3">
-            <h2 class="font-semibold text-ink">{quiz.title || 'Untitled quiz'}</h2>
+            <h2 class="text-sm font-semibold text-ink">{quiz.title || 'Untitled quiz'}</h2>
             {#if quiz.category}
               <span
                 class="shrink-0 rounded-md bg-accent-surface px-2 py-0.5 text-xs font-medium text-accent-ink-strong"
@@ -74,19 +74,9 @@
             {/if}
           </div>
           {#if quiz.description}
-            <p class="mt-1 line-clamp-2 text-sm text-ink-subtle">{quiz.description}</p>
+            <p class="mt-0.5 line-clamp-1 text-xs text-ink-subtle">{quiz.description}</p>
           {/if}
-          {#if quiz.tags.length > 0}
-            <div class="mt-2 flex flex-wrap gap-1.5">
-              {#each quiz.tags as tag (tag)}
-                <span
-                  class="rounded-md bg-surface-hover px-2 py-0.5 text-xs font-medium text-ink-soft"
-                  >{tag}</span
-                >
-              {/each}
-            </div>
-          {/if}
-          <p class="mt-3 text-xs text-ink-subtle">
+          <p class="mt-1.5 text-xs text-ink-subtle">
             {questionCountLabel(quiz)} · updated {new Date(quiz.updatedAt).toLocaleDateString()}
           </p>
         </a>

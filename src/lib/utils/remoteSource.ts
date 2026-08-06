@@ -114,6 +114,15 @@ export function groupUrl(repo: RepoRef, path?: string): string {
   return `/group?${params.toString()}`;
 }
 
+/** The `/group` link for a group saved to this browser.
+ *
+ * A saved group has to be addressed by its saved id, never by the repository it came from: the
+ * `?repo=` form re-fetches, which defeats the point of an offline copy, and a group built HERE has
+ * no owner/repo at all — `groupUrl` would emit `/group?repo=%2F`, which `parseRepoRef` rejects. */
+export function savedGroupUrl(savedId: string): string {
+  return `/group?${new URLSearchParams({ saved: savedId }).toString()}`;
+}
+
 /** How a folders group is being played this time round.
  *
  * Carried in the URL rather than held in component state so a run is linkable and survives a
@@ -138,6 +147,16 @@ export function groupPlayUrl(
   const params = new URLSearchParams({ repo: `${repo.owner}/${repo.repo}` });
   if (path) params.set('path', path);
   if (repo.ref) params.set('ref', repo.ref);
+  if (options.merge) params.set('merge', '1');
+  if (options.shuffle) params.set('shuffle', '1');
+  return `/group/play?${params.toString()}`;
+}
+
+/** The `/group/play` link for a group saved to this browser — same reasoning as `savedGroupUrl`.
+ * Without it, pressing Play on a saved copy went straight back to the network for a group already
+ * sitting in `localStorage`. */
+export function savedGroupPlayUrl(savedId: string, options: Partial<GroupRunOptions> = {}): string {
+  const params = new URLSearchParams({ saved: savedId });
   if (options.merge) params.set('merge', '1');
   if (options.shuffle) params.set('shuffle', '1');
   return `/group/play?${params.toString()}`;

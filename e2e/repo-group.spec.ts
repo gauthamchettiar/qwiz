@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { PlayPage } from './pages/PlayPage';
 import { countApiCalls, stubRepo } from './utils/github';
+import { waitForHydration } from './utils/hydration';
 import { resetStorage, storedQuizCount } from './utils/storage';
 
 function quiz(title: string, question = 'What is the capital of France?') {
@@ -43,6 +44,11 @@ const FILES = {
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
+  // `goto` resolves on `load`, before the header's islands have run — so the Import tests below,
+  // which click a button rather than just filling a field, would otherwise land on an element with
+  // no handler attached yet and silently do nothing (CLAUDE.md §7). The page objects' own `goto*`
+  // methods all do this; a bare `page.goto` in a spec has to do it itself.
+  await waitForHydration(page);
   await resetStorage(page);
 });
 

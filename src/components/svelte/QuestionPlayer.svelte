@@ -1044,7 +1044,7 @@
             <input
               type="radio"
               name={`question-${question.text}-options`}
-              class="mt-1 h-4 w-4 shrink-0 accent-indigo-600"
+              class="mt-1 h-4 w-4 shrink-0 accent-accent"
               checked={selected.has(optionIndex)}
               disabled={isLocked}
               onchange={() => selectSingle(optionIndex)}
@@ -1052,7 +1052,7 @@
           {:else}
             <input
               type="checkbox"
-              class="mt-1 h-4 w-4 shrink-0 accent-indigo-600"
+              class="mt-1 h-4 w-4 shrink-0 accent-accent"
               checked={selected.has(optionIndex)}
               disabled={isLocked ||
                 (maxAnswers !== undefined &&

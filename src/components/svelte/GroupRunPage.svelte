@@ -1,8 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Loader2, Trophy } from '@lucide/svelte';
+  import { Loader2 } from '@lucide/svelte';
   import { parseRepoRef, type RepoRef } from '@/lib/utils/githubRef';
-  import { pinnedRef, groupUrl, readGroupRunOptions } from '@/lib/utils/remoteSource';
+  import {
+    pinnedRef,
+    groupUrl,
+    savedGroupUrl,
+    readGroupRunOptions
+  } from '@/lib/utils/remoteSource';
   import { entryLabel } from '@/lib/utils/folderTree';
   import { groupMode, type QuizGroup, type QuizGroupEntry } from '@/lib/utils/quizGroup';
   import { mergeGroupDocument, orderSources, type MergeSource } from '@/lib/utils/mergeGroup';
@@ -16,6 +21,7 @@
   import QuizPlayer from './QuizPlayer.svelte';
   import GauntletSession from './GauntletSession.svelte';
   import ErrorList from './ErrorList.svelte';
+  import Button from './Button.svelte';
 
   // Plays a whole group as one sitting. Two shapes share this component because they share every
   // question about state except how many quizzes there are:
@@ -31,6 +37,16 @@
   }
 
   let repo = $state<RepoRef | null>(null);
+  /** Set when this run came from a saved copy — the id, not the repository, is how it's addressed
+   * on the way back out. A locally-built group has no owner/repo at all, so `groupUrl` would emit
+   * `/group?repo=%2F` and strand the player on an error screen. */
+  let savedId = $state<string | null>(null);
+
+  /** Where "leave this run" goes. One function rather than the branch written at both call sites
+   * (the gauntlet's exit and the results screen), which is how they'd drift. */
+  function backToGroupHref(ref: RepoRef): string {
+    return savedId ? savedGroupUrl(savedId) : groupUrl(ref, ref.path);
+  }
   let group = $state<QuizGroup | null>(null);
   let stages = $state<Stage[]>([]);
   let index = $state(0);
@@ -57,6 +73,10 @@
       { earned: 0, max: 0 }
     )
   );
+  // No group-level win/lose threshold exists (each quiz defines its own points_to_win, if any), so
+  // this is always accent-toned rather than switching to a positive tone the way a single quiz's
+  // own results screen does.
+  const totalsPercentage = $derived(totals.max > 0 ? (totals.earned / totals.max) * 100 : 0);
 
   function recordFinish(label: string, result: QuizRunResult) {
     scores = [...scores, { label, result }];
@@ -93,6 +113,7 @@
           errors = ["That saved group isn't in this browser any more."];
           return;
         }
+        savedId = found.id;
         repo = {
           owner: found.owner,
           repo: found.repo,
@@ -238,20 +259,36 @@
       {group}
       base={groupBase}
       questionsByEntry={gauntletQuestions}
-      onExit={() => (window.location.href = groupUrl(repo, repo.path))}
+      onExit={() => (window.location.href = backToGroupHref(repo))}
     />
   </div>
 {:else if done && repo}
-  <!-- Only reachable with more than one stage: a merged group ends on the player's own results. -->
-  <div class="space-y-4 rounded-lg border border-line-subtle bg-surface-raised p-6 text-center">
-    <Trophy size={28} class="mx-auto text-accent-ink" />
-    <h1 class="text-xl font-bold text-ink">{group?.title || 'Group complete'}</h1>
-    <p class="text-sm text-ink-subtle">
-      {totals.earned} / {totals.max} points across {scores.length} quiz{scores.length === 1
-        ? ''
-        : 'zes'}
-    </p>
-    <ul class="mx-auto max-w-sm space-y-1 text-left text-sm">
+  <!-- Only reachable with more than one stage: a merged group ends on the player's own results.
+       Same score-ring card QuizPlayer's own results screen uses, always accent-toned since a group
+       has no single pass/fail threshold to switch on. -->
+  <div class="overflow-hidden rounded-xl border border-line-subtle bg-surface-raised">
+    <div
+      class="flex flex-col items-center gap-4 bg-surface-hover px-6 py-8 text-center sm:flex-row sm:gap-6 sm:text-left"
+    >
+      <div
+        class="relative grid h-24 w-24 shrink-0 place-items-center rounded-full text-accent"
+        style={`background: conic-gradient(currentColor ${Math.round(totalsPercentage) * 3.6}deg, transparent 0deg)`}
+      >
+        <div class="grid h-[4.5rem] w-[4.5rem] place-items-center rounded-full bg-surface-hover">
+          <span class="text-xl font-bold text-ink">{Math.round(totalsPercentage)}%</span>
+        </div>
+      </div>
+      <div class="space-y-1">
+        <h1 class="text-lg font-bold text-ink">{group?.title || 'Group complete'}</h1>
+        <p class="text-sm text-ink-subtle">
+          {totals.earned} of {totals.max} points across {scores.length} quiz{scores.length === 1
+            ? ''
+            : 'zes'}
+        </p>
+      </div>
+    </div>
+
+    <ul class="space-y-1 px-6 py-4 text-sm">
       {#each scores as entry (entry.label)}
         <li class="flex items-baseline justify-between gap-3 border-b border-line-faint py-1">
           <span class="truncate text-ink-muted">{entry.label}</span>
@@ -261,19 +298,12 @@
         </li>
       {/each}
     </ul>
-    <div class="flex flex-wrap items-center justify-center gap-3 pt-2">
-      <a
-        href={groupUrl(repo, repo.path)}
-        class="rounded-md border border-line bg-surface-raised px-4 py-2 text-sm font-medium text-ink-muted hover:bg-surface"
-      >
-        Back to the group
-      </a>
-      <a
-        href="/"
-        class="rounded-md border border-line bg-surface-raised px-4 py-2 text-sm font-medium text-ink-muted hover:bg-surface"
-      >
-        Your own quizzes
-      </a>
+
+    <div
+      class="flex flex-wrap items-center justify-center gap-2 border-t border-line-faint px-6 py-4"
+    >
+      <Button href={backToGroupHref(repo)}>Back to the group</Button>
+      <Button href="/">Your own quizzes</Button>
     </div>
   </div>
 {:else if current}

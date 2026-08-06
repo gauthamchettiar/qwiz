@@ -2,9 +2,10 @@
 import '@/styles/global.css';
 import ImportQuizDialog from '@/components/svelte/ImportQuizDialog.svelte';
 import ThemePicker from '@/components/svelte/ThemePicker.svelte';
-import Button from '@/components/svelte/Button.svelte';
+import NewMenu from '@/components/svelte/NewMenu.svelte';
 import Wordmark from '@/components/astro/Wordmark.astro';
 import BackLink from '@/components/svelte/BackLink.svelte';
+import HomeLink from '@/components/svelte/HomeLink.svelte';
 
 interface Props {
   title?: string;
@@ -68,7 +69,10 @@ const {
         minimal ? (
           <header class="mb-6 flex items-center justify-between gap-2">
             <BackLink client:load />
-            <ThemePicker client:load />
+            <div class="flex items-center gap-2">
+              <ThemePicker client:load />
+              <HomeLink client:load />
+            </div>
           </header>
         ) : (
           <header class="mb-8 flex items-center justify-between">
@@ -78,9 +82,7 @@ const {
             <div class="flex items-center gap-2">
               <ThemePicker client:load />
               <ImportQuizDialog client:load />
-              <Button href="/local/create" variant="primary" size="sm" client:load>
-                + New
-              </Button>
+              <NewMenu client:load />
             </div>
           </header>
         )

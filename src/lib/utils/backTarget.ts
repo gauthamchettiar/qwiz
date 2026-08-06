@@ -37,18 +37,21 @@ export function backTarget(pathname: string, search: string): string | null {
   const params = new URLSearchParams(search);
 
   const saved = params.get('saved');
+  const ref = refFrom(params);
+
+  // Playing a whole group returns to that group, not to the folder above it: you came from the
+  // group's own screen, and its Play button is what you'd want again. That holds whether the group
+  // is a repository or a saved copy — which is why the `saved` branch below no longer runs first
+  // and swallowed this case, sending a saved group's run all the way home.
+  if (pathname.startsWith('/group/play')) {
+    if (saved) return `/group?saved=${encodeURIComponent(saved)}`;
+    return ref ? groupUrl(ref, ref.path) : null;
+  }
+
   if (saved) {
     // A quiz inside a saved group returns to that group; the group itself returns to the library
     // it belongs to, since there's no repository folder above it to climb.
     return pathname.startsWith('/play') ? `/group?saved=${encodeURIComponent(saved)}` : '/';
-  }
-
-  const ref = refFrom(params);
-
-  // Playing a whole group returns to that group, not to the folder above it: you came from the
-  // group's own screen, and its Play button is what you'd want again.
-  if (pathname.startsWith('/group/play')) {
-    return ref ? groupUrl(ref, ref.path) : null;
   }
 
   // A group screen climbs one folder, and `null` at the repository root leaves it to history —

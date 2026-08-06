@@ -132,7 +132,11 @@ test('Back still reaches the library from a group at the repository root', async
   });
 
   // Arrived from inside the app, so Back is history — which is the library.
+  // This test navigates itself rather than going through `open()`, so it has to do `open()`'s own
+  // hydration wait: opening the dialog needs a click handler, and `goto` resolves before the
+  // header's islands have run (CLAUDE.md §7).
   await page.goto('/');
+  await waitForHydration(page);
   await page.getByRole('button', { name: 'Import' }).click();
   await page.getByLabel('GitHub gist or repository').fill('owner/repo');
   await page.getByRole('button', { name: 'Open' }).click();

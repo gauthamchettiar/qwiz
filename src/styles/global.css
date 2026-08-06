@@ -78,6 +78,19 @@
   --color-negative-line-subtle: oklch(80.8% 0.114 19.571);
   --color-negative-line: oklch(70.4% 0.191 22.216);
 
+  /* The group builder's own hue — how /local/group reads as a different KIND of screen from
+     /local/create without a second palette to maintain.
+
+     DECORATION ONLY: a card rail, an index dot, an eyebrow icon. Never text, and never a fill
+     behind text. That's deliberate and load-bearing — a second colour carrying text would have to
+     clear 4.5:1 in all thirteen themes, and e2e/accessibility.spec.ts would (rightly) start failing
+     until it did. Decoration carries no text for axe to measure, so this stays a free addition.
+
+     The value below is a static fallback; the real one is derived from each theme's OWN accent by
+     the @supports block after the theme definitions, so all thirteen get it without a per-theme
+     override. See there for why it's split in two. */
+  --color-brand-group: oklch(58% 0.13 200);
+
   /* Warnings */
   --color-warning: oklch(57.6% 0.179 58.318);
   --color-warning-hover: oklch(55.5% 0.163 48.998);
@@ -916,6 +929,32 @@
   --color-warning-ink: #e0af68;
   --color-warning-ink-strong: #ecc994;
   --color-warning-line: #6b5730;
+}
+
+/* The group hue, derived from whichever accent is currently in force.
+   ---------------------------------------------------------------------------------------------
+   Takes each theme's OWN accent lightness and chroma but PINS the hue to teal. That split is the
+   whole point, and it's the second attempt: rotating the hue instead (`calc(h + 150)`) reads
+   beautifully in the abstract and lands on red for the default theme — indigo's 277° wraps to 67°,
+   which gamut-clamps to a strong orange-red. Red is `--color-negative` here, so a decorative rail
+   in it says "something is wrong" on a screen where nothing is. No fixed rotation avoids that for
+   all thirteen themes either; dracula's purple lands on red too. Hues 27/58/150 are spoken for by
+   negative/warning/positive, so a fixed value in the free 180–340 band is the only guaranteed-safe
+   choice — and taking `l` and `c` from the accent still means a dark theme gets a light rail and a
+   muted theme a muted one, which is what "derived per theme" was actually buying.
+
+   It sits after the theme definitions so `var(--color-accent)` resolves to the winning one — both
+   are declared on :root, and relative colour resolves at computed-value time.
+
+   Guarded by @supports because relative colour syntax is Firefox 128+ (Chrome 119+, Safari 16.4+),
+   which is above this app's stated floor of Safari 16.4 / Firefox 113 / Chrome 103 — the same floor
+   share links sit on. Without the guard an older Firefox would drop the declaration entirely and
+   render an unstyled border; with it, the static teal in @theme stands in. Cheap insurance for
+   something that is decoration in the first place. */
+@supports (color: oklch(from red l c h)) {
+  :root {
+    --color-brand-group: oklch(from var(--color-accent) l calc(c * 0.85) 195);
+  }
 }
 
 body {

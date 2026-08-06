@@ -8,6 +8,7 @@
     FolderGit2,
     FolderTree as FolderTreeIcon,
     HardDrive,
+    BookmarkPlus,
     Loader2,
     Play
   } from '@lucide/svelte';
@@ -17,6 +18,7 @@
     groupUrl,
     groupPlayUrl,
     repoQuizUrl,
+    savedGroupPlayUrl,
     savedQuizUrl
   } from '@/lib/utils/remoteSource';
   import { allFolderPaths, buildFolderTree } from '@/lib/utils/folderTree';
@@ -96,9 +98,18 @@
   let mergeRun = $state(false);
   let shuffleRun = $state(false);
 
-  const playHref = $derived(
-    repo ? groupPlayUrl(repo, repo.path, { merge: mergeRun, shuffle: shuffleRun }) : '#'
-  );
+  // A saved group plays from the saved copy, never from the repository it came from. Without this
+  // branch, pressing Play on an offline copy went straight back to the network for a group already
+  // in localStorage — and for a group built locally there's no owner/repo to build a link out of at
+  // all, so it produced `/group/play?repo=%2F` and a "doesn't say which repository" error.
+  const playHref = $derived.by(() => {
+    const options = { merge: mergeRun, shuffle: shuffleRun };
+    // `source.kind`, not `savedId` alone: `savedId` is also set while browsing a LIVE repository
+    // that happens to have an offline copy (it drives the "already saved" badge), and playing the
+    // stale copy instead of what's on screen would be wrong.
+    if (source?.kind === 'saved' && savedId) return savedGroupPlayUrl(savedId, options);
+    return repo ? groupPlayUrl(repo, repo.path, options) : '#';
+  });
 
   /** What the one button promises, so a player knows what they're starting before pressing it. */
   const playLabel = $derived.by(() => {
@@ -215,6 +226,13 @@
     }
     savedId = null;
     savedAt = null;
+  }
+
+  /** One class string per toggle state, never two layered (CLAUDE.md §5). */
+  function toggleTone(active: boolean): string {
+    return active
+      ? 'rounded-full border border-accent-line bg-accent-surface px-3 py-1.5 text-xs font-medium text-accent-ink-strong'
+      : 'rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink-muted hover:bg-surface-hover';
   }
 
   /** A sub-group's name relative to the folder this screen is already showing. Without this a card
@@ -382,23 +400,31 @@
       <div
         class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line-subtle bg-surface-raised p-3"
       >
-        <div class="flex flex-wrap items-center gap-4">
-          <label class="flex items-center gap-2 text-sm text-ink-muted">
-            <input type="checkbox" bind:checked={mergeRun} />
+        <div class="flex flex-wrap items-center gap-2">
+          <!-- Toggle chips rather than checkboxes: a native checkbox reads as a form field, but
+               these are a way of PLAYING, the same kind of choice a segmented control makes — and
+               there's no styled-checkbox precedent in this app to match against anyway. -->
+          <button
+            type="button"
+            aria-pressed={mergeRun}
+            class={toggleTone(mergeRun)}
+            onclick={() => (mergeRun = !mergeRun)}
+          >
             Merge
-          </label>
-          <label class="flex items-center gap-2 text-sm text-ink-muted">
-            <input type="checkbox" bind:checked={shuffleRun} />
+          </button>
+          <button
+            type="button"
+            aria-pressed={shuffleRun}
+            class={toggleTone(shuffleRun)}
+            onclick={() => (shuffleRun = !shuffleRun)}
+          >
             Shuffle
-          </label>
+          </button>
         </div>
-        <a
-          href={playHref}
-          class="flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-ink-inverse hover:bg-accent-hover"
-        >
+        <Button href={playHref} variant="primary">
           <Play size={16} />
           {playLabel}
-        </a>
+        </Button>
       </div>
       <p class="-mt-4 text-xs text-ink-subtle">
         {mergeRun
@@ -421,12 +447,12 @@
     {#if loaded.subGroups.length > 0}
       <div class="space-y-2">
         <h2 class="text-sm font-semibold text-ink-soft">Groups</h2>
-        <ul class="space-y-2">
+        <ul class="space-y-0.5 rounded-lg border border-line-subtle bg-surface-raised p-2">
           {#each loaded.subGroups as sub (sub)}
             <li>
               <a
                 href={groupUrl(repo, sub)}
-                class="flex items-center gap-2 rounded-lg border border-line-subtle bg-surface-raised px-3 py-2 text-sm font-medium text-ink transition-colors hover:border-line hover:bg-surface-hover"
+                class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium text-ink hover:bg-surface-hover"
               >
                 <FolderTreeIcon size={15} class="shrink-0 text-ink-faint" />
                 <span class="truncate">{subGroupLabel(sub)}</span>
@@ -460,45 +486,50 @@
               </button>
             {/if}
           </div>
-          <FolderTree node={tree} hrefFor={quizHref} {expanded} onToggle={toggle} />
+          <div class="rounded-lg border border-line-subtle bg-surface-raised p-2">
+            <FolderTree node={tree} hrefFor={quizHref} {expanded} onToggle={toggle} />
+          </div>
         </div>
       {/if}
     {/if}
 
     <!-- Saving takes the whole group, files and all, so it opens later with no network. The old
          copy here just told the reader nothing was saved, which is information rather than an
-         action — this is the action. -->
-    <div class="flex flex-wrap items-center justify-center gap-3 border-t border-line-faint pt-4">
+         action — this is the action. Same shape as the per-quiz "Save a copy" button (icon, label,
+         secondary variant), since it's the same kind of action at a different scope. -->
+    <div class="flex flex-wrap items-center justify-between gap-3 border-t border-line-faint pt-4">
       {#if savedId}
         <span class="inline-flex items-center gap-1.5 text-sm font-medium text-positive-ink">
           <Check size={15} /> Saved to this browser
         </span>
-        {#if source?.kind === 'remote'}
+        <div class="flex items-center gap-3">
+          {#if source?.kind === 'remote'}
+            <button
+              type="button"
+              class="text-xs font-medium text-accent-ink hover:underline"
+              onclick={saveToBrowser}
+              disabled={saving}
+            >
+              Update the copy
+            </button>
+          {/if}
           <button
             type="button"
-            class="text-xs font-medium text-accent-ink hover:underline"
-            onclick={saveToBrowser}
-            disabled={saving}
+            class="text-xs font-medium text-negative-ink hover:underline"
+            onclick={removeSaved}
           >
-            Update the copy
+            Remove
           </button>
-        {/if}
-        <button
-          type="button"
-          class="text-xs font-medium text-negative-ink hover:underline"
-          onclick={removeSaved}
-        >
-          Remove
-        </button>
+        </div>
       {:else}
+        <span class="text-xs text-ink-subtle">Keeps the whole group, playable offline.</span>
         <Button onclick={saveToBrowser} disabled={saving}>
           {#if saving}
             <Loader2 size={15} class="animate-spin" /> Saving…
           {:else}
-            <HardDrive size={15} /> Save to Browser
+            <BookmarkPlus size={15} /> Save a copy
           {/if}
         </Button>
-        <span class="text-xs text-ink-subtle">Keeps the whole group, playable offline.</span>
       {/if}
     </div>
   </div>

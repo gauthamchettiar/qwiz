@@ -48,13 +48,30 @@ the mode folders beneath it.
 
 ## Building one from the app
 
-You don't have to write the manifest by hand. **Generate a Group** on the home screen assembles one
-from quizzes already in your library: pick them, choose how they play, and download the whole folder
-as a `.zip`.
+You don't have to write the manifest by hand. **+ New → New group** in the header assembles one from
+quizzes already in your library: name it, add quizzes, set how it plays, and download the whole
+folder as a `.zip`.
 
-The preview shows the exact `.qwizgroup` the download will contain, and the download stays disabled
-until that file parses — the app validates it by reading it back with the same parser it uses for
-anyone else's group, so it can't hand you a manifest it couldn't open.
+It's the same screen as the quiz builder, because a `.qwizgroup` is the same shape as a `.qwiz` — a
+details block with a settings list, then one block per item. `mode` is an ordinary setting there, so
+every key on this page is set the same way, and a key written under a mode it means nothing in is
+reported rather than quietly dropped.
+
+The `<>` button beside the title opens the manifest itself, editable, and applying it feeds the edit
+back into the form — which is how you write anything the form doesn't offer, such as a branching
+`requires:` or a per-entry setting. The download stays disabled until the file parses: the app
+validates it by reading it back with the same parser it uses for anyone else's group, so it can't
+hand you a manifest it couldn't open.
+
+**Save to this browser** keeps the group without publishing anything, and **Play** opens it right
+there — which is how you check the thing works before pushing it anywhere. A saved group appears
+under Saved Groups on the home page marked _built here_, plays entirely offline, and reopens in the
+builder from its ⋮ menu. (A group you saved a copy of from someone else's repository sits in the
+same list, but offers _Update the copy_ instead: its entries name files in that repository, not
+quizzes in your library, so there's nothing for the builder to edit.)
+
+Nothing about saving uploads anything — it's `localStorage`, like your quizzes. Publishing is still
+the download, and still yours to push.
 
 What it deliberately doesn't do is create the repository. That would need a GitHub token with write
 access, and the whole feature rests on Qwiz reading public files signed out. So the last three steps

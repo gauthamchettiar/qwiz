@@ -179,7 +179,7 @@ test('the Merge toggle turns the set into one run, and says so before you press 
   await page.goto('/group?repo=owner%2Frepo');
   await expect(page.getByText('Each quiz in turn, with one scoreboard at the end.')).toBeVisible();
 
-  await page.getByLabel('Merge').check();
+  await page.getByRole('button', { name: 'Merge' }).click();
   await expect(page.getByText('Every question from every quiz, as one run.')).toBeVisible();
   await page.getByRole('link', { name: /^Play all 2 as one quiz/ }).click();
 
@@ -196,8 +196,10 @@ test('the toggles travel in the link, so a way of playing is shareable', async (
   });
 
   await page.goto('/group?repo=owner%2Frepo');
-  await page.getByLabel('Merge').check();
-  await page.getByLabel('Shuffle').check();
+  // Toggle chips with `aria-pressed`, not checkboxes: these are a way of PLAYING, not a form
+  // field (see QuizGroupPage's own comment on why).
+  await page.getByRole('button', { name: 'Merge' }).click();
+  await page.getByRole('button', { name: 'Shuffle' }).click();
 
   await page.getByRole('link', { name: /^Play all/ }).click();
   await expect(page).toHaveURL(/merge=1/);
@@ -210,7 +212,7 @@ test('a merge manifest starts with Merge already ticked', async ({ page }) => {
   });
 
   await page.goto('/group?repo=owner%2Frepo');
-  await expect(page.getByLabel('Merge')).toBeChecked();
+  await expect(page.getByRole('button', { name: 'Merge' })).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('a journey offers no whole-set Play, because its order is the content', async ({ page }) => {
@@ -231,7 +233,7 @@ test('a journey offers no whole-set Play, because its order is the content', asy
 
   await page.goto('/group?repo=owner%2Frepo');
   await expect(page.getByRole('link', { name: /^Play all/ })).toBeHidden();
-  await expect(page.getByLabel('Merge')).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Merge' })).toBeHidden();
 });
 
 test('a group whose quizzes cannot be read says so rather than playing nothing', async ({

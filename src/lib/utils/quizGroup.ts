@@ -116,6 +116,12 @@ export const GROUP_FRONTMATTER_RULES: Record<string, SettingRule> = {
   ...QUIZ_FRONTMATTER_RULES
 };
 
+/** Every key a manifest's frontmatter offers, sorted — what the builder's settings dropdown lists
+ * and what `SettingsLegend` explains. Mirrors `QUIZ_SUGGESTED_SETTING_KEYS` exactly, including
+ * being derived from the rules table rather than hand-listed, so a new key is offered the moment
+ * it's defined. */
+export const GROUP_SUGGESTED_SETTING_KEYS = Object.keys(GROUP_FRONTMATTER_RULES).sort();
+
 /** What a single `quiz:` block's `:key=value` lines accept: `require_win` plus any quiz-wide
  * setting, so one entry can be timed or scored differently from the rest of its group. */
 export const GROUP_ENTRY_RULES: Record<string, SettingRule> = {

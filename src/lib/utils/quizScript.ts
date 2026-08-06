@@ -294,11 +294,18 @@ export interface SettingRule {
   description: string;
 }
 
-/** Group headings in the order the dropdown shows them, most-reached-for first. Both tables draw
- * from this one list — a quiz-wide block simply has no keys in some of them. Anything a rule names
- * that isn't listed here still appears, after these, so a typo degrades to a stray heading rather
- * than a silently missing key. */
+/** Group headings in the order the dropdown shows them, most-reached-for first. All three tables
+ * draw from this one list — a quiz-wide block simply has no keys in some of them, and a `.qwizgroup`
+ * block has none in most. Anything a rule names that isn't listed here still appears, after these,
+ * so a typo degrades to a stray heading rather than a silently missing key.
+ *
+ * "Group" and "Gauntlet" lead because they only exist in `GROUP_SETTING_RULES` (quizGroup.ts), where
+ * they're the keys the author is actually there to set — the quiz-wide keys below them are the ones
+ * a manifest merely inherits. `groupSettingKeys` drops empty groups, so a quiz's own dropdown is
+ * unaffected by their being first. */
 export const SETTING_GROUP_ORDER = [
+  'Group',
+  'Gauntlet',
   'Scoring',
   'Answering',
   'Matching',

@@ -150,22 +150,50 @@
 </script>
 
 {#if phase === 'finished'}
-  <div class="space-y-4 rounded-lg border border-line-subtle bg-surface-raised p-6 text-center">
-    <Trophy
-      size={28}
-      class="mx-auto {gauntletWon(group, summary.percentage)
-        ? 'text-positive-ink'
-        : 'text-ink-faint'}"
-    />
-    <h1 class="text-xl font-bold text-ink">
-      {gauntletWon(group, summary.percentage) ? 'Gauntlet cleared!' : 'Gauntlet over'}
-    </h1>
-    <p class="text-sm text-ink-subtle">
-      {Math.round(summary.percentage)}% average across {summary.rounds} round{summary.rounds === 1
-        ? ''
-        : 's'}
-    </p>
-    <ul class="mx-auto max-w-sm space-y-1 text-left text-sm">
+  {@const won = gauntletWon(group, summary.percentage)}
+  <!-- Same score-ring card QuizPlayer's own results screen uses: a gauntlet has a real pass
+       threshold (unlike a plain group run), so the ring switches tone the same way. -->
+  <div class="overflow-hidden rounded-xl border border-line-subtle bg-surface-raised">
+    <div
+      class="flex flex-col items-center gap-4 px-6 py-8 text-center sm:flex-row sm:gap-6 sm:text-left {won
+        ? 'bg-positive-surface'
+        : 'bg-surface-hover'}"
+    >
+      <div
+        class="relative grid h-24 w-24 shrink-0 place-items-center rounded-full"
+        style={`background: conic-gradient(currentColor ${Math.round(summary.percentage) * 3.6}deg, transparent 0deg)`}
+        class:text-positive-ink={won}
+        class:text-accent={!won}
+      >
+        <div
+          class="grid h-[4.5rem] w-[4.5rem] place-items-center rounded-full {won
+            ? 'bg-positive-surface'
+            : 'bg-surface-hover'}"
+        >
+          <span class="text-xl font-bold text-ink">{Math.round(summary.percentage)}%</span>
+        </div>
+      </div>
+      <div class="space-y-1">
+        <h1
+          class="flex items-center justify-center gap-1.5 text-lg font-bold sm:justify-start {won
+            ? 'text-positive-ink-strong'
+            : 'text-ink'}"
+        >
+          {#if won}
+            <Trophy size={18} />
+          {/if}
+          {won ? 'Gauntlet cleared!' : 'Gauntlet over'}
+        </h1>
+        <p class="text-sm text-ink-subtle">
+          {Math.round(summary.percentage)}% average across {summary.rounds} round{summary.rounds ===
+          1
+            ? ''
+            : 's'}
+        </p>
+      </div>
+    </div>
+
+    <ul class="space-y-1 px-6 py-4 text-sm">
       {#each scores as score, i (`${score.category}-${i}`)}
         <li class="flex items-baseline justify-between gap-3 border-b border-line-faint py-1">
           <span class="truncate text-ink-muted">Round {i + 1} · {score.category}</span>
@@ -173,21 +201,12 @@
         </li>
       {/each}
     </ul>
-    <div class="flex flex-wrap items-center justify-center gap-3 pt-2">
-      <button
-        type="button"
-        class="rounded-md border border-line bg-surface-raised px-4 py-2 text-sm font-medium text-ink-muted hover:bg-surface"
-        onclick={onExit}
-      >
-        Back to the group
-      </button>
-      <button
-        type="button"
-        class="rounded-md bg-accent px-4 py-2 text-sm font-medium text-ink-inverse hover:bg-accent-hover"
-        onclick={playAgain}
-      >
-        Run it again
-      </button>
+
+    <div
+      class="flex flex-wrap items-center justify-center gap-2 border-t border-line-faint px-6 py-4"
+    >
+      <Button onclick={onExit}>Back to the group</Button>
+      <Button variant="primary" onclick={playAgain}>Run it again</Button>
     </div>
   </div>
 {:else if phase === 'choosing'}

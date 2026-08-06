@@ -54,6 +54,17 @@ describe('backTarget — everything else', () => {
     expect(backTarget('/group', '?saved=abc')).toBe('/');
   });
 
+  it('sends a saved group RUN back to that group, not all the way home', () => {
+    // The `saved` check used to run before the `/group/play` branch and swallow this case, so
+    // leaving a run of an offline group dropped you on the home page.
+    expect(backTarget('/group/play', '?saved=abc')).toBe('/group?saved=abc');
+    expect(backTarget('/group/play', '?saved=abc&merge=1')).toBe('/group?saved=abc');
+  });
+
+  it('sends a quiz inside a saved group back to that group', () => {
+    expect(backTarget('/play', '?saved=abc&path=one.qwiz')).toBe('/group?saved=abc');
+  });
+
   it('leaves a local quiz to history', () => {
     expect(backTarget('/local/play', '?id=abc')).toBeNull();
   });

@@ -6,12 +6,12 @@ import {
   getSavedGroup,
   listSavedGroups,
   saveGroup,
-  type SavedGroup
+  type NewSavedGroup
 } from './savedGroups';
 
 const KEY = 'qwiz:saved-groups';
 
-function group(overrides: Partial<Omit<SavedGroup, 'id' | 'savedAt'>> = {}) {
+function group(overrides: Partial<NewSavedGroup> = {}): NewSavedGroup {
   return {
     key: 'owner/repo',
     title: 'The Qwiz Trail',
@@ -30,6 +30,37 @@ function group(overrides: Partial<Omit<SavedGroup, 'id' | 'savedAt'>> = {}) {
 beforeEach(() => {
   localStorage.clear();
   vi.restoreAllMocks();
+});
+
+describe('origin', () => {
+  it('defaults a record written before the field existed, rather than dropping it', () => {
+    // `readAll` discards anything failing safeParse, so a REQUIRED `origin` would have silently
+    // deleted every group already saved in someone's browser. Everything stored up to now came
+    // from a repository, which is exactly what the default says.
+    const legacy = {
+      ...group(),
+      id: 'old-1',
+      savedAt: '2025-01-01T00:00:00.000Z'
+    };
+    localStorage.setItem(KEY, JSON.stringify({ 'old-1': legacy }));
+
+    const read = getSavedGroup('old-1');
+    expect(read).not.toBeNull();
+    expect(read!.origin).toBe('remote');
+  });
+
+  it('defaults on write too, so only the group builder has to say "local"', () => {
+    expect(saveGroup(group()).saved!.origin).toBe('remote');
+    expect(saveGroup(group({ key: 'local:1', origin: 'local' })).saved!.origin).toBe('local');
+  });
+
+  it('keeps a local group and a repo group apart in the same list', () => {
+    saveGroup(group({ key: 'owner/repo' }));
+    saveGroup(group({ key: 'local:1', origin: 'local', owner: '', repo: '', title: 'Mine' }));
+
+    const byOrigin = Object.fromEntries(listSavedGroups().map((g) => [g.title, g.origin]));
+    expect(byOrigin).toEqual({ 'The Qwiz Trail': 'remote', Mine: 'local' });
+  });
 });
 
 describe('saveGroup', () => {

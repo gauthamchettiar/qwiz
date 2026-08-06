@@ -58,10 +58,10 @@
     <li>
       <a
         href={hrefFor(entry)}
-        class="flex items-center gap-2 rounded-md border border-line-subtle bg-surface-raised px-3 py-2 text-sm text-ink transition-colors hover:border-line hover:bg-surface-hover"
+        class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium text-ink hover:bg-surface-hover"
       >
         <FileText size={15} class="shrink-0 text-ink-faint" />
-        <span class="truncate font-medium">{entryLabel(entry)}</span>
+        <span class="truncate">{entryLabel(entry)}</span>
       </a>
     </li>
   {/each}

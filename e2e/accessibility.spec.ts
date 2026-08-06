@@ -34,6 +34,19 @@ test('the create-quiz builder has no serious accessibility violations', async ({
   await expectNoSeriousA11yViolations(page);
 });
 
+// The group builder is the only screen combining the shared metadata comboboxes, a settings list,
+// a per-entry <select> and the source editor — none of which the quiz builder's own check reaches
+// in one pass, since its code editor replaces the form it would otherwise be checked alongside.
+test('the group builder has no serious accessibility violations', async ({ page }) => {
+  await seedQuizzes(page, [buildQuiz({ title: 'World Capitals' })]);
+  await page.goto('/local/group');
+  await page.getByRole('button', { name: 'Add quiz' }).click();
+  await expectNoSeriousA11yViolations(page);
+
+  await page.getByRole('button', { name: 'Edit group code' }).click();
+  await expectNoSeriousA11yViolations(page);
+});
+
 test('the play screen has no serious accessibility violations', async ({ page }) => {
   const quiz = buildQuiz();
   await seedQuizzes(page, [quiz]);

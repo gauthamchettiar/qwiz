@@ -25,12 +25,24 @@ const fileSchema = z.object({
 
 const savedGroupSchema = z.object({
   id: z.string(),
-  /** `owner/repo[:path]` — how a saved group is matched to the remote it came from, so saving the
-   * same group twice updates it rather than accumulating duplicates. */
+  /** `owner/repo[:path]` for a group copied from GitHub, `local:<uuid>` for one built here — how a
+   * saved group is matched to what it came from, so saving the same group twice updates it rather
+   * than accumulating duplicates. Also the journey-progress key (`groupProgress.ts`), so it has to
+   * stay stable across saves or a half-finished journey resets. */
   key: z.string(),
+  /** Where this group came from. `remote` is a copy of something published on GitHub, which can be
+   * re-fetched but not edited here; `local` was assembled in the group builder out of this
+   * browser's own quizzes, which can be re-opened there but has no repository to refresh from.
+   *
+   * DEFAULTED, never required: `readAll` drops any record that fails `safeParse`, so making this
+   * mandatory would silently delete every group saved before it existed. Everything stored up to
+   * now came from a repository, which is exactly what the default says. */
+  origin: z.enum(['local', 'remote']).default('remote'),
   title: z.string(),
   description: z.string(),
   mode: z.string(),
+  /** Empty for a `local` group — there's no repository behind it. Nothing may build a URL out of
+   * these without checking `origin` first (see `remoteSource.ts`'s saved-group helpers). */
   owner: z.string(),
   repo: z.string(),
   path: z.string(),
@@ -43,6 +55,12 @@ const savedGroupSchema = z.object({
 });
 
 export type SavedGroup = z.infer<typeof savedGroupSchema>;
+
+/** What a caller hands `saveGroup`: the schema's INPUT type, so `origin` is optional here and
+ * defaulted by the parse below, exactly as it is when reading a record written before the field
+ * existed. Only the group builder has to say `origin: 'local'`; everything that saves a copy of a
+ * repository gets the right answer by saying nothing. */
+export type NewSavedGroup = Omit<z.input<typeof savedGroupSchema>, 'id' | 'savedAt'>;
 
 /** Same parse-don't-validate contract as `quizzes.ts`: a record that doesn't match the schema is
  * dropped rather than handed to a renderer that assumes it's well formed. */
@@ -98,18 +116,20 @@ export function findSavedGroupByKey(key: string): SavedGroup | null {
 /** Saves, or re-saves. Saving a group already held under the same `key` REPLACES it and keeps its
  * id, so a refresh updates the entry in place rather than leaving two copies of the same group in
  * the list — and any link to it keeps working. */
-export function saveGroup(group: Omit<SavedGroup, 'id' | 'savedAt'>): {
+export function saveGroup(group: NewSavedGroup): {
   saved?: SavedGroup;
   error?: string;
 } {
   const all = readAll();
   const existing = Object.values(all).find((candidate) => candidate.key === group.key);
 
-  const record: SavedGroup = {
+  // Parsed on the way in as well as on the way out — which is what applies `origin`'s default, and
+  // means a record can't be written in a shape `readAll` would later drop.
+  const record: SavedGroup = savedGroupSchema.parse({
     ...group,
     id: existing?.id ?? crypto.randomUUID(),
     savedAt: new Date().toISOString()
-  };
+  });
 
   all[record.id] = record;
   if (!writeAll(all)) {

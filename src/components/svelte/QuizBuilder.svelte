@@ -7,15 +7,13 @@
     ChevronRight,
     Code,
     Download,
-    FolderOpen,
+    FileText,
     Link2,
     Play,
     Plus,
-    Tag as TagIcon,
     Trash2,
     X
   } from '@lucide/svelte';
-  import { categorySuggestions, tagSuggestions } from '@/lib/utils/suggestions';
   import { deleteQuiz, saveQuiz } from '@/lib/stores/quizzes';
   import { downloadTextFile, slugify } from '@/lib/utils/download';
   import {
@@ -38,6 +36,7 @@
   import ErrorList from './ErrorList.svelte';
   import CardMenu from './CardMenu.svelte';
   import CodeEditor from './CodeEditor.svelte';
+  import MetadataFields from './MetadataFields.svelte';
   import QuestionView from './QuestionView.svelte';
   import LeaveGuard from './LeaveGuard.svelte';
   import SettingsDocsLink from './SettingsDocsLink.svelte';
@@ -97,134 +96,12 @@
 
   const titleInvalid = $derived(errors.length > 0 && title.trim().length === 0);
 
-  // Read on mount, not at module scope: the page is prerendered to static HTML, where the
-  // localStorage half of the suggestions doesn't exist yet.
-  let categoryPool = $state<string[]>([]);
-  let tagPool = $state<string[]>([]);
-  $effect(() => {
-    categoryPool = categorySuggestions();
-    tagPool = tagSuggestions();
-  });
-
-  // Suggestions render as our own dropdown rather than a native <datalist> popup: datalist
-  // styling is entirely UA-controlled, and Safari in particular has a long-standing bug where
-  // its popup ignores the page's `color-scheme` and just follows the OS appearance, which is
-  // how you get unreadable light-on-light text with no way for us to override it from CSS.
-  //
-  // Suggestion buttons are all `tabindex="-1"` — Tab must skip straight to the next field, not
-  // wander into the dropdown, and arrow keys drive a `*Highlight` index instead. This also
-  // sidesteps a real bug: with the buttons left tabbable, Tab's target *was* the first
-  // suggestion, but the `onblur` below closes (removes) the dropdown synchronously as part of
-  // that same blur, so the browser loses its tab target mid-flight and gives up — landing on
-  // <body>, or on whatever the previous field happened to be.
-  let showCategoryDropdown = $state(false);
-  let showTagDropdown = $state(false);
-  let categoryHighlight = $state(-1);
-  let tagHighlight = $state(-1);
-  let categoryDropdownEl: HTMLDivElement | undefined = $state();
-  let tagDropdownEl: HTMLDivElement | undefined = $state();
-  // One stable id per mount for each aria-controls relationship below. `$props.id()` may only be
-  // called ONCE per component, so every id this component needs is suffixed off this single call
-  // rather than each one asking for its own.
+  // Title/description/category/tags, and the two comboboxes that drive the last two, all live in
+  // MetadataFields — shared with the group builder, which authors the same four frontmatter fields.
+  let metadata: MetadataFields | undefined = $state();
+  // `$props.id()` may only appear as a top-level declaration initializer, hence the two lines.
   const instanceId = $props.id();
-  const categoryListboxId = `${instanceId}-category-listbox`;
-  const tagListboxId = `${instanceId}-tag-listbox`;
   const settingsPanelId = `${instanceId}-settings`;
-
-  const categoryDropdownOptions = $derived(
-    categoryPool.filter((c) => c.includes(category.trim().toLowerCase()))
-  );
-  // A tag already on this quiz is not worth suggesting again — `addTag` would just no-op on it.
-  const tagDropdownOptions = $derived(
-    tagPool.filter((t) => !tags.includes(t) && t.includes(tagDraft.trim().toLowerCase()))
-  );
-
-  // Whenever the filtered list changes shape (typing, a selection, tags changing), whatever
-  // index was highlighted may no longer make sense — drop back to "nothing highlighted".
-  $effect(() => {
-    void categoryDropdownOptions;
-    categoryHighlight = -1;
-  });
-  $effect(() => {
-    void tagDropdownOptions;
-    tagHighlight = -1;
-  });
-
-  // Keeps the highlighted option in view once the list scrolls past `max-h-48`.
-  $effect(() => {
-    const idx = categoryHighlight;
-    if (idx < 0) return;
-    categoryDropdownEl?.querySelectorAll('button')[idx]?.scrollIntoView({ block: 'nearest' });
-  });
-  $effect(() => {
-    const idx = tagHighlight;
-    if (idx < 0) return;
-    tagDropdownEl?.querySelectorAll('button')[idx]?.scrollIntoView({ block: 'nearest' });
-  });
-
-  /** Wraps an arrow-key move around the ends of a `length`-item list; -1 means "none highlighted". */
-  function moveHighlight(current: number, length: number, delta: 1 | -1): number {
-    if (length === 0) return -1;
-    if (current === -1) return delta === 1 ? 0 : length - 1;
-    return (current + delta + length) % length;
-  }
-
-  function selectCategory(value: string) {
-    category = value;
-    showCategoryDropdown = false;
-  }
-
-  function onCategoryKeydown(e: KeyboardEvent) {
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      e.preventDefault();
-      showCategoryDropdown = true;
-      categoryHighlight = moveHighlight(
-        categoryHighlight,
-        categoryDropdownOptions.length,
-        e.key === 'ArrowDown' ? 1 : -1
-      );
-    } else if (e.key === 'Enter' && categoryHighlight >= 0) {
-      e.preventDefault();
-      selectCategory(categoryDropdownOptions[categoryHighlight]);
-    } else if (e.key === 'Escape') {
-      showCategoryDropdown = false;
-    }
-  }
-
-  function addTag(value?: string) {
-    const t = (value ?? tagDraft).trim().toLowerCase();
-    if (t && !tags.includes(t)) tags = [...tags, t];
-    tagDraft = '';
-  }
-
-  function selectTagSuggestion(value: string) {
-    addTag(value);
-    showTagDropdown = false;
-  }
-
-  function onTagKeydown(e: KeyboardEvent) {
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      e.preventDefault();
-      showTagDropdown = true;
-      tagHighlight = moveHighlight(
-        tagHighlight,
-        tagDropdownOptions.length,
-        e.key === 'ArrowDown' ? 1 : -1
-      );
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (tagHighlight >= 0) selectTagSuggestion(tagDropdownOptions[tagHighlight]);
-      else addTag();
-    } else if (e.key === 'Escape') {
-      showTagDropdown = false;
-    } else if (e.key === 'Backspace' && tagDraft === '' && tags.length) {
-      removeTag(tags[tags.length - 1]);
-    }
-  }
-
-  function removeTag(t: string) {
-    tags = tags.filter((x) => x !== t);
-  }
 
   /** Same as a question's (see QuestionForm's own `addSetting`): the first still-free key, with
    * its default value, rather than a blank row and a placeholder option pretending to be one. */
@@ -386,7 +263,7 @@
     // quiz rather than one card.
     // A tag half-typed in the tag field, or a card still open in code mode, is state the document
     // has to include — otherwise it silently vanishes the moment the document is applied back.
-    addTag();
+    metadata?.commitTagDraft();
     if (!commitActiveDraft()) return;
     activeEdit = null;
     fileDraft = serializeQuizScript(
@@ -578,7 +455,6 @@
     return () => window.removeEventListener('keydown', onKey);
   });
 
-  let titleEl: HTMLInputElement | undefined = $state();
   let errorListEl: HTMLElement | undefined = $state();
   /** Which question card (if any) blocked the last save, so `focusFirstError` can scroll to it. */
   let blockingQuestionId = $state<string | null>(null);
@@ -601,8 +477,7 @@
     const behavior = reduceMotion ? ('auto' as const) : ('smooth' as const);
 
     if (title.trim().length === 0) {
-      titleEl?.scrollIntoView({ behavior, block: 'center' });
-      titleEl?.focus();
+      metadata?.focusTitle(behavior);
       return;
     }
     if (blockingQuestionId) {
@@ -622,7 +497,7 @@
   // Play needs a successful save before it can navigate at all, since playing anything other than
   // what's actually in the store would be showing stale content).
   function buildAndSaveQuiz(): Quiz | null {
-    addTag();
+    metadata?.commitTagDraft();
     blockingQuestionId = null;
 
     // Same contract as the per-card drafts below, one level up: saving while the whole document is
@@ -717,7 +592,7 @@
 
   function currentDocumentForExport(): string {
     if (fileDraft !== null) return fileDraft;
-    addTag();
+    metadata?.commitTagDraft();
     commitActiveDraft();
     return serializeQuizScript(
       currentFrontmatter(),
@@ -752,8 +627,18 @@
 </script>
 
 <div class="space-y-6">
-  <div class="flex items-center justify-between gap-3">
-    <h1 class="text-2xl font-bold text-ink">{heading}</h1>
+  <div class="flex items-start justify-between gap-3">
+    <div class="min-w-0 space-y-1">
+      <!-- Says which builder you're in at a glance. Its counterpart in GroupBuilder is identical
+           but for the icon, the word and the icon's colour — the group's carries `brand-group`,
+           this one the ordinary accent. -->
+      <p
+        class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-subtle"
+      >
+        <FileText size={13} class="shrink-0 text-accent-ink" /> Quiz
+      </p>
+      <h1 class="text-2xl font-bold text-ink">{heading}</h1>
+    </div>
     <div class="flex shrink-0 items-center gap-2">
       <!-- Play is the one action worth a permanent button beside the menu: it's how you check
            what you just wrote, and it saves first (see `playNow`) so it never shows stale
@@ -947,136 +832,16 @@
         <Code size={15} />
       </button>
 
-      <div class="-mx-1 space-y-1">
-        <input
-          bind:this={titleEl}
-          type="text"
-          class="w-full rounded-md px-1 py-1 text-2xl font-bold text-ink placeholder:text-ink-ghost focus:outline-none focus:ring-2 focus:ring-line-subtle {titleInvalid
-            ? 'border border-negative-line-subtle ring-1 ring-negative-surface-strong'
-            : 'border-0 bg-transparent'}"
-          placeholder="Untitled quiz"
-          aria-label="Title"
-          bind:value={title}
-        />
-        <textarea
-          class="w-full resize-none rounded-md border-0 bg-transparent px-1 py-1 text-sm text-ink-subtle placeholder:text-ink-ghost focus:outline-none focus:ring-2 focus:ring-line-subtle"
-          rows="2"
-          placeholder="Add a description…"
-          aria-label="Description"
-          bind:value={description}></textarea>
-        <!-- Category and tags share the metadata row treatment: a muted leading icon (the only
-         thing distinguishing them, since neither carries a visible label) and a borderless
-         input that sits flush with the title/description above. -->
-        <div class="flex items-center gap-1.5 px-1">
-          <FolderOpen size={13} class="shrink-0 text-ink-faint" />
-          <!-- Free text with suggestions: they're a convenience, not a constraint, so authors can
-           group quizzes under anything they like. -->
-          <div class="relative min-w-[8rem] flex-1">
-            <input
-              id="category"
-              type="text"
-              class="w-full border-0 bg-transparent px-1 py-0.5 text-xs text-ink-soft placeholder:text-ink-ghost focus:outline-none"
-              placeholder="Add a category…"
-              aria-label="Category"
-              autocomplete="off"
-              role="combobox"
-              aria-expanded={showCategoryDropdown && categoryDropdownOptions.length > 0}
-              aria-controls={categoryListboxId}
-              bind:value={category}
-              onfocus={() => (showCategoryDropdown = true)}
-              onblur={() => (showCategoryDropdown = false)}
-              onkeydown={onCategoryKeydown}
-            />
-            {#if showCategoryDropdown && categoryDropdownOptions.length > 0}
-              <div
-                bind:this={categoryDropdownEl}
-                id={categoryListboxId}
-                role="listbox"
-                class="absolute inset-x-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-md border border-line-subtle bg-surface-raised py-1 shadow-md"
-              >
-                {#each categoryDropdownOptions as option, i (option)}
-                  <button
-                    type="button"
-                    tabindex="-1"
-                    role="option"
-                    aria-selected={i === categoryHighlight}
-                    class="block w-full truncate px-3 py-1.5 text-left text-xs {i ===
-                    categoryHighlight
-                      ? 'bg-surface-hover text-ink'
-                      : 'text-ink-soft hover:bg-surface'}"
-                    onmousedown={(e) => e.preventDefault()}
-                    onclick={() => selectCategory(option)}
-                  >
-                    {option}
-                  </button>
-                {/each}
-              </div>
-            {/if}
-          </div>
-        </div>
-
-        <div class="flex flex-wrap items-center gap-1.5 px-1">
-          <TagIcon size={13} class="shrink-0 text-ink-faint" />
-          {#each tags as tag (tag)}
-            <span
-              class="inline-flex items-center gap-1 rounded-md bg-surface-hover px-2 py-0.5 text-xs font-medium text-ink-soft"
-            >
-              {tag}
-              <button
-                type="button"
-                onclick={() => removeTag(tag)}
-                aria-label={`Remove tag ${tag}`}
-                class="hover:text-ink"
-              >
-                <X size={12} />
-              </button>
-            </span>
-          {/each}
-          <div class="relative min-w-[8rem] flex-1">
-            <input
-              type="text"
-              class="w-full border-0 bg-transparent px-1 py-0.5 text-xs text-ink-soft placeholder:text-ink-ghost focus:outline-none"
-              placeholder={tags.length ? 'Add tag…' : 'Add tags (press Enter)…'}
-              aria-label="Add tag"
-              autocomplete="off"
-              role="combobox"
-              aria-expanded={showTagDropdown && tagDropdownOptions.length > 0}
-              aria-controls={tagListboxId}
-              bind:value={tagDraft}
-              onfocus={() => (showTagDropdown = true)}
-              onkeydown={onTagKeydown}
-              onblur={() => {
-                addTag();
-                showTagDropdown = false;
-              }}
-            />
-            {#if showTagDropdown && tagDropdownOptions.length > 0}
-              <div
-                bind:this={tagDropdownEl}
-                id={tagListboxId}
-                role="listbox"
-                class="absolute inset-x-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-md border border-line-subtle bg-surface-raised py-1 shadow-md"
-              >
-                {#each tagDropdownOptions as option, i (option)}
-                  <button
-                    type="button"
-                    tabindex="-1"
-                    role="option"
-                    aria-selected={i === tagHighlight}
-                    class="block w-full truncate px-3 py-1.5 text-left text-xs {i === tagHighlight
-                      ? 'bg-surface-hover text-ink'
-                      : 'text-ink-soft hover:bg-surface'}"
-                    onmousedown={(e) => e.preventDefault()}
-                    onclick={() => selectTagSuggestion(option)}
-                  >
-                    {option}
-                  </button>
-                {/each}
-              </div>
-            {/if}
-          </div>
-        </div>
-      </div>
+      <MetadataFields
+        bind:this={metadata}
+        bind:title
+        bind:description
+        bind:category
+        bind:tags
+        bind:tagDraft
+        titlePlaceholder="Untitled quiz"
+        {titleInvalid}
+      />
 
       <div class="space-y-1.5">
         <!-- See QuestionForm's own comment on this disclosure for why the every-key legend is
