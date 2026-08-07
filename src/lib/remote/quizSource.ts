@@ -11,7 +11,6 @@
 
 import { decodeSharePayload } from '@/lib/utils/shareLink';
 import type { QuizSourceRef } from '@/lib/utils/remoteSource';
-import { getSavedGroup } from '@/lib/stores/savedGroups';
 import { fetchGistQwizFiles, fetchRepoFile, matchesFileName, type GistFile } from './github';
 
 export interface ResolvedQuizSource {
@@ -49,16 +48,6 @@ export async function resolveQuizSource(ref: QuizSourceRef): Promise<ResolvedQui
 
     if (files.length === 1) return { source: files[0].content };
     return { choices: files };
-  }
-
-  if (ref.kind === 'saved') {
-    const group = getSavedGroup(ref.savedId);
-    if (!group) return { error: "That saved group isn't in this browser any more." };
-
-    const file = group.files.find((candidate) => candidate.path === ref.path);
-    return file
-      ? { source: file.content }
-      : { error: "That quiz isn't in this saved copy of the group." };
   }
 
   const fetched = await fetchRepoFile(ref.repo, ref.path);

@@ -872,6 +872,116 @@ describe('parseQuizScriptFrontmatter / serializeQuizScriptFrontmatter', () => {
     expect(errors.some((e) => /must start with/.test(e.message))).toBe(true);
   });
 
+  describe('the theme fields', () => {
+    const withTheme = (...body: string[]) => ['---', 'title: Geography', ...body, '---'].join('\n');
+
+    it('reads the preset name off a single line', () => {
+      const { frontmatter, errors } = parseQuizScriptFrontmatter(withTheme('theme: arcade'));
+      expect(errors).toEqual([]);
+      expect(frontmatter.themePreset).toBe('arcade');
+      expect(frontmatter.themeCss).toBeUndefined();
+    });
+
+    it('accepts a preset name it does not recognize', () => {
+      // A quiz naming a preset from a newer Qwiz has to open, unstyled, rather than refuse — the
+      // format can't know what a future release ships.
+      const { frontmatter, errors } = parseQuizScriptFrontmatter(
+        withTheme('theme: from-the-future')
+      );
+      expect(errors).toEqual([]);
+      expect(frontmatter.themePreset).toBe('from-the-future');
+    });
+
+    it('reads the indented css beneath theme-css, dedented', () => {
+      const { frontmatter, errors } = parseQuizScriptFrontmatter(
+        withTheme('theme-css:', '  .qwiz-option {', '    border-radius: 999px;', '  }')
+      );
+      expect(errors).toEqual([]);
+      expect(frontmatter.themeCss).toBe('.qwiz-option {\n  border-radius: 999px;\n}');
+    });
+
+    it('carries both at once', () => {
+      const { frontmatter } = parseQuizScriptFrontmatter(
+        withTheme('theme: arcade', 'theme-css:', '  .qwiz-title { font-size: 3rem; }')
+      );
+      expect(frontmatter.themePreset).toBe('arcade');
+      expect(frontmatter.themeCss).toBe('.qwiz-title { font-size: 3rem; }');
+    });
+
+    it('keeps blank lines inside the block, which css uses between rules', () => {
+      const { frontmatter } = parseQuizScriptFrontmatter(
+        withTheme('theme-css:', '  .a { color: red; }', '', '  .b { color: blue; }')
+      );
+      expect(frontmatter.themeCss).toBe('.a { color: red; }\n\n.b { color: blue; }');
+    });
+
+    it('ends at the first unindented line, so fields after it still parse', () => {
+      const source = [
+        '---',
+        'theme-css:',
+        '  .qwiz-option { color: red; }',
+        'category: geography',
+        'tags: [a]',
+        '---'
+      ].join('\n');
+      const { frontmatter, errors } = parseQuizScriptFrontmatter(source);
+      expect(errors).toEqual([]);
+      expect(frontmatter.themeCss).toBe('.qwiz-option { color: red; }');
+      expect(frontmatter.category).toBe('geography');
+      expect(frontmatter.tags).toEqual(['a']);
+    });
+
+    // The reason the closing fence has to be unindented. A rule of dashes inside a CSS comment is
+    // ordinary formatting, and matching the trimmed line would have closed the frontmatter here —
+    // turning the rest of the stylesheet into "questions" and the real fence into a parse error.
+    it('is not closed early by a line of dashes inside a css comment', () => {
+      const { frontmatter, errors } = parseQuizScriptFrontmatter(
+        withTheme('theme-css:', '  /* my look', '  --- */', '  .qwiz-title { color: #fff; }')
+      );
+      expect(errors).toEqual([]);
+      expect(frontmatter.themeCss).toContain('--- */');
+      expect(frontmatter.themeCss).toContain('#fff');
+    });
+
+    it('errors when nothing is indented beneath theme-css', () => {
+      const { errors } = parseQuizScriptFrontmatter(
+        ['---', 'title: Q', 'theme-css:', 'category: geography', '---'].join('\n')
+      );
+      expect(errors.some((e) => /no indented CSS/.test(e.message))).toBe(true);
+    });
+
+    it('are absent, not empty, on a quiz that carries no look', () => {
+      const { frontmatter } = parseQuizScriptFrontmatter(['---', 'title: Q', '---'].join('\n'));
+      expect(frontmatter.themePreset).toBeUndefined();
+      expect(frontmatter.themeCss).toBeUndefined();
+    });
+
+    it('round-trips through serialize and back, unchanged', () => {
+      const themeCss = '.qwiz-option {\n  border-radius: 999px;\n}\n\n.qwiz-title { color: #fff; }';
+      const source = serializeQuizScriptFrontmatter({
+        title: 'Geography',
+        description: '',
+        category: '',
+        tags: [],
+        settings: {},
+        themePreset: 'arcade',
+        themeCss
+      });
+      const { frontmatter, errors } = parseQuizScriptFrontmatter(source);
+      expect(errors).toEqual([]);
+      expect(frontmatter.themePreset).toBe('arcade');
+      expect(frontmatter.themeCss).toBe(themeCss);
+    });
+
+    it('writes nothing for an absent or blank look', () => {
+      const base = { title: 'Q', description: '', category: '', tags: [], settings: {} };
+      expect(serializeQuizScriptFrontmatter(base)).not.toContain('theme');
+      expect(
+        serializeQuizScriptFrontmatter({ ...base, themePreset: '  ', themeCss: '   ' })
+      ).not.toContain('theme');
+    });
+  });
+
   it('errors when show_reveal_screen=false conflicts with the default reveal_answers', () => {
     const source = ['---', 'title: Q', ':show_reveal_screen=false', '---'].join('\n');
     const { errors } = parseQuizScriptFrontmatter(source);

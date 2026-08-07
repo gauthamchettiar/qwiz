@@ -26,7 +26,8 @@ export type TokenKind =
   | 'tag'
   | 'label'
   | 'url'
-  | 'frontmatterKey';
+  | 'frontmatterKey'
+  | 'comment';
 
 export interface Token {
   text: string;
@@ -85,9 +86,50 @@ function mediaOrPlain(text: string, tokens: Token[], plainKind: TokenKind = 'pla
   push(tokens, media[8], plainKind);
 }
 
+/** Opens the indented CSS block — see `THEME_BLOCK_LINE` in quizScript.ts. `theme:` on its own is
+ * a different field (the preset's name, which takes a value on the same line), so this must match
+ * `theme-css:` exactly and not be tempted to treat both alike. */
+const THEME_BLOCK = /^theme-css:\s*$/;
+/** One line of that CSS: `  --color-ink: #fff;`, `  :root {`, `  }`, or a comment. Laxer than any
+ * real CSS grammar on purpose, per this file's opening note — a declaration half-typed is still
+ * obviously a declaration. */
+const CSS_DECLARATION = /^(\s*)([\w-]+)(\s*:\s*)(.*)$/;
+
 interface LineContext {
   inFrontmatter: boolean;
   inOptions: boolean;
+  /** Inside a `theme:` block's indented CSS. A third bit of carried context, added for the same
+   * reason as the other two: a `theme:` block's lines mean nothing on their own, and colouring
+   * `--color-ink: #fff;` as a frontmatter field would be actively misleading about what the
+   * document says. */
+  inTheme: boolean;
+}
+
+/** A line of the theme block's CSS. Reuses the existing kinds rather than inventing a parallel set
+ * — a CSS property is doing the same job a `:setting=` key does, and colouring them alike is what
+ * makes the block read as part of the same document. */
+function tokenizeCssLine(line: string): Token[] {
+  const tokens: Token[] = [];
+  const trimmed = line.trim();
+
+  if (trimmed.startsWith('/*') || trimmed.startsWith('*') || trimmed.endsWith('*/')) {
+    push(tokens, line, 'comment');
+    return tokens;
+  }
+
+  const declaration = CSS_DECLARATION.exec(line);
+  if (declaration) {
+    push(tokens, declaration[1], 'plain');
+    push(tokens, declaration[2], 'settingKey');
+    push(tokens, declaration[3], 'punctuation');
+    push(tokens, declaration[4], 'settingValue');
+    return tokens;
+  }
+
+  // A selector, a brace, or something mid-edit. `:root {` lands here, which is what we want: it's
+  // structure, not a value.
+  push(tokens, line, 'variant');
+  return tokens;
 }
 
 function tokenizeLine(line: string, ctx: LineContext): Token[] {
@@ -98,7 +140,14 @@ function tokenizeLine(line: string, ctx: LineContext): Token[] {
     return tokens;
   }
 
+  if (ctx.inTheme) return tokenizeCssLine(line);
+
   if (ctx.inFrontmatter) {
+    if (THEME_BLOCK.test(line)) {
+      push(tokens, 'theme-css', 'frontmatterKey');
+      push(tokens, line.slice(9), 'punctuation');
+      return tokens;
+    }
     const setting = SETTING.exec(line);
     if (setting) {
       push(tokens, setting[1] + setting[2], 'settingKey');
@@ -161,20 +210,30 @@ function tokenizeLine(line: string, ctx: LineContext): Token[] {
 /** Tokenizes a whole `.qwiz` document, one token list per line, in source order. */
 export function highlightQwiz(source: string): Token[][] {
   const lines = source.split('\n');
-  const ctx: LineContext = { inFrontmatter: false, inOptions: false };
+  const ctx: LineContext = { inFrontmatter: false, inOptions: false, inTheme: false };
   let seenOpeningFence = false;
 
   return lines.map((line) => {
-    // The fence itself is tokenized in whichever state it's toggling out of, so both `---` lines
-    // colour the same.
+    // `FENCE` is anchored at the line start, so an indented rule of dashes inside a theme block's
+    // CSS comment isn't one — matching `parseFrontmatter`, which requires the same.
     const isFence = FENCE.test(line);
+
+    // Leaving the theme block is decided BEFORE this line is tokenized, because the line that ends
+    // the block is not part of it. Entering is decided after, for the mirror reason: `theme:` is a
+    // frontmatter key, not CSS. The rule is `readIndentedBlock`'s — the block runs to the first
+    // non-blank unindented line — so what highlights as CSS is exactly what parses as CSS.
+    if (ctx.inTheme && line.trim() !== '' && !/^[ \t]/.test(line)) ctx.inTheme = false;
+
     const tokens = tokenizeLine(line, ctx);
+
+    if (ctx.inFrontmatter && THEME_BLOCK.test(line)) ctx.inTheme = true;
 
     if (isFence && !seenOpeningFence) {
       seenOpeningFence = true;
       ctx.inFrontmatter = true;
     } else if (isFence && ctx.inFrontmatter) {
       ctx.inFrontmatter = false;
+      ctx.inTheme = false;
     } else if (!ctx.inFrontmatter) {
       if (line === '{') ctx.inOptions = true;
       else if (line === '}') ctx.inOptions = false;
@@ -199,5 +258,18 @@ export const TOKEN_CLASS: Record<TokenKind, string> = {
   tag: 'font-semibold text-negative-ink',
   frontmatterKey: 'font-semibold text-accent-ink',
   label: 'text-ink-muted',
-  url: 'text-ink-subtle underline decoration-dotted underline-offset-2'
+  url: 'text-ink-subtle underline decoration-dotted underline-offset-2',
+  comment: 'text-ink-subtle italic'
 };
+
+/** Tokenizes a standalone CSS document — a quiz's theme, in the editor's text view.
+ *
+ * The same line tokenizer the `theme:` block uses inside a `.qwiz`, exported so the two surfaces
+ * can't drift: a theme looks identical whether you're reading it in the document it lives in or
+ * editing it in the dialog. Carries no context between lines, which is the usual tradeoff here —
+ * a `{` on its own line is structure either way, and a multi-line comment's continuation lines are
+ * caught by the `*` prefix rather than by remembering we're inside one.
+ */
+export function highlightCss(source: string): Token[][] {
+  return source.split('\n').map((line) => tokenizeCssLine(line));
+}

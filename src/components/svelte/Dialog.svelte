@@ -7,15 +7,21 @@
   let {
     title,
     titleExtra,
+    size = 'md',
     body,
     footer
   }: {
     title: string;
     /** Optional inline content beside the title (e.g. a schema-download link). */
     titleExtra?: Snippet;
+    /** `lg` is for the theme editor, whose token list and live preview genuinely need the width —
+     * a prop rather than a class on the caller so the two sizes stay a closed set. */
+    size?: 'md' | 'lg';
     body: Snippet;
     footer: Snippet;
   } = $props();
+
+  const widths = { md: 'max-w-lg', lg: 'max-w-3xl' };
 
   let dialogEl: HTMLDialogElement;
 
@@ -33,7 +39,9 @@
 <dialog
   bind:this={dialogEl}
   tabindex="-1"
-  class="fixed inset-0 m-auto w-full max-w-lg rounded-lg border border-line p-0 shadow-md backdrop:bg-ink/30 focus:outline-none"
+  class="fixed inset-0 m-auto w-full {widths[
+    size
+  ]} rounded-lg border border-line p-0 shadow-md backdrop:bg-ink/30 focus:outline-none"
 >
   <div class="flex items-center justify-between border-b border-line-faint px-5 py-4">
     <div class="flex items-center gap-3">

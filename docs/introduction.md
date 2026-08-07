@@ -122,24 +122,15 @@ a brand-new quiz exactly as the Import dialog would.
 
 ## Publishing on GitHub
 
-A link carries one quiz, and it has a size limit. To publish a set of them — or a single quiz you
-want to keep editing in place — put the `.qwiz` files in a **public GitHub repository or gist** and
-open them by pointer instead:
+A link carries one quiz, and it has a size limit. To keep a quiz editable in place, put the
+`.qwiz` file in a **public GitHub repository or gist** and open it by pointer instead:
 
-| What you have                | The link                                     |
-| ---------------------------- | -------------------------------------------- |
-| A gist                       | `/play?gist=<gist id or link>`               |
-| One file in a repository     | `/play?repo=owner/name&path=rounds/one.qwiz` |
-| A whole repository or folder | `/group?repo=owner/name`                     |
+| What you have            | The link                                     |
+| ------------------------ | -------------------------------------------- |
+| A gist                   | `/play?gist=<gist id or link>`               |
+| One file in a repository | `/play?repo=owner/name&path=rounds/one.qwiz` |
 
-You can also paste any of those into **Import → "or open one published on GitHub"**.
-
-![A quiz group browsed as folders](./screenshots/group-folders.png)
-
-A repository needs nothing special: point Qwiz at one and it lists every `.qwiz` file in it, using
-the folders as the grouping. Adding a [`.qwizgroup` manifest](./qwizgroup-format.md) is what lets
-you order them, name them, and choose how they're played — as an unlocking journey, one merged
-mega-quiz, a playlist, and so on.
+You can also paste either of those into **Import → "or open one published on GitHub"**.
 
 Two things to know, since this is the one time Qwiz talks to a server:
 
@@ -147,9 +138,9 @@ Two things to know, since this is the one time Qwiz talks to a server:
   your GitHub session is never attached, and opening a quiz doesn't add it to your library —
   **Save a copy** does, exactly as with a shared link. Your own quizzes still never leave your
   browser.
-- **Publishing a manifest avoids a rate limit.** Finding files in a repository _without_ a
-  `.qwizgroup` needs GitHub's API, which allows 60 requests an hour per IP address — shared with
-  everyone else on your network. A manifest that lists its quizzes needs none of that budget at all.
+- **Only a gist spends the rate limit.** Gist contents come through GitHub's API, which allows 60
+  requests an hour per IP address, shared with everyone else on your network. A repository file is
+  read from an unmetered host and never touches that limit.
 
 ## Next
 
@@ -159,5 +150,4 @@ that should generate `.qwiz` files — see [the complete `.qwiz` reference](./ll
 loadable from Import → Load a sample.
 
 See [the `.qwiz` format reference](./qwiz-format.md) for the full authoring syntax: question
-types, media, hints, scoring settings, and every quiz-wide/per-question option. To publish a set of
-quizzes together, see [the `.qwizgroup` format](./qwizgroup-format.md).
+types, media, hints, scoring settings, and every quiz-wide/per-question option.

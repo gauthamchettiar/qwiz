@@ -41,6 +41,7 @@ The block between the two `---` lines. All fields are optional.
 | `category`    | Plain text                                            |
 | `tags`        | Inline array: `tags: [one, two, three]`               |
 | `:key=value`  | Quiz-wide settings — see [below](#quiz-wide-settings) |
+| `theme:`      | The quiz's own colours — see [below](#theme)          |
 
 ## Quiz-wide settings
 
@@ -51,6 +52,38 @@ than a second copy here that could drift. In brief: win threshold (`points_to_wi
 `percent_to_win`), ordering/sampling (`shuffle_questions`, `questions_per_run`), reveal
 timing (`reveal_answers`, `reveal_scores`, `show_running_score`, `show_reveal_screen`), and time
 limits (`timer_mode`, `timer_seconds`, `on_timeout`, `reveal_screen_seconds`).
+
+## Giving a quiz its own look
+
+A quiz can carry its own styling, so it looks the same for everyone who plays it. Two frontmatter
+fields do it:
+
+```
+---
+title: Capital Cities
+theme: arcade
+theme-css:
+  .qwiz-question-text {
+    font-family: Georgia, serif;
+  }
+---
+```
+
+`theme:` names one of Qwiz's built-in play presets — `arcade`, `trivia-night`, `game-show`,
+`paper`, `terminal` — each of which restyles the whole play screen, not just its colours. It
+travels as a **name**, so the file stays small and the stylesheet is always Qwiz's own.
+
+`theme-css:` is an indented block of CSS the author wrote, applied on top of the preset. It targets
+the `.qwiz-*` classes documented in [`play-classes.md`](./play-classes.md). The block runs to the
+first line that is neither blank nor indented, and the frontmatter's closing `---` must be
+unindented — which is what lets the CSS contain a rule of dashes inside a comment.
+
+A quiz's look always travels with it — into downloads, share links and copies alike.
+
+**A preset applies to everyone with nothing asked; custom CSS is asked about.** A preset is Qwiz's
+own stylesheet, named rather than carried, so there is no code in the file to distrust. CSS the
+author wrote is arbitrary and runs in the player's browser, so anyone opening a quiz they didn't
+write is asked first, and can decline. Quizzes you wrote yourself never ask.
 
 ## Questions
 

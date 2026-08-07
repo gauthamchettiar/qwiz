@@ -40,6 +40,8 @@ tags: [capitals, easy]
   (a `[a, b, c]` list). All are optional; a missing `title` means the quiz can't be saved in the
   app until one is supplied.
 - Frontmatter may also contain `:key=value` **settings** — see §5 and §6.
+- Frontmatter may also contain a `theme:` block — see §6a. It is the only field whose value spans
+  more than one line.
 - Everything after the closing `---` is the question body.
 
 ---
@@ -399,6 +401,53 @@ What each one does:
 
 ---
 
+## 6a. Giving a quiz its own look
+
+A quiz can be styled, so it looks the same for everyone who plays it. Two frontmatter fields:
+
+| Field       | Value                                                          |
+| ----------- | -------------------------------------------------------------- |
+| `theme`     | The name of a built-in preset, on one line                     |
+| `theme-css` | CSS the author wrote, as an **indented block**, applied on top |
+
+Presets: `arcade`, `trivia-night`, `game-show`, `paper`, `terminal`. Anything else is ignored and
+the quiz plays unstyled, so an unfamiliar name is never an error.
+
+```qwiz
+---
+title: Capital Cities
+theme: arcade
+theme-css:
+  .qwiz-question-text {
+    font-family: Georgia, serif;
+  }
+---
+
+pick_one: What is the capital of Japan?
+{
+=Tokyo
+~Osaka
+~Kyoto
+}
+```
+
+Rules:
+
+- The `theme-css` block runs to the first line that is neither blank nor indented.
+- The frontmatter's closing `---` must be **unindented**, which is what lets the CSS contain a rule
+  of dashes inside a comment.
+- Custom CSS targets the `.qwiz-*` classes on the play screen — `.qwiz-welcome`, `.qwiz-title`,
+  `.qwiz-question-text`, `.qwiz-options`, `.qwiz-option`, `.qwiz-option--selected`,
+  `.qwiz-option--correct`, `.qwiz-option--wrong`, `.qwiz-start`.
+
+**Prefer a preset, and emit `theme-css` only when asked for something a preset can't do.** A preset
+is Qwiz's own stylesheet named by the file, so it applies to everyone immediately; custom CSS is
+arbitrary code, and every player who didn't write it is asked before any of it runs. Most quizzes
+should carry no look at all — the default is that a quiz plays in whatever theme the person has
+chosen for the app.
+
+---
+
 ## 7. Setting inheritance
 
 Any per-question setting marked **Quiz-wide: yes** in §5 may also be written in the frontmatter,
@@ -551,66 +600,7 @@ fill_blanks: A ___ angle is exactly 90 degrees.
 
 ---
 
-## 11. Publishing a set: the `.qwizgroup` file
-
-A `.qwizgroup` file groups several `.qwiz` files published in a public GitHub repository. It is the
-**same syntax** as a `.qwiz` file — a `---` frontmatter fence, then blank-line-separated blocks — so
-everything in §1 about escaping and `:key=value` lines applies unchanged.
-
-```
----
-title: The Qwiz Trail
-description: Clear one to unlock the next.
-:mode=journey
-:require_win=false
----
-
-quiz: world-capitals.qwiz
-id: capitals
-
-quiz: spelling-bee.qwiz
-id: spelling
-requires: [capitals]
-
-quiz: grand-finale.qwiz
-id: finale
-requires: [spelling]
-:require_win=true
-```
-
-**Frontmatter** takes `title`, `description`, `category`, `tags` — as a quiz does — plus these
-`:key=value` settings:
-
-- `mode` — `folders` (default) / `journey` / `merge` / `gauntlet`
-- `require_win` — `true`/`false`, default `false`. `journey` only.
-- `questions_per_pick` — number, default `1`. `gauntlet` only.
-- `rounds` — number, default `10`. `gauntlet` only.
-- `discover` — `true`/`false`, default `false`. `folders` only.
-
-**Every quiz-wide setting from §6 also works here**, and in `merge` mode becomes the merged quiz's
-own frontmatter. That is how an exam-style draw is written: `:mode=merge` with
-`:questions_per_run=20`.
-
-**Each block** describes one quiz:
-
-- `quiz:` — required. Path to a `.qwiz`, relative to the manifest's folder. Never a URL.
-- `id:` — required in `journey`, optional elsewhere. Defaults to the filename slug.
-- `title:` — optional display name.
-- `group:` — optional section label. `folders` only.
-- `requires:` — inline array of ids. `journey` only.
-- `:key=value` — `require_win` plus any quiz-wide setting, applied to that one quiz.
-
-Rules that are parse errors, not warnings:
-
-1. A key used in a mode it doesn't apply to (e.g. `:rounds` outside `gauntlet`).
-   There is no `playlist` or `shuffle` mode — playing a whole set in order, or shuffled, is a
-   toggle on the folders screen rather than something a manifest declares.
-2. An unknown frontmatter field, an unknown block key, or an unknown setting.
-3. A block with no `quiz:` line, or one not ending in `.qwiz`.
-4. Two entries sharing an `id`.
-5. In `journey`: a missing `id:`, a `requires:` naming an id that doesn't exist, or a cycle.
-
-## 12. Checklist before emitting a file
+## 11. Checklist before emitting a file
 
 1. Starts with `---`, frontmatter closed with `---`, `title` present.
 2. Every question has a `{ … }` block with at least one option.

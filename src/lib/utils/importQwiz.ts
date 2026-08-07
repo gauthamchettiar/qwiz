@@ -22,6 +22,11 @@ export function quizFromQwizSource(source: string): { quiz?: Quiz; errors: strin
       category: frontmatter.category,
       tags: frontmatter.tags,
       settings: frontmatter.settings,
+      themePreset: frontmatter.themePreset,
+      themeCss: frontmatter.themeCss,
+      // Deliberately left unset rather than defaulted to 'colors' here. Unset means "nobody has
+      // been asked yet", which is what the welcome screen looks for; writing a verdict in at import
+      // time would silently answer a question on the visitor's behalf.
       createdAt: now,
       updatedAt: now,
       questions: questionCodes.map((code) => ({ id: crypto.randomUUID(), code }))

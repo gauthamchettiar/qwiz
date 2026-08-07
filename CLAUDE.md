@@ -37,25 +37,6 @@ Hard constraints — never violate without explicit approval:
   small and real — the host's access log learns which public quiz was opened — and that's the trade
   for a link that survives systems which strip fragments. A quiz that lives in the link itself still
   goes in the fragment, unchanged. See `lib/utils/remoteSource.ts`, which documents this in place.
-- `/group?repo=<owner/name>[&path=<dir>]` browses a **collection** of quizzes published in a public
-  repository, described by a `.qwizgroup` manifest (`docs/qwizgroup-format.md`,
-  `lib/utils/quizGroup.ts`). The manifest is deliberately the SAME format as a `.qwiz` file —
-  frontmatter fence, then blank-line-separated blocks — so it reuses `quizScript.ts`'s lexing and
-  `validateSettingValue` rather than adding a YAML/TOML dependency and a second validation path.
-  It parses just as strictly: an unknown key, or a key used in a mode it means nothing to, is an
-  error.
-  **The load order is the design.** A manifest listing its quizzes loads with **zero
-  `api.github.com` calls** — every file comes from the unmetered raw host, and `HEAD` resolves the
-  default branch server-side. Only a repo with no manifest (or `:discover=true`) spends the one
-  recursive tree call, against a limit of 60/hour shared per IP. That difference is the whole reason
-  to publish a manifest, it's what the rate-limit error points at, and it's asserted by tests in
-  both `quizGroupSource.test.ts` and `repo-group.spec.ts` rather than left as a comment.
-  **Six modes, and only one of them is real machinery.** `merge`/`shuffle` synthesise a `.qwiz`
-  document the ordinary player runs (`mergeGroup.ts`), so they cost nothing; `folders` is a tree and
-  `playlist` is a loop over `QuizPlayer`'s two optional props (`onFinish`, `continueAction` — its
-  entire group support). `journey` adds an unlock DAG plus the `groupProgress.ts` store, and
-  `gauntlet` is the only one that needed a session of its own, because it draws questions ACROSS
-  quizzes mid-run and so can't be either a synthesised document or a sequence of whole quizzes.
 - **This means the app makes runtime network requests, which it did not before.** It reads public
   files from GitHub, signed out (`credentials: 'omit'`), and persists nothing unless the visitor
   presses "Save a copy". The user's own quizzes still never leave the browser — which is why
@@ -168,19 +149,11 @@ migration.
 ```
 .
 ├── docs/                        # introduction.md, qwiz-format.md, settings.md,
-│                                # qwizgroup-format.md (the .qwizgroup manifest — guarded by
-│                                # groupDoc.test.ts the way settings.md is by settingsDoc.test.ts),
 │                                # llm-reference.md (the whole format in one file, for a model)
 │   └── screenshots/             # every image the README and docs reference — GENERATED, never
 │                                # hand-captured; see screenshots/ below
 ├── examples/                    # *.qwiz files — the app's "Load a sample" list, loaded via
 │                                # import.meta.glob ?raw; cover every variant and setting
-│   └── groups/                  # one worked .qwizgroup per mode (journey, merge, playlist,
-│                                # shuffle, gauntlet, folders) under a folders hub that discovers
-│                                # them. The Import dialog links here as a live example, so these
-│                                # are FETCHED from the default branch at runtime, not inlined —
-│                                # they must be pushed to work. NOT in the "Load a sample" list:
-│                                # that glob is examples/*.qwiz, non-recursive
 ├── e2e/                         # Playwright specs
 │   ├── fixtures/                # quizzes.ts — buildQuiz() factory, sample .qwiz source
 │   ├── pages/                   # Page Object Models: HomePage, BuilderPage, PlayPage
@@ -201,29 +174,25 @@ migration.
 │   ├── layouts/
 │   │   └── Base.astro           # page shell: header (logo, Import, + New), <main><slot /></main>
 │   ├── lib/                     # framework-agnostic TS: pure logic, no Svelte imports
+│   │   ├── themes/playPresets.ts # the looks a QUIZ can be played in, as CSS text — see §5
 │   │   ├── schemas/quiz.ts      # zod Quiz/QuizQuestion schemas; Quiz/QuizDraft types derive from them
 │   │   ├── stores/               # the only files that touch localStorage. quizzes.ts
-│   │   │                         # (list/get/save/delete), theme.ts, groupProgress.ts (journey
-│   │   │                         # progress, keyed by repo + manifest entry id — never by quiz id,
-│   │   │                         # which is regenerated on every remote load)
+│   │   │                         # (list/get/save/delete), theme.ts (the app's own theme, plus
+│   │   │                         # injecting a quiz's look at play time), quizTheme.svelte.ts
+│   │   │                         # (rune-backed, the one piece of cross-island state — see §4)
 │   │   ├── remote/               # THE ONLY PLACE THAT CALLS fetch — same one-side-effect-per-folder
-│   │   │                         # rule as stores/ and localStorage. github.ts (gist/tree/raw
-│   │   │                         # requests, result types, never throws), quizSource.ts (resolve a
-│   │   │                         # QuizSourceRef to .qwiz text), quizGroupSource.ts (the
-│   │   │                         # manifest-first load sequence). Every DECISION these make lives
-│   │   │                         # in utils/githubRef.ts so it's testable without a network.
+│   │   │                         # rule as stores/ and localStorage. github.ts (gist/raw requests,
+│   │   │                         # result types, never throws), quizSource.ts (resolve a
+│   │   │                         # QuizSourceRef to .qwiz text). Every DECISION these make lives in
+│   │   │                         # utils/githubRef.ts so it's testable without a network.
 │   │   └── utils/                # quizScript.ts (parser/serializer), grading.ts, shuffle.ts,
 │   │                             # youtube.ts, download.ts, suggestions.ts, sampleQuizzes.ts,
 │   │                             # numericInput.ts, quizRules.ts (the welcome screen's rules
 │   │                             # list), shareLink.ts (compress a quiz into a URL fragment),
 │   │                             # githubRef.ts (parse gist/repo pointers, build GitHub URLs, the
 │   │                             # fetch-error taxonomy), remoteSource.ts (what /play's URL points
-│   │                             # at), quizGroup.ts (the .qwizgroup parser + its rules tables),
-│   │                             # folderTree.ts, repoIndex.ts (a repo with no manifest becomes
-│   │                             # the same QuizGroup type), qwizDocument.ts (a saved Quiz -> .qwiz source; the inverse
-│   │                             # of importQwiz.ts), groupBuilder.ts + zip.ts (the publish
-│   │                             # side: library quizzes -> .qwizgroup + files -> one archive),
-│   │                             # clickOutside.ts, dragDrop.ts,
+│   │                             # at), qwizDocument.ts (a saved Quiz -> .qwiz source; the inverse
+│   │                             # of importQwiz.ts), clickOutside.ts, dragDrop.ts,
 │   │                             # questionFocus.ts
 │   ├── pages/
 │   │   ├── index.astro          # quiz list
@@ -231,15 +200,8 @@ migration.
 │   │   ├── play.astro           # SharedQuizPlayPage, client:only — a quiz decoded from `#q=`, or
 │   │   │                        # fetched from a gist/repo pointer. Deliberately NOT under local/,
 │   │   │                        # which means "from this browser's storage"
-│   │   ├── group.astro          # QuizGroupPage, client:only — a .qwizgroup collection in a repo
-│   │   ├── group/play.astro     # GroupRunPage, client:only — merge/shuffle/playlist/gauntlet as
-│   │   │                        # one sitting. folders and journey stay on /group: they're
-│   │   │                        # browsing screens where the player chooses what to open next
 │   │   └── local/
 │   │       ├── create.astro     # QuizBuilder, client:load
-│   │       ├── group.astro      # GroupBuilder, client:load — assembles library quizzes into a
-│   │       │                    # publishable group and downloads it as a .zip. Under local/
-│   │       │                    # because it reads the LOCAL library, unlike /group
 │   │       ├── edit.astro       # QuizEditPage, client:only (reads ?id= at runtime)
 │   │       └── play.astro       # QuizPlayPage, client:only (reads ?id= at runtime)
 │   └── styles/global.css        # Tailwind import + @theme tokens + the app's ~3 lines of custom CSS
@@ -302,7 +264,10 @@ State:
 - Component-local state → runes inside the component.
 - State shared **within one island tree** → props / context (e.g. `QuizBuilder` → `QuestionCard` →
   `QuestionForm`, all via props/callbacks).
-- State shared **across separate islands** → none currently exists in this app (every route
+- State shared **across separate islands** → one case now exists: `lib/stores/quizTheme.svelte.ts`,
+  a rune-backed module telling the header's `ThemePicker` that a quiz's own styling is applied, so
+  it can take itself off the page for the run. That is the shape to copy — a `.svelte.ts` module
+  both islands import, never DOM inspection or events between them. (Until this, none existed: every route
   hydrates exactly one top-level island; there's no cross-island communication). If that changes,
   follow the original template's guidance: a module in `src/lib/stores/*.svelte.ts` exporting
   rune-backed state, not DOM/custom-event coupling between islands.
@@ -381,6 +346,12 @@ Every colour is a semantic token defined once in `src/styles/global.css` and ove
 - `line` / `-faint` / `-subtle` / `-strong` — borders.
 - `accent`, `positive`, `negative`, `warning`, each with `-surface`, `-ink` and `-line` families.
 
+**Two different things are called a theme in this app, and they are not related.** The thirteen
+above are the APP's — chosen from the header, applying everywhere including the builder, and made
+of colour tokens. A quiz also has a **look**, chosen by its author, applying only while that quiz
+is played, and made of a whole stylesheet (`lib/themes/playPresets.ts`). See "A quiz's own look"
+below.
+
 **Adding a theme is one block of CSS variables** under `:root[data-theme='…']` plus an entry in
 `THEMES` (`lib/stores/theme.ts`) and one in `accessibility.spec.ts`'s per-theme loop. No component
 changes: Tailwind v4 compiles `bg-surface` to
@@ -401,6 +372,32 @@ Rules that come with it:
   picker island — an island only runs after hydration, by which point a dark-theme visitor has
   already seen a white flash. That script deliberately restates a few lines of `lib/stores/theme.ts`
   rather than importing it, because importing a module is exactly what would make it non-blocking.
+
+### A quiz's own look
+
+A quiz can be styled by its author. Two frontmatter fields carry it: `theme:` names one of the
+built-in play presets, and `theme-css:` is an indented block of the author's own CSS applied on top.
+Both always travel in the `.qwiz` file — there is no opt-in switch, and the `inherit_theme` setting
+that used to gate it is gone.
+
+- **Presets travel by NAME, custom CSS travels as code.** That distinction is the whole trust
+  model. `theme: arcade` names a stylesheet this app ships, so there is nothing in the file to
+  distrust and it applies with nothing asked. `theme-css:` is arbitrary CSS about to run in this
+  origin, so a player who didn't write it is asked once, on the welcome screen — **Allow it / Skip
+  it**, two choices, no middle. (There WAS a colours-only middle option while a theme was 53 colour
+  tokens; once a theme also moves and resizes things, a filtered stylesheet renders as a broken page
+  rather than a safe one.) A quiz authored in this browser is `themeTrust: 'full'` and never asks.
+  `themeTrust` is never serialized: it's a reader's verdict about a document, not part of one.
+- **Every play element carries a `.qwiz-*` class** — `docs/play-classes.md` is the published list,
+  and renaming one breaks themes people have written. They are a styling API, not incidental markup.
+- **Applying a quiz's look parks `data-theme` on `quiz`.** No stylesheet matches that, which is the
+  point: otherwise everything a preset didn't declare would fall through to the visitor's own Nord
+  or Dracula and the same quiz would look different for every player. It also settles a specificity
+  problem, since `:root[data-theme='dark']` outranks a plain `:root`.
+- **Colour must be allowed to inherit.** `OptionContent` used to re-declare `text-ink`, which `body`
+  already sets; that redundancy silently blocked `.qwiz-option { color: … }` from reaching the
+  option's own text. Where a child's colour is genuinely semantic (`.qwiz-rules li` is muted), a
+  theme has to name the child — documented in `play-classes.md`.
 
 ### The `.qwiz` source editors
 
@@ -478,15 +475,15 @@ matching the one embed the app ever renders (`extractYoutubeId` in `lib/utils/yo
 `connect-src` names three GitHub hosts — `api.github.com`, `raw.githubusercontent.com` and
 `gist.githubusercontent.com` — and nothing else. This is the only widening the CSP has ever had, and
 it's what makes loading a quiz from a gist or repo possible at all; before it, `connect-src 'self'`
-blocked those requests outright. Each host earns its place: the API for gist contents and the one
-recursive tree call used to discover quizzes in a repo without a `.qwizgroup`, the raw host for
-every `.qwiz`/`.qwizgroup` document (unmetered, which is why all content comes from there), and the
-gist raw host only for gist files over ~1MB, which the API returns truncated with a `raw_url`
-instead of inline content. Named individually rather than as a blanket `https:` for the same reason
-`frame-src` is: this is the complete set of hosts the app can reach, and a new one appearing in a
-diff should have to justify itself. **A `connect-src` violation surfaces in the app as an
-indistinguishable "Couldn't reach GitHub"** — identical to being offline — so if remote loading
-breaks with no obvious cause, check this line first.
+blocked those requests outright. Each host earns its place: the API for gist contents (the only
+rate-limited call the app makes), the raw host for every `.qwiz` file read from a repository
+(unmetered, so a repo link never spends the API budget), and the gist raw host only for gist files
+over ~1MB, which the API returns truncated with a `raw_url` instead of inline content. Named
+individually rather than as a blanket `https:` for the same reason `frame-src` is: this is the
+complete set of hosts the app can reach, and a new one appearing in a diff should have to justify
+itself. **A `connect-src` violation surfaces in the app as an indistinguishable "Couldn't reach
+GitHub"** — identical to being offline — so if remote loading breaks with no obvious cause, check
+this line first.
 
 ---
 
@@ -597,11 +594,12 @@ The primary contract for user-visible behavior. Config (`playwright.config.ts`):
 2. `getByLabel`, `getByPlaceholder`, `getByText` for content.
 3. `data-testid` — not currently used anywhere; the app's markup has been accessible enough that
    role/label selectors always sufficed. Reach for it only when the above are genuinely ambiguous.
-4. **Never** CSS/XPath selectors tied to Tailwind classes or DOM shape — the one deliberate
-   exception is `e2e/keyboard.spec.ts`'s `main textarea.font-mono` locator, which needs a stable
-   way to distinguish the code-mode editor from two other textareas that share the page at
-   different times (the header's always-mounted import dialog, and the Description field once
-   Escape reveals it) — documented inline with why.
+4. **Never** CSS/XPath selectors tied to Tailwind classes or DOM shape. There are no exceptions
+   left: `main textarea.font-mono` used to be one, and it broke the moment the theme panel added a
+   fourth `font-mono` textarea to the builder. Every code editor now has a distinct accessible name
+   (`Question .qwiz source`, `Quiz .qwiz source`, `Custom CSS for this quiz`), which is what the
+   specs match on — the class-based locator was always a workaround for names that hadn't been
+   given yet.
 
 ### Arranging state: seed via localStorage, exercise via the UI
 
@@ -661,8 +659,7 @@ The one thing genuinely under test — authoring — is always driven through th
     picture-round example. `e2e/utils/network.ts`'s `stubExternalEmbeds` fulfils it with a blank
     local page.
   - GitHub, when playing a gist or a repo quiz. `e2e/utils/github.ts` has `stubGist`, `stubRepo`,
-    `stubRateLimited`, `stubNotFound` and `stubOffline`, plus `countApiCalls` for asserting the
-    manifest-first path spends none of the metered 60/hr budget.
+    `stubRateLimited`, `stubNotFound` and `stubOffline`.
     Fulfil rather than abort wherever a 200 is the point (a blocked request is itself a console
     error), and **reproduce GitHub's real CORS headers** — `stubGist`/`stubRepo` send
     `Access-Control-Expose-Headers` because a cross-origin response hides every non-safelisted header
@@ -809,8 +806,7 @@ lint`, `pnpm test`, or `pnpm test:e2e`.
 - [ ] No new dependency without prior agreement
 - [ ] `text-slate-400` never used on text-bearing elements (see §5) — `text-slate-500`+ instead
 - [ ] Still fully static: no adapter, no server route, no runtime secret
-- [ ] `localStorage` touched only from `src/lib/stores/` (`quizzes.ts`, `theme.ts`,
-      `groupProgress.ts`)
+- [ ] `localStorage` touched only from `src/lib/stores/` (`quizzes.ts`, `theme.ts`)
 - [ ] `fetch` called only from `src/lib/remote/` — and always `credentials: 'omit'`, with a
       timeout, returning a result rather than throwing
 - [ ] Any new persistence call checks `saveQuiz`/`deleteQuiz`'s boolean return and surfaces a

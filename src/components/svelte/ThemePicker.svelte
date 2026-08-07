@@ -10,6 +10,7 @@
     THEMES,
     themesByMode
   } from '@/lib/stores/theme';
+  import { quizTheme } from '@/lib/stores/quizTheme.svelte';
 
   // A writable `$derived`: reads the stored preference once the component exists in a browser,
   // then lets `choose` overwrite it locally (the same "read once, then let local interactions win"
@@ -20,6 +21,15 @@
   let current = $derived(readTheme());
   let open = $state(false);
   const menuId = $props.id();
+
+  // Gone entirely — not disabled — while a quiz is being played in its author's own styling. The
+  // two controls set the same properties and would fight, leaving half the page on each (see
+  // quizTheme.svelte.ts), so the picker has nothing useful to do; a greyed-out button just asks
+  // every player to wonder why. It comes back the moment they leave the quiz.
+  const hidden = $derived(quizTheme.active);
+  $effect(() => {
+    if (hidden) open = false;
+  });
 
   // Following the OS means following it as it CHANGES, not just at load — someone on a schedule
   // that flips at sunset would otherwise stay on the theme they happened to load in.
@@ -55,70 +65,74 @@
   }
 </script>
 
-<div class="relative" use:clickOutside={() => (open = false)}>
-  <!-- The shared Button rather than its own markup, so it can't drift out of step with the two
+{#if !hidden}
+  <div class="relative" use:clickOutside={() => (open = false)}>
+    <!-- The shared Button rather than its own markup, so it can't drift out of step with the two
        controls beside it in the header — which is exactly what had happened. -->
-  <Button
-    size="sm"
-    ariaHasPopup="menu"
-    ariaExpanded={open}
-    ariaControls={menuId}
-    ariaLabel={`Theme: ${currentLabel}`}
-    onclick={() => (open = !open)}
-  >
-    <Sun size={15} class="shrink-0" />
-    <ChevronDown size={12} class="shrink-0 text-ink-faint" />
-  </Button>
+    <Button
+      size="sm"
+      ariaHasPopup="menu"
+      ariaExpanded={open}
+      ariaControls={menuId}
+      ariaLabel={`Theme: ${currentLabel}`}
+      onclick={() => (open = !open)}
+    >
+      <Sun size={15} class="shrink-0" />
+      <ChevronDown size={12} class="shrink-0 text-ink-faint" />
+    </Button>
 
-  {#if open}
-    <!-- Below `sm` the menu becomes a bottom sheet instead of a dropdown anchored under the
+    {#if open}
+      <!-- Below `sm` the menu becomes a bottom sheet instead of a dropdown anchored under the
          button. Thirteen themes plus two headings are taller than the room left under a header
          control on a phone, so the anchored version opened mostly below the fold — and being
          `absolute` inside a `max-w-3xl` wrapper, the part that overflowed couldn't be scrolled to.
          A sheet is measured from the bottom edge instead, so its height is always room it has. -->
-    <button
-      type="button"
-      aria-label="Close theme menu"
-      class="fixed inset-0 z-40 bg-ink/30 sm:hidden"
-      onclick={() => (open = false)}
-    ></button>
+      <button
+        type="button"
+        aria-label="Close theme menu"
+        class="fixed inset-0 z-40 bg-ink/30 sm:hidden"
+        onclick={() => (open = false)}
+      ></button>
 
-    <div
-      class="fixed inset-x-0 bottom-0 z-50 flex max-h-[80vh] flex-col rounded-t-2xl border-t border-line-subtle bg-surface-raised shadow-lg sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:z-30 sm:mt-1 sm:max-h-[70vh] sm:min-w-48 sm:rounded-md sm:border"
-    >
-      <!-- Phones only: a dropdown needs no title because it hangs off the control that opened it,
+      <div
+        class="fixed inset-x-0 bottom-0 z-50 flex max-h-[80vh] flex-col rounded-t-2xl border-t border-line-subtle bg-surface-raised shadow-lg sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:z-30 sm:mt-1 sm:max-h-[70vh] sm:min-w-48 sm:rounded-md sm:border"
+      >
+        <!-- Phones only: a dropdown needs no title because it hangs off the control that opened it,
            but a sheet rising from the bottom edge has lost that visual tie to the button. -->
-      <div class="flex items-center justify-between border-b border-line-faint px-4 py-3 sm:hidden">
-        <h2 class="text-sm font-semibold text-ink">Theme</h2>
-        <button
-          type="button"
-          class="rounded p-1 text-ink-faint hover:bg-surface-hover hover:text-ink-soft"
-          onclick={() => (open = false)}
-          aria-label="Close"
+        <div
+          class="flex items-center justify-between border-b border-line-faint px-4 py-3 sm:hidden"
         >
-          <X size={16} />
-        </button>
-      </div>
+          <h2 class="text-sm font-semibold text-ink">Theme</h2>
+          <button
+            type="button"
+            class="rounded p-1 text-ink-faint hover:bg-surface-hover hover:text-ink-soft"
+            onclick={() => (open = false)}
+            aria-label="Close"
+          >
+            <X size={16} />
+          </button>
+        </div>
 
-      <!-- The scrolling list is the `menu` itself, so the sheet's chrome above stays outside a
+        <!-- The scrolling list is the `menu` itself, so the sheet's chrome above stays outside a
            role that only permits menu items as children. `env(safe-area-inset-bottom)` keeps the
            last theme clear of the iOS home indicator, which a bottom-anchored sheet sits under. -->
-      <div
-        id={menuId}
-        role="menu"
-        class="overflow-y-auto py-1 pb-[calc(0.25rem+env(safe-area-inset-bottom))] sm:pb-1"
-      >
-        <!-- "System" first and on its own: it's not a look, it's a deferral to one, so grouping it
+        <div
+          id={menuId}
+          role="menu"
+          class="overflow-y-auto py-1 pb-[calc(0.25rem+env(safe-area-inset-bottom))] sm:pb-1"
+        >
+          <!-- "System" first and on its own: it's not a look, it's a deferral to one, so grouping it
              among the concrete themes would misrepresent what picking it does. -->
-        {@render item(SYSTEM_THEME, 'System', Monitor)}
-        <!-- Grouped by mode: "light or dark" is the first thing anyone is choosing between, and a
+          {@render item(SYSTEM_THEME, 'System', Monitor)}
+          <!-- Grouped by mode: "light or dark" is the first thing anyone is choosing between, and a
              flat run of thirteen made you read every label to find the half you wanted. -->
-        {@render group('Light', 'light', Sun)}
-        {@render group('Dark', 'dark', Moon)}
+          {@render group('Light', 'light', Sun)}
+          {@render group('Dark', 'dark', Moon)}
+        </div>
       </div>
-    </div>
-  {/if}
-</div>
+    {/if}
+  </div>
+{/if}
 
 {#snippet group(heading: string, mode: 'light' | 'dark', Icon: typeof Sun)}
   <div

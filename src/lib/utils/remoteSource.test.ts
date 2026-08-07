@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { groupUrl, readQuizSourceRef, repoQuizUrl } from './remoteSource';
+import { readQuizSourceRef, repoQuizUrl } from './remoteSource';
 
 describe('readQuizSourceRef', () => {
   it('reads a share-link fragment, the original and still the only private form', () => {
@@ -77,14 +77,10 @@ describe('readQuizSourceRef', () => {
 describe('link building', () => {
   it('omits the ref so a link keeps working when a default branch is renamed', () => {
     expect(repoQuizUrl({ owner: 'o', repo: 'r' }, 'a.qwiz')).toBe('/play?repo=o%2Fr&path=a.qwiz');
-    expect(groupUrl({ owner: 'o', repo: 'r' })).toBe('/group?repo=o%2Fr');
   });
 
   it('keeps a ref that was deliberately pinned', () => {
     expect(repoQuizUrl({ owner: 'o', repo: 'r', ref: 'v2' }, 'a.qwiz')).toContain('ref=v2');
-    expect(groupUrl({ owner: 'o', repo: 'r', ref: 'v2' }, 'sub')).toBe(
-      '/group?repo=o%2Fr&path=sub&ref=v2'
-    );
   });
 
   it('round-trips through readQuizSourceRef', () => {

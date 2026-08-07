@@ -69,5 +69,7 @@ test('pre-reveal letters can be authored from form mode, and only one accepted a
 
   // Round-trips into the `[P]` pre-reveal bracket in code mode.
   await page.getByRole('button', { name: 'Edit question code' }).click();
-  await expect(page.locator('main textarea.font-mono')).toHaveValue(/=\[P\]aris/);
+  await expect(page.getByRole('textbox', { name: 'Question .qwiz source' })).toHaveValue(
+    /=\[P\]aris/
+  );
 });

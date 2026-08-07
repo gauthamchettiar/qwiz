@@ -1,7 +1,6 @@
 ---
 import Base from '@/layouts/Base.astro';
 import QuizList from '@/components/svelte/QuizList.svelte';
-import SavedGroupList from '@/components/svelte/SavedGroupList.svelte';
 ---
 
 <Base title="My Quizzes">
@@ -27,11 +26,5 @@ import SavedGroupList from '@/components/svelte/SavedGroupList.svelte';
       </p>
     </div>
     <QuizList client:load />
-
-    <div class="border-b border-line-subtle pb-3 pt-2">
-      <h2 class="text-2xl font-bold text-ink">Saved Groups</h2>
-      <p class="mt-0.5 text-sm text-ink-subtle">Open a saved group to play it, offline.</p>
-    </div>
-    <SavedGroupList client:load />
   </div>
 </Base>

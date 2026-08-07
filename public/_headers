@@ -10,10 +10,9 @@
 #
 # connect-src names three GitHub hosts because the app can load a quiz published as a gist or in a
 # public repository (see src/lib/remote/github.ts, the only module that calls fetch):
-#   api.github.com              — gist contents, and the one recursive tree call used to discover
-#                                 quizzes in a repo that has no .qwizgroup manifest
-#   raw.githubusercontent.com   — every .qwiz and .qwizgroup document; unmetered, so this is where
-#                                 all content comes from and the API is spent only on discovery
+#   api.github.com              — gist contents only; the only rate-limited call this app makes
+#   raw.githubusercontent.com   — every .qwiz file read from a repository; unmetered, so a repo
+#                                 link never spends the API budget
 #   gist.githubusercontent.com  — gist files over ~1MB, which the API returns truncated with a
 #                                 raw_url on this host instead of inline content
 # Named individually rather than as `https:` for the same reason frame-src is scoped to

@@ -2,13 +2,11 @@
   import { FolderOpen, Tag as TagIcon, X } from '@lucide/svelte';
   import { categorySuggestions, tagSuggestions } from '@/lib/utils/suggestions';
 
-  // Title, description, category and tags — the block that opens both the quiz builder and the
-  // group builder, since a `.qwiz` document and a `.qwizgroup` manifest carry the same four fields
-  // in the same frontmatter shape.
+  // Title, description, category and tags — the block that opens the quiz builder.
   //
-  // Extracted rather than copied because the interesting part isn't the markup: it's the two
+  // Extracted rather than inlined because the interesting part isn't the markup: it's the two
   // comboboxes, whose arrow-key/highlight/blur handling is subtle enough to have produced a real
-  // bug (see the `tabindex="-1"` comment below) and would have had to be fixed twice.
+  // bug (see the `tabindex="-1"` comment below).
   let {
     title = $bindable(),
     description = $bindable(),

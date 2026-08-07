@@ -34,7 +34,10 @@ export default defineConfig(
   },
 
   {
-    files: ['**/*.svelte'],
+    // `.svelte.ts` as well as `.svelte`: eslint-plugin-svelte's recommended config claims both for
+    // svelte-eslint-parser (a `.svelte.ts` module may use runes), and that parser needs the
+    // TypeScript one underneath it or the types in a rune-backed store read as syntax errors.
+    files: ['**/*.svelte', '**/*.svelte.ts'],
     languageOptions: {
       parserOptions: {
         parser: tseslint.parser,

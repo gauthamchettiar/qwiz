@@ -10,7 +10,6 @@ import {
   buildQuiz
 } from './fixtures/quizzes';
 import { expectNoSeriousA11yViolations } from './utils/a11y';
-import { stubRepo } from './utils/github';
 import { resetStorage, seedQuizzes } from './utils/storage';
 
 test.beforeEach(async ({ page }) => {
@@ -34,19 +33,6 @@ test('the create-quiz builder has no serious accessibility violations', async ({
   await expectNoSeriousA11yViolations(page);
 });
 
-// The group builder is the only screen combining the shared metadata comboboxes, a settings list,
-// a per-entry <select> and the source editor — none of which the quiz builder's own check reaches
-// in one pass, since its code editor replaces the form it would otherwise be checked alongside.
-test('the group builder has no serious accessibility violations', async ({ page }) => {
-  await seedQuizzes(page, [buildQuiz({ title: 'World Capitals' })]);
-  await page.goto('/local/group');
-  await page.getByRole('button', { name: 'Add quiz' }).click();
-  await expectNoSeriousA11yViolations(page);
-
-  await page.getByRole('button', { name: 'Edit group code' }).click();
-  await expectNoSeriousA11yViolations(page);
-});
-
 test('the play screen has no serious accessibility violations', async ({ page }) => {
   const quiz = buildQuiz();
   await seedQuizzes(page, [quiz]);
@@ -60,73 +46,6 @@ test('the play welcome screen has no serious accessibility violations', async ({
   const quiz = buildQuiz();
   await seedQuizzes(page, [quiz]);
   await new PlayPage(page).goto(quiz.id, { start: false });
-  await expectNoSeriousA11yViolations(page);
-});
-
-// The group lobby is the app's only tree control, and the only screen built mostly from
-// `text-ink-subtle` on `surface-raised` at small sizes — the arrangement that produced this suite's
-// earlier contrast failures.
-test('the repo group screen has no serious accessibility violations', async ({ page }) => {
-  await stubRepo(page, 'owner', 'repo', {
-    files: {
-      '.qwizgroup': ['---', 'title: A Group', '---', '', 'quiz: rounds/one.qwiz'].join('\n'),
-      'rounds/one.qwiz': '---\ntitle: One\n---\n\nQ?\n{\n=A\n~B\n}'
-    }
-  });
-  await page.goto('/group?repo=owner%2Frepo');
-  await page.getByRole('heading', { name: 'A Group' }).waitFor();
-  await expectNoSeriousA11yViolations(page);
-});
-
-// The journey map has states nothing else in the app does — a disabled node carrying its own
-// "why", and four status tones sitting side by side on tinted surfaces.
-test('the journey map has no serious accessibility violations', async ({ page }) => {
-  await stubRepo(page, 'owner', 'repo', {
-    files: {
-      '.qwizgroup': [
-        '---',
-        'title: A Journey',
-        ':mode=journey',
-        '---',
-        '',
-        'quiz: a.qwiz',
-        'id: a',
-        '',
-        'quiz: b.qwiz',
-        'id: b',
-        'requires: [a]'
-      ].join('\n'),
-      'a.qwiz': '---\ntitle: A\n---\n\nQ?\n{\n=A\n~B\n}',
-      'b.qwiz': '---\ntitle: B\n---\n\nQ?\n{\n=A\n~B\n}'
-    }
-  });
-  await page.goto('/group?repo=owner%2Frepo');
-  await page.getByText('0 of 2 cleared').waitFor();
-  await expectNoSeriousA11yViolations(page);
-});
-
-// The gauntlet's category picker is the app's only "choose what happens next mid-run" screen, and
-// its disabled state is driven by data rather than by a form.
-test('the gauntlet category picker has no serious accessibility violations', async ({ page }) => {
-  await stubRepo(page, 'owner', 'repo', {
-    files: {
-      '.qwizgroup': [
-        '---',
-        'title: The Gauntlet',
-        ':mode=gauntlet',
-        ':rounds=2',
-        '---',
-        '',
-        'quiz: history/a.qwiz',
-        '',
-        'quiz: science/b.qwiz'
-      ].join('\n'),
-      'history/a.qwiz': '---\ntitle: A\n---\n\nQ?\n{\n=A\n~B\n}',
-      'science/b.qwiz': '---\ntitle: B\n---\n\nQ?\n{\n=A\n~B\n}'
-    }
-  });
-  await page.goto('/group/play?repo=owner%2Frepo');
-  await page.getByRole('heading', { name: 'Pick a category' }).waitFor();
   await expectNoSeriousA11yViolations(page);
 });
 

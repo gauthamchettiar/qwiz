@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { highlightQwiz, TOKEN_CLASS } from '@/lib/utils/qwizHighlight';
+  import { highlightCss, highlightQwiz, TOKEN_CLASS } from '@/lib/utils/qwizHighlight';
 
   // A `.qwiz` source editor with syntax highlighting, used by both the whole-document editor and
   // a question card's code mode.
@@ -25,12 +25,16 @@
     ariaLabel,
     rows = 12,
     fill = false,
+    language = 'qwiz',
     onInput,
     onCaretLine
   }: {
     value: string;
     ariaLabel: string;
     rows?: number;
+    /** Which tokenizer to highlight with. `css` is for a quiz's theme, which is a CSS document
+     * rather than a `.qwiz` one — same editor, same caret-alignment contract, different grammar. */
+    language?: 'qwiz' | 'css';
     /** Fill the parent's height at `xl:` instead of being sized by `rows`, for the split view
      * where the editor and its preview share one height. Deliberately a responsive class rather
      * than a plain one: below `xl:` there's no preview and no height to fill, so the editor falls
@@ -46,7 +50,7 @@
     'w-full px-3 py-2 font-mono text-xs leading-5 whitespace-pre-wrap break-words [tab-size:2]';
 
   let textarea: HTMLTextAreaElement | undefined = $state();
-  const lines = $derived(highlightQwiz(value));
+  const lines = $derived(language === 'css' ? highlightCss(value) : highlightQwiz(value));
 
   /** Puts the caret at the very start. Called on mount rather than left to the browser, which
    * restores the end of the text — landing an author at the bottom of a document they've just

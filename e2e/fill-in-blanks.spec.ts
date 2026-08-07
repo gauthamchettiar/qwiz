@@ -29,7 +29,7 @@ test('authoring a fill_blanks question keeps the correct checkbox, unlike order/
   await page.getByPlaceholder('Distractor word').fill('nucleus');
 
   await page.getByRole('button', { name: 'Edit question code' }).click();
-  await expect(page.locator('main textarea.font-mono')).toHaveValue(
+  await expect(page.getByRole('textbox', { name: 'Question .qwiz source' })).toHaveValue(
     /=mitochondria[\s\S]*=cell[\s\S]*~nucleus/
   );
 });

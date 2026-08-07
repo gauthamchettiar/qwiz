@@ -38,7 +38,7 @@ test('authoring an order question has no correct checkbox, and item order round-
   await page.getByRole('button', { name: /^Reorder option 2 of 3/ }).press('ArrowUp');
 
   await page.getByRole('button', { name: 'Edit question code' }).click();
-  await expect(page.locator('main textarea.font-mono')).toHaveValue(
+  await expect(page.getByRole('textbox', { name: 'Question .qwiz source' })).toHaveValue(
     /=Third[\s\S]*=First[\s\S]*=Second/
   );
 });

@@ -15,6 +15,7 @@
     ariaHasPopup,
     ariaExpanded,
     ariaControls,
+    class: extraClass = '',
     onclick,
     children
   }: {
@@ -31,6 +32,10 @@
     ariaHasPopup?: 'menu' | 'dialog' | 'listbox';
     ariaExpanded?: boolean;
     ariaControls?: string;
+    /** Extra classes, appended after the variant's own. In practice this carries the `qwiz-*`
+     * hooks a quiz's stylesheet targets (see docs/play-classes.md) rather than styling — a button
+     * that needed a different LOOK should be a new variant, not a class passed in from outside. */
+    class?: string;
     onclick?: (e: MouseEvent) => void;
     children: Snippet;
   } = $props();
@@ -53,7 +58,9 @@
    * and any content agree, and 36px/40px are better touch targets than the 32–34px this produced. */
   const sizes = { sm: 'h-9 px-3 text-sm', md: 'h-10 px-4 text-sm' } as const;
 
-  const cls = $derived(`${base} ${variants[variant]} ${sizes[size]}`);
+  const cls = $derived(
+    `${base} ${variants[variant]} ${sizes[size]}${extraClass ? ` ${extraClass}` : ''}`
+  );
 </script>
 
 {#if href}

@@ -28,7 +28,7 @@ test('authoring a match question has item/target pairs and no correct checkbox',
   await page.getByPlaceholder('Matches with').nth(1).fill('Japan');
 
   await page.getByRole('button', { name: 'Edit question code' }).click();
-  await expect(page.locator('main textarea.font-mono')).toHaveValue(
+  await expect(page.getByRole('textbox', { name: 'Question .qwiz source' })).toHaveValue(
     /=Paris -> France[\s\S]*=Tokyo -> Japan/
   );
 });
@@ -49,7 +49,7 @@ test('authoring a group_items question uses "Bucket" as the target placeholder',
   await page.getByPlaceholder('Bucket').nth(1).fill('Land');
 
   await page.getByRole('button', { name: 'Edit question code' }).click();
-  await expect(page.locator('main textarea.font-mono')).toHaveValue(
+  await expect(page.getByRole('textbox', { name: 'Question .qwiz source' })).toHaveValue(
     /=Fish -> Water[\s\S]*=Lion -> Land/
   );
 });

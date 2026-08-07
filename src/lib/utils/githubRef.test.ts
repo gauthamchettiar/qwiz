@@ -2,20 +2,14 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_REF,
   describeHttpFailure,
-  dirOf,
   fileNameOf,
   gistApiUrl,
-  isGroupManifestPath,
   isQwizPath,
   isSafePath,
   isSafeRef,
   parseGistRef,
   parseRepoRef,
   rawFileUrl,
-  repoBrowseUrl,
-  repoKey,
-  resolveEntryPath,
-  treeApiUrl,
   type HeaderReader
 } from './githubRef';
 
@@ -145,39 +139,9 @@ describe('path helpers', () => {
     expect(isQwizPath('readme.md')).toBe(false);
   });
 
-  it('recognises a manifest at the root and in a folder, but not a lookalike', () => {
-    expect(isGroupManifestPath('.qwizgroup')).toBe(true);
-    expect(isGroupManifestPath('rounds/.qwizgroup')).toBe(true);
-    expect(isGroupManifestPath('my.qwizgroup')).toBe(false);
-  });
-
-  it('splits a path into directory and filename', () => {
-    expect(dirOf('a/b/c.qwiz')).toBe('a/b');
-    expect(dirOf('c.qwiz')).toBe('');
+  it('gets the filename off a path', () => {
     expect(fileNameOf('a/b/c.qwiz')).toBe('c.qwiz');
     expect(fileNameOf('c.qwiz')).toBe('c.qwiz');
-  });
-});
-
-describe('resolveEntryPath', () => {
-  it('resolves an entry against the folder its manifest sits in', () => {
-    expect(resolveEntryPath('rounds', 'world-capitals.qwiz')).toBe('rounds/world-capitals.qwiz');
-    expect(resolveEntryPath('', 'world-capitals.qwiz')).toBe('world-capitals.qwiz');
-    expect(resolveEntryPath('a/b', 'c/d.qwiz')).toBe('a/b/c/d.qwiz');
-  });
-
-  it('tolerates ./ and a leading slash', () => {
-    expect(resolveEntryPath('rounds', './x.qwiz')).toBe('rounds/x.qwiz');
-    expect(resolveEntryPath('rounds', '/x.qwiz')).toBe('x.qwiz');
-  });
-
-  it('honours .. so a manifest can point at quizzes a level up', () => {
-    expect(resolveEntryPath('groups/pub', '../../quizzes/x.qwiz')).toBe('quizzes/x.qwiz');
-  });
-
-  it('refuses to climb above the repository root', () => {
-    expect(resolveEntryPath('', '../x.qwiz')).toBeNull();
-    expect(resolveEntryPath('a', '../../x.qwiz')).toBeNull();
   });
 });
 
@@ -200,34 +164,16 @@ describe('URL building', () => {
     );
   });
 
-  it('builds the gist and tree endpoints', () => {
+  it('builds the gist endpoint', () => {
     expect(gistApiUrl('abc123')).toBe('https://api.github.com/gists/abc123');
-    expect(treeApiUrl({ owner: 'o', repo: 'r' })).toBe(
-      `https://api.github.com/repos/o/r/git/trees/${DEFAULT_REF}?recursive=1`
-    );
-  });
-
-  it('builds a browse link back to the source on github.com', () => {
-    expect(repoBrowseUrl({ owner: 'o', repo: 'r' })).toBe('https://github.com/o/r');
-    expect(repoBrowseUrl({ owner: 'o', repo: 'r', ref: 'main' }, 'a/b.qwiz')).toBe(
-      'https://github.com/o/r/blob/main/a/b.qwiz'
-    );
-  });
-});
-
-describe('repoKey', () => {
-  it('is stable for the same repo and folder', () => {
-    expect(repoKey({ owner: 'o', repo: 'r' })).toBe('o/r');
-    expect(repoKey({ owner: 'o', repo: 'r', path: 'sub' })).toBe('o/r:sub');
-    expect(repoKey({ owner: 'o', repo: 'r', ref: 'v2', path: 'sub' })).toBe('o/r@v2:sub');
   });
 });
 
 describe('describeHttpFailure', () => {
   it('names the rate limit and points at the fix that avoids the API entirely', () => {
-    const message = describeHttpFailure(403, headers({ 'x-ratelimit-remaining': '0' }), 'repo');
+    const message = describeHttpFailure(403, headers({ 'x-ratelimit-remaining': '0' }), 'gist');
     expect(message).toContain('rate-limiting');
-    expect(message).toContain('.qwizgroup');
+    expect(message).toContain('never does');
   });
 
   it('says when the limit resets, when GitHub said so', () => {
@@ -235,7 +181,7 @@ describe('describeHttpFailure', () => {
     const message = describeHttpFailure(
       403,
       headers({ 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': String(now / 1000 + 720) }),
-      'repo',
+      'gist',
       now
     );
     expect(message).toContain('resets in about 12 minutes');
@@ -244,32 +190,31 @@ describe('describeHttpFailure', () => {
   it('omits the reset clause rather than guessing when the header is missing or stale', () => {
     const now = 1_700_000_000_000;
     expect(
-      describeHttpFailure(403, headers({ 'x-ratelimit-remaining': '0' }), 'repo', now)
+      describeHttpFailure(403, headers({ 'x-ratelimit-remaining': '0' }), 'gist', now)
     ).not.toContain('resets in');
     // A reset already in the past would otherwise read as "resets in about -3 minutes".
     expect(
       describeHttpFailure(
         403,
         headers({ 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': String(now / 1000 - 180) }),
-        'repo',
+        'gist',
         now
       )
     ).not.toContain('resets in');
   });
 
   it('treats 429 as rate limiting even without the remaining header', () => {
-    expect(describeHttpFailure(429, headers(), 'repo')).toContain('rate-limiting');
+    expect(describeHttpFailure(429, headers(), 'gist')).toContain('rate-limiting');
   });
 
   it('distinguishes a plain 403 from a rate limit', () => {
-    const message = describeHttpFailure(403, headers({ 'x-ratelimit-remaining': '57' }), 'repo');
+    const message = describeHttpFailure(403, headers({ 'x-ratelimit-remaining': '57' }), 'gist');
     expect(message).toContain('refused');
     expect(message).not.toContain('rate-limiting');
   });
 
   it('says something different for each thing a 404 can mean', () => {
     expect(describeHttpFailure(404, headers(), 'gist')).toContain('gist');
-    expect(describeHttpFailure(404, headers(), 'repo')).toContain('repository');
     expect(describeHttpFailure(404, headers(), 'file')).toContain('file');
   });
 

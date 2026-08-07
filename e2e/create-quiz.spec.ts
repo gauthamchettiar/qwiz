@@ -92,7 +92,7 @@ test('a question with errors shows a count in view mode that opens code mode', a
 
   // The pill IS the way in to the messages, rather than something sitting next to it.
   await errorPill.click();
-  const codeEditor = page.locator('main textarea.font-mono');
+  const codeEditor = page.getByRole('textbox', { name: 'Question .qwiz source' });
   await expect(codeEditor).toBeVisible();
   await expect(page.getByText('Question has no options.')).toBeVisible();
 
@@ -125,7 +125,7 @@ test("switching an option's kind to Image swaps its field for alt + url", async 
   await page.getByRole('radio', { name: 'Correct' }).nth(2).check();
 
   await page.getByRole('button', { name: 'Edit question code' }).click();
-  await expect(page.locator('main textarea.font-mono')).toHaveValue(
+  await expect(page.getByRole('textbox', { name: 'Question .qwiz source' })).toHaveValue(
     /=!\[A red circle on white\]\(https:\/\/example\.com\/jp\.png\)/
   );
 });
@@ -189,7 +189,9 @@ test("a save blocked by a question's broken code says so instead of dropping the
 
   await page.getByRole('button', { name: 'Edit question code' }).click();
   // An option block that is never closed — the parser reports this, so the draft can't commit.
-  await page.locator('main textarea.font-mono').fill('A fine question\n{\n=right');
+  await page
+    .getByRole('textbox', { name: 'Question .qwiz source' })
+    .fill('A fine question\n{\n=right');
 
   await builder.saveButton.click();
 

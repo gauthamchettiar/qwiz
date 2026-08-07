@@ -4,8 +4,6 @@ import { waitForHydration } from '../utils/hydration';
 export class HomePage {
   readonly page: Page;
   readonly newButton: Locator;
-  readonly newQuizMenuItem: Locator;
-  readonly newGroupMenuItem: Locator;
   readonly importButton: Locator;
   readonly emptyState: Locator;
   readonly themeButton: Locator;
@@ -13,11 +11,8 @@ export class HomePage {
 
   constructor(page: Page) {
     this.page = page;
-    // "+ New" used to be a plain link straight to /local/create; it's a dropdown now that there
-    // are two things to create, so opening it is a separate step from picking an item.
-    this.newButton = page.getByRole('button', { name: 'New', exact: true });
-    this.newQuizMenuItem = page.getByRole('menuitem', { name: 'New quiz' });
-    this.newGroupMenuItem = page.getByRole('menuitem', { name: 'New group' });
+    // A plain link straight to /local/create — the header's only "create" action.
+    this.newButton = page.getByRole('link', { name: 'New', exact: true });
     // `exact` because the import dialog's own "Validate & Import" button is a substring match on
     // "Import" the moment the dialog is open.
     this.importButton = page.getByRole('button', { name: 'Import', exact: true });
@@ -35,12 +30,6 @@ export class HomePage {
 
   async openNewQuiz(): Promise<void> {
     await this.newButton.click();
-    await this.newQuizMenuItem.click();
-  }
-
-  async openNewGroup(): Promise<void> {
-    await this.newButton.click();
-    await this.newGroupMenuItem.click();
   }
 
   themeOption(label: string): Locator {

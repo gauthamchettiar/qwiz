@@ -1,12 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  fetchGistQwizFiles,
-  fetchRepoFiles,
-  fetchRepoTree,
-  fetchText,
-  mapWithLimit,
-  matchesFileName
-} from './github';
+import { fetchGistQwizFiles, fetchText, mapWithLimit, matchesFileName } from './github';
 
 /** Stubs `fetch` with a lookup from URL to response, so these tests exercise this module's own
  * decisions (which file, which error, how many at once) without a network. Anything not in the map
@@ -195,52 +188,6 @@ describe('fetchGistQwizFiles', () => {
     stubFetch({ [gistUrl]: { status: 403, headers: { 'x-ratelimit-remaining': '0' } } });
     const result = await fetchGistQwizFiles('abc');
     expect(result.ok === false && result.error).toMatch(/rate-limiting/);
-  });
-});
-
-describe('fetchRepoTree', () => {
-  const treeUrl = 'https://api.github.com/repos/o/r/git/trees/HEAD?recursive=1';
-
-  it('returns only blob paths', async () => {
-    stubFetch({
-      [treeUrl]: {
-        body: {
-          tree: [
-            { path: 'a.qwiz', type: 'blob' },
-            { path: 'rounds', type: 'tree' },
-            { path: 'rounds/b.qwiz', type: 'blob' }
-          ]
-        }
-      }
-    });
-    const result = await fetchRepoTree({ owner: 'o', repo: 'r' });
-    expect(result).toEqual({
-      ok: true,
-      data: { paths: ['a.qwiz', 'rounds/b.qwiz'], truncated: false }
-    });
-  });
-
-  it('surfaces truncation rather than quietly returning a partial list', async () => {
-    stubFetch({
-      [treeUrl]: { body: { tree: [{ path: 'a.qwiz', type: 'blob' }], truncated: true } }
-    });
-    const result = await fetchRepoTree({ owner: 'o', repo: 'r' });
-    expect(result.ok === true && result.data.truncated).toBe(true);
-  });
-});
-
-describe('fetchRepoFiles', () => {
-  it('collects what it could read and reports the rest as skipped, never failing outright', async () => {
-    stubFetch({
-      'https://raw.githubusercontent.com/o/r/HEAD/a.qwiz': { body: 'A' },
-      'https://raw.githubusercontent.com/o/r/HEAD/c.qwiz': { body: 'C' }
-    });
-    const result = await fetchRepoFiles({ owner: 'o', repo: 'r' }, ['a.qwiz', 'b.qwiz', 'c.qwiz']);
-    expect(result.files).toEqual([
-      { path: 'a.qwiz', content: 'A' },
-      { path: 'c.qwiz', content: 'C' }
-    ]);
-    expect(result.skipped).toEqual(['b.qwiz']);
   });
 });
 

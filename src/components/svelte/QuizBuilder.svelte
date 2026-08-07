@@ -7,7 +7,6 @@
     ChevronRight,
     Code,
     Download,
-    FileText,
     Link2,
     Play,
     Plus,
@@ -37,6 +36,7 @@
   import CardMenu from './CardMenu.svelte';
   import CodeEditor from './CodeEditor.svelte';
   import MetadataFields from './MetadataFields.svelte';
+  import ThemeFields from './ThemeFields.svelte';
   import QuestionView from './QuestionView.svelte';
   import LeaveGuard from './LeaveGuard.svelte';
   import SettingsDocsLink from './SettingsDocsLink.svelte';
@@ -99,6 +99,11 @@
   // Title/description/category/tags, and the two comboboxes that drive the last two, all live in
   // MetadataFields — shared with the group builder, which authors the same four frontmatter fields.
   let metadata: MetadataFields | undefined = $state();
+  // The quiz's own look, as CSS. Held here rather than in the theme editor so it survives the
+  // panel being collapsed and reopened, and so it round-trips through the whole-document editor
+  // like every other part of the quiz.
+  let themePreset = $state<string | undefined>(untrack(() => initial?.themePreset));
+  let themeCss = $state<string | undefined>(untrack(() => initial?.themeCss));
   // `$props.id()` may only appear as a top-level declaration initializer, hence the two lines.
   const instanceId = $props.id();
   const settingsPanelId = `${instanceId}-settings`;
@@ -154,7 +159,9 @@
   let activeDraft = $state('');
   let activeFocusTarget = $state<FocusTarget | null>(null);
   function currentFrontmatter(): QuizScriptFrontmatter {
-    return { title, description, category, tags, settings: quizSettings };
+    // Passed unconditionally; `serializeQuizScriptFrontmatter` omits whichever of the two is
+    // empty, and a quiz's look always travels with it.
+    return { title, description, category, tags, settings: quizSettings, themePreset, themeCss };
   }
 
   /** Everything the builder currently holds, as one `.qwiz` document — the same serialization
@@ -296,6 +303,8 @@
     description = frontmatter.description;
     category = frontmatter.category;
     tags = frontmatter.tags;
+    themePreset = frontmatter.themePreset;
+    themeCss = frontmatter.themeCss;
     settingsList = Object.entries(frontmatter.settings).map(([key, value]) => ({
       key,
       value: String(value),
@@ -536,6 +545,12 @@
       category: category.trim().toLowerCase(),
       tags,
       settings: quizSettings,
+      themePreset,
+      themeCss,
+      // A quiz you authored in this browser is trusted outright: it's your own CSS, and being
+      // asked whether to run it would be the app second-guessing you about your own work. Only a
+      // quiz that arrived from somewhere else gets the prompt (see QuizPlayer).
+      themeTrust: 'full',
       createdAt: initial?.createdAt ?? now,
       updatedAt: now,
       questions
@@ -627,18 +642,8 @@
 </script>
 
 <div class="space-y-6">
-  <div class="flex items-start justify-between gap-3">
-    <div class="min-w-0 space-y-1">
-      <!-- Says which builder you're in at a glance. Its counterpart in GroupBuilder is identical
-           but for the icon, the word and the icon's colour — the group's carries `brand-group`,
-           this one the ordinary accent. -->
-      <p
-        class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-subtle"
-      >
-        <FileText size={13} class="shrink-0 text-accent-ink" /> Quiz
-      </p>
-      <h1 class="text-2xl font-bold text-ink">{heading}</h1>
-    </div>
+  <div class="flex items-center justify-between gap-3">
+    <h1 class="min-w-0 text-2xl font-bold text-ink">{heading}</h1>
     <div class="flex shrink-0 items-center gap-2">
       <!-- Play is the one action worth a permanent button beside the menu: it's how you check
            what you just wrote, and it saves first (see `playNow`) so it never shows stale
@@ -842,6 +847,13 @@
         titlePlaceholder="Untitled quiz"
         {titleInvalid}
       />
+
+      <!-- Above Settings and shaped identically to it: both are occasional, quiz-wide things, and
+           a modal for one beside an inline panel for the other would have made them read as
+           different kinds of thing. -->
+      <div class="mt-3 space-y-1.5 border-t border-line-faint pt-3">
+        <ThemeFields bind:preset={themePreset} bind:css={themeCss} />
+      </div>
 
       <div class="space-y-1.5">
         <!-- See QuestionForm's own comment on this disclosure for why the every-key legend is

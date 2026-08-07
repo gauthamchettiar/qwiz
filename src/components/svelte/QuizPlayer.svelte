@@ -3,7 +3,6 @@
   import {
     AlarmClock,
     ArrowLeftRight,
-    ArrowRight,
     BookmarkPlus,
     Check,
     ChevronRight,
@@ -15,6 +14,7 @@
     EyeOff,
     FastForward,
     Lock,
+    Palette,
     Play,
     RotateCcw,
     Shuffle,
@@ -24,6 +24,10 @@
     Timer,
     Lightbulb
   } from '@lucide/svelte';
+  import { applyThemeCss, clearThemeCss } from '@/lib/stores/theme';
+  import { quizTheme } from '@/lib/stores/quizTheme.svelte';
+  import { needsThemeDecision, resolveThemeCss, type ThemeTrust } from '@/lib/utils/themeCss';
+  import { playPresetCss } from '@/lib/themes/playPresets';
   import { parseQuizScriptQuestion, type QuizScriptQuestion } from '@/lib/utils/quizScript';
   import {
     blankDraft,
@@ -40,8 +44,7 @@
     type AnswerRecord,
     type PlayQuestion,
     type QuestionDraft,
-    type QuestionResult,
-    type QuizRunResult
+    type QuestionResult
   } from '@/lib/utils/grading';
   import { buildQuizRules, type QuizRuleIcon } from '@/lib/utils/quizRules';
   import { importQwizSource } from '@/lib/utils/importQwiz';
@@ -54,28 +57,49 @@
   // `saveCopySource` is set only by the shared-link player (SharedQuizPlayPage): the `.qwiz`
   // document this run was decoded from, so the player can opt into keeping it. Absent for a quiz
   // that's already in this browser's library, where "save a copy" would just make a duplicate.
-  //
-  // `onFinish` and `continueAction` exist for one caller: a group playing several quizzes in a row
-  // (GroupRunPage). They're the whole of this component's group support, deliberately — everything
-  // else about a run is identical whether it stands alone or sits in a playlist.
   let {
     quiz,
     saveCopySource,
-    onFinish,
-    continueAction
+    onTrustChange
   }: {
     quiz: Quiz;
     saveCopySource?: string;
-    /** Fired once per run, the moment the results screen appears — NOT when Continue is pressed, so
-     * a group still records the outcome if the player walks away here. Reset by `playAgain`, so a
-     * replay reports again rather than double-firing or going silent. */
-    onFinish?: (result: QuizRunResult) => void;
-    /** Present only inside a chained group run. Its presence REPLACES the results screen's
-     * "Back to quizzes" and "Play again" pair with a single Continue button — "Play again" mid-run
-     * would let a player silently retry a stage, which is exactly what a sequenced group isn't.
-     * "Review answers" stays in both layouts: it reveals, it doesn't re-run. */
-    continueAction?: { label: string; onclick: () => void };
+    /** Fires when the player answers the theme prompt, so a SAVED quiz can remember the answer and
+     * stop asking. Absent for a quiz that isn't in this browser's library (a share link, a gist) —
+     * there's nothing to remember it on, so the answer lasts the run. */
+    onTrustChange?: (trust: ThemeTrust) => void;
   } = $props();
+
+  // A quiz's own look, applied for the duration of the run and taken away again on the way out —
+  // a theme is something you pass through, never something a quiz leaves behind on the app.
+  //
+  // `trust` starts from what the quiz already carries: `full` for one authored in this browser
+  // (see QuizBuilder), unset for anything that arrived from elsewhere, which is what makes the
+  // prompt appear for exactly the quizzes it should.
+  let trust = $state<ThemeTrust | undefined>(quiz.themeTrust);
+  const askAboutTheme = $derived(needsThemeDecision(quiz.themeCss, trust));
+
+  $effect(() => {
+    const css = resolveThemeCss(playPresetCss(quiz.themePreset), quiz.themeCss, trust);
+    // `quizTheme.active` is set on BOTH paths, not just when something is applied: a player who
+    // skipped the author's CSS, or a quiz whose look resolved to nothing, must get their theme
+    // picker back rather than have it stay disabled for the rest of the run.
+    if (css === null) {
+      quizTheme.active = false;
+      return;
+    }
+    applyThemeCss(css);
+    quizTheme.active = true;
+    return () => {
+      clearThemeCss();
+      quizTheme.active = false;
+    };
+  });
+
+  function decideTrust(next: ThemeTrust) {
+    trust = next;
+    onTrustChange?.(next);
+  }
 
   let saved = $state(false);
   let saveErrors = $state<string[]>([]);
@@ -453,7 +477,6 @@
     reviewing = false;
     confirmingSubmit = false;
     clearTimeout(confirmSubmitTimeout);
-    reported = false;
   }
 
   const summary = $derived(finished ? gradeRun(results, quiz.settings) : null);
@@ -472,18 +495,6 @@
     if (result.earned > 0) return 'bg-warning-surface text-warning-ink-strong';
     return 'bg-negative-surface text-negative-ink-strong';
   }
-
-  // Reported once per run rather than on every re-render of the results screen: `summary` is a
-  // `$derived` that recomputes freely, so an unguarded effect would tell a group its player had
-  // finished the same quiz several times over. `playAgain` clears the flag, so a replay does
-  // report again.
-  let reported = $state(false);
-  $effect(() => {
-    if (finished && summary && !reported) {
-      reported = true;
-      onFinish?.(summary);
-    }
-  });
 
   // Read only by the welcome screen; $derived is lazy, so it costs nothing once the run is under
   // way. Built from `run` rather than `quiz.questions` so that questions_per_run's sampling and
@@ -542,11 +553,13 @@
          one-line change. No transition: the timer specs run under a faked rAF clock, and 200ms of
          polish isn't worth risking them on. -->
   {:else if !started}
-    <div class="space-y-6 rounded-lg border border-line-subtle bg-surface-raised p-6">
+    <div class="qwiz-welcome space-y-6 rounded-lg border border-line-subtle bg-surface-raised p-6">
       <div class="space-y-2">
-        <h1 class="text-2xl font-bold text-ink">{quiz.title}</h1>
+        <h1 class="qwiz-title text-2xl font-bold text-ink">{quiz.title}</h1>
         {#if quiz.description}
-          <p class="whitespace-pre-wrap text-sm text-ink-subtle">{quiz.description}</p>
+          <p class="qwiz-description whitespace-pre-wrap text-sm text-ink-subtle">
+            {quiz.description}
+          </p>
         {/if}
       </div>
 
@@ -554,7 +567,7 @@
         <h2 class="text-xs font-semibold uppercase tracking-wide text-ink-subtle">
           How this quiz works
         </h2>
-        <ul class="space-y-2">
+        <ul class="qwiz-rules space-y-2">
           {#each rules as rule (rule.id)}
             {@const Icon = RULE_ICONS[rule.icon]}
             <li class="flex items-start gap-2 text-sm text-ink-muted">
@@ -565,8 +578,34 @@
         </ul>
       </div>
 
+      {#if askAboutTheme}
+        <!-- Asked about, not applied. The quiz's PRESET is already on by the time this renders —
+             a preset is this app's own stylesheet, named by the file rather than carried in it, so
+             there's nothing in it to distrust. This is only ever about the CSS the author wrote
+             themselves, which is arbitrary code running in this page.
+             Two choices, not three: a "colours only" middle ground made sense when a theme was 53
+             colour tokens, but a stylesheet that also moves things would come out half-applied and
+             look broken rather than safe. A quiz you wrote yourself never reaches here — see
+             `themeTrust` in QuizBuilder. -->
+        <div class="space-y-3 rounded-lg border border-warning-line bg-warning-surface p-4">
+          <div class="flex items-start gap-2">
+            <Palette size={16} class="mt-0.5 shrink-0 text-warning-ink-strong" />
+            <div>
+              <p class="text-sm font-medium text-ink">This quiz brings its own styling.</p>
+              <p class="mt-0.5 text-sm text-ink-muted">
+                The author's CSS can change anything on this page. Only allow it if you trust them.
+              </p>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <Button size="sm" onclick={() => decideTrust('full')}>Allow it</Button>
+            <Button variant="primary" size="sm" onclick={() => decideTrust('none')}>Skip it</Button>
+          </div>
+        </div>
+      {/if}
+
       <div class="flex flex-wrap items-center gap-2">
-        <Button variant="primary" onclick={startRun}>
+        <Button variant="primary" class="qwiz-start" onclick={startRun}>
           <Play size={15} /> Start quiz
         </Button>
         {@render saveCopyAction()}
@@ -687,9 +726,7 @@
       {/if}
 
       <!-- No "Back to quizzes" here: the header already carries a Back link, and two ways out of
-           the same screen only makes the one that matters harder to find. A run inside a group
-           swaps Play again for Continue — replaying a scored stage is what a sequenced group
-           isn't. Review stays in both: it reveals, it doesn't re-run. -->
+           the same screen only makes the one that matters harder to find. -->
       <div
         class="flex flex-wrap items-center justify-center gap-2 border-t border-line-faint px-6 py-4"
       >
@@ -700,24 +737,13 @@
         >
           <ListChecks size={15} /> Review answers
         </button>
-        {#if continueAction}
-          <button
-            type="button"
-            class="flex items-center gap-1.5 rounded-md bg-accent px-4 py-2 text-sm font-medium text-ink-inverse hover:bg-accent-hover"
-            onclick={continueAction.onclick}
-          >
-            {continueAction.label}
-            <ArrowRight size={15} />
-          </button>
-        {:else}
-          <button
-            type="button"
-            class="flex items-center gap-1.5 rounded-md bg-accent px-4 py-2 text-sm font-medium text-ink-inverse hover:bg-accent-hover"
-            onclick={playAgain}
-          >
-            <RotateCcw size={15} /> Play again
-          </button>
-        {/if}
+        <button
+          type="button"
+          class="flex items-center gap-1.5 rounded-md bg-accent px-4 py-2 text-sm font-medium text-ink-inverse hover:bg-accent-hover"
+          onclick={playAgain}
+        >
+          <RotateCcw size={15} /> Play again
+        </button>
         {@render saveCopyAction()}
       </div>
       <ErrorList errors={saveErrors} />
@@ -726,7 +752,7 @@
     <div class="space-y-1">
       <div class="flex items-center justify-between gap-3">
         <div class="flex items-center gap-2">
-          <p class="text-xs font-medium text-ink-subtle">
+          <p class="qwiz-progress text-xs font-medium text-ink-subtle">
             Question {currentIndex + 1} of {run.length}
           </p>
           {#if questionSecondsLeft !== null || quizSecondsLeft !== null}
@@ -743,7 +769,7 @@
           {/if}
         </div>
         {#if showScoreHeader}
-          <p class="flex items-center gap-1.5 text-xs font-medium text-ink-subtle">
+          <p class="qwiz-score flex items-center gap-1.5 text-xs font-medium text-ink-subtle">
             {#if scoreFlash}
               <span
                 transition:fade={{ duration: 250 }}
@@ -766,7 +792,7 @@
       </div>
     </div>
 
-    <div class="space-y-4 rounded-lg border border-line-subtle bg-surface-raised p-6">
+    <div class="qwiz-card space-y-4 rounded-lg border border-line-subtle bg-surface-raised p-6">
       {#key `${currentIndex}-${questionResetNonce}`}
         <QuestionPlayer
           question={current.question}
@@ -801,7 +827,7 @@
           {#if !locked}
             <button
               type="button"
-              class="rounded-md bg-accent px-4 py-2 text-sm font-medium text-ink-inverse hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-surface-strong"
+              class="qwiz-submit rounded-md bg-accent px-4 py-2 text-sm font-medium text-ink-inverse hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-surface-strong"
               disabled={!canSubmit}
               onclick={submitAnswer}
             >

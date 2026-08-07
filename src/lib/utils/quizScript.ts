@@ -96,6 +96,18 @@ export interface QuizScriptFrontmatter {
    * validation a question's own settings use, just scoped to the whole quiz instead of one
    * question, and written inside the `--- ... ---` frontmatter block rather than after it. */
   settings: QuizScriptSettings;
+  /** The name of a play preset this quiz is styled with — `theme: arcade`. A NAME, not a
+   * stylesheet: the CSS is this app's own (see `lib/themes/playPresets.ts`), so a file carrying
+   * this carries no code, applies with nothing asked of the player, and stays small enough for a
+   * share link. An unknown name is not an error; it plays unstyled (see `playPresetCss`). */
+  themePreset?: string;
+  /** CSS the author wrote themselves, on top of the preset — an indented block under `theme-css:`.
+   *
+   * Deliberately NOT validated at parse time. What this is allowed to do is a decision the VIEWER
+   * makes, not the parser's: it is arbitrary CSS from whoever wrote the quiz, and the player is
+   * asked before any of it runs (see `themeTrust` and `resolveThemeCss`). Rejecting a rule here
+   * would push a security decision into a place with no one to ask. */
+  themeCss?: string;
 }
 
 export type QuizScriptMedia =
@@ -214,9 +226,6 @@ const VIDEO_LINE = /^!<youtube>\[(.*)\]\((.*)\)$/;
 const REVEAL_LINE = /^!<reveal>\[(.*)\]\((.*)\)$/;
 const ANALYSIS_LINE = /^!<analysis>\[(.*)\]\((.*)\)$/;
 const VARIANT_LINE = /^variant\s*:\s*(.+)$/i;
-/** Both exported for `quizGroup.ts`: a `.qwizgroup` manifest uses the identical `:key=value` and
- * `key: value` line syntax, and recognising them with a second copy of these regexes is exactly how
- * the two formats would drift apart. */
 export const SETTING_LINE = /^:([A-Za-z_][\w-]*)\s*=\s*(.*)$/;
 export const FRONTMATTER_LINE = /^([A-Za-z_][\w-]*)\s*:\s*(.*)$/;
 /** `match_pairs`/`group_items` option shape: `item -> target`, split on the FIRST " -> " (non-greedy
@@ -294,18 +303,11 @@ export interface SettingRule {
   description: string;
 }
 
-/** Group headings in the order the dropdown shows them, most-reached-for first. All three tables
- * draw from this one list — a quiz-wide block simply has no keys in some of them, and a `.qwizgroup`
- * block has none in most. Anything a rule names that isn't listed here still appears, after these,
- * so a typo degrades to a stray heading rather than a silently missing key.
- *
- * "Group" and "Gauntlet" lead because they only exist in `GROUP_SETTING_RULES` (quizGroup.ts), where
- * they're the keys the author is actually there to set — the quiz-wide keys below them are the ones
- * a manifest merely inherits. `groupSettingKeys` drops empty groups, so a quiz's own dropdown is
- * unaffected by their being first. */
+/** Group headings in the order the dropdown shows them, most-reached-for first. Both the
+ * quiz-wide and per-question rule tables draw from this one list — a block simply has no keys in
+ * some of them. Anything a rule names that isn't listed here still appears, after these, so a typo
+ * degrades to a stray heading rather than a silently missing key. */
 export const SETTING_GROUP_ORDER = [
-  'Group',
-  'Gauntlet',
   'Scoring',
   'Answering',
   'Matching',
@@ -839,7 +841,6 @@ function parseRevealLine(text: string): QuizScriptReveal | null {
   return { label: match[1], content: match[2], points };
 }
 
-/** Exported alongside `parseInlineArray` for `quizGroup.ts`, for the same reason. */
 export function stripQuotes(value: string): string {
   const trimmed = value.trim();
   const quoted =
@@ -932,10 +933,7 @@ export function validateSettingValue(
   };
 }
 
-/** Exported for `quizGroup.ts`, which parses `tags: [a, b]` and `requires: [x, y]` out of a
- * `.qwizgroup` manifest. Duplicating this would be duplicating `.qwiz` lexing outside this file,
- * which is a named anti-pattern (CLAUDE.md §10) — the two formats deliberately share a syntax, so
- * they must share the code that reads it. */
+/** Parses `tags: [a, b]` out of a frontmatter value. */
 export function parseInlineArray(raw: string): string[] {
   const inner = raw.trim().replace(/^\[/, '').replace(/\]$/, '');
   if (inner.trim() === '') return [];
@@ -958,13 +956,51 @@ function unescapeFrontmatterValue(value: string): string {
 }
 
 /** The `title`/`description`/`category`/`tags` + `:key=value` lines between a `---` fence, against
- * whichever rules table the caller validates settings with.
+ * whichever rules table the caller validates settings with. The caller owns the fence and any
+ * cross-field checks. */
+/** The one frontmatter field whose value is a block rather than a line: everything indented under
+ * `theme-css:` is the author's own CSS, verbatim.
  *
- * Exported and parameterised by `rules` so `quizGroup.ts` reads a `.qwizgroup` manifest's
- * frontmatter with this exact code rather than a near-identical copy — the two formats share a
- * syntax deliberately, and a second implementation is precisely how they'd stop sharing it. The
- * caller owns the fence and any cross-field checks, since those are what actually differ between a
- * quiz and a group. */
+ * A block, rather than the `:key=value` settings syntax every other quiz-wide option uses, because
+ * a stylesheet is many lines and the settings table is a closed set of single-line keys. It's
+ * indented for the same reason YAML indents: it marks where the sub-document ends without
+ * inventing a second fence that the CSS itself might contain. */
+const THEME_BLOCK_LINE = /^theme-css:[ \t]*$/;
+
+/** Reads the indented block starting after `start`, returning its dedented text and the index of
+ * the first line that isn't part of it. Blank lines belong to the block (CSS has them between
+ * rules); the first non-blank, non-indented line ends it. */
+function readIndentedBlock(
+  lines: string[],
+  start: number,
+  to: number
+): { text: string; next: number } {
+  const collected: string[] = [];
+  let i = start;
+  for (; i < to; i++) {
+    const raw = lines[i];
+    if (raw.trim() === '') {
+      collected.push('');
+      continue;
+    }
+    if (!/^[ \t]/.test(raw)) break;
+    collected.push(raw);
+  }
+
+  // Dedent by the shallowest real line, so the block reads as its own document rather than one
+  // carrying two spaces of frontmatter indentation into every rule.
+  const indents = collected
+    .filter((line) => line.trim() !== '')
+    .map((line) => /^[ \t]*/.exec(line)![0].length);
+  const shortest = indents.length > 0 ? Math.min(...indents) : 0;
+  const text = collected
+    .map((line) => (line.trim() === '' ? '' : line.slice(shortest)))
+    .join('\n')
+    .trim();
+
+  return { text, next: i };
+}
+
 export function parseFrontmatterFields(
   lines: string[],
   from: number,
@@ -983,6 +1019,16 @@ export function parseFrontmatterFields(
   for (let i = from; i < to; i++) {
     const raw = lines[i];
     if (raw.trim() === '') continue;
+
+    if (THEME_BLOCK_LINE.test(raw)) {
+      const { text, next } = readIndentedBlock(lines, i + 1, to);
+      if (text === '') {
+        errors.push({ line: i + 1, message: '"theme-css:" has no indented CSS beneath it.' });
+      }
+      frontmatter.themeCss = text;
+      i = next - 1;
+      continue;
+    }
 
     const settingMatch = SETTING_LINE.exec(raw.trim());
     if (settingMatch) {
@@ -1012,6 +1058,12 @@ export function parseFrontmatterFields(
       case 'tags':
         frontmatter.tags = parseInlineArray(value);
         break;
+      case 'theme':
+        // Not validated against the shipped list: a quiz naming a preset from a newer Qwiz should
+        // play, unstyled, rather than refuse to open. `playPresetCss` resolves an unknown name to
+        // no stylesheet.
+        frontmatter.themePreset = stripQuotes(value).trim();
+        break;
       default:
         errors.push({ line: i + 1, message: `Unknown frontmatter field "${key}".` });
     }
@@ -1034,7 +1086,11 @@ function parseFrontmatter(
 
   if (lines[0]?.trim() !== '---') return { frontmatter: empty, bodyStart: 0 };
 
-  const closingIndex = lines.findIndex((l, i) => i > 0 && l.trim() === '---');
+  // The closing fence must be UNINDENTED, where every other frontmatter line is matched on its
+  // trimmed form. That's not fussiness: a `theme:` block holds arbitrary CSS, indented, and CSS
+  // comments legitimately contain rules of dashes. Matching `l.trim() === '---'` would let one of
+  // those close the frontmatter early and turn the rest of the theme into unparseable questions.
+  const closingIndex = lines.findIndex((l, i) => i > 0 && /^---[ \t]*$/.test(l));
   if (closingIndex === -1) {
     errors.push({ line: 1, message: 'Frontmatter is opened with "---" but never closed.' });
     return { frontmatter: empty, bodyStart: 0 };
@@ -1133,12 +1189,7 @@ export interface SourceLine {
 }
 
 /** Splits the body into per-question line groups on blank lines, ignoring blank lines that
- * fall inside a `{ }` option block so multi-line-formatted options don't fracture a question.
- *
- * Exported (keeping the name, which records its original caller rather than its only one) so
- * `quizGroup.ts` splits a `.qwizgroup` body into entry blocks with the identical rule. The `{ }`
- * depth tracking is inert for a manifest, which has no option blocks — harmless, and cheaper than
- * a second near-identical splitter to keep in step. */
+ * fall inside a `{ }` option block so multi-line-formatted options don't fracture a question. */
 export function splitQuestionBlocks(lines: string[], start: number): SourceLine[][] {
   const blocks: SourceLine[][] = [];
   let current: SourceLine[] = [];
@@ -1697,6 +1748,18 @@ export function serializeQuizScriptFrontmatter(frontmatter: QuizScriptFrontmatte
   lines.push(`tags: [${frontmatter.tags.join(', ')}]`);
   for (const [key, value] of Object.entries(frontmatter.settings)) {
     lines.push(`:${key}=${formatSettingValue(value)}`);
+  }
+  if (frontmatter.themePreset && frontmatter.themePreset.trim() !== '') {
+    lines.push(`theme: ${frontmatter.themePreset.trim()}`);
+  }
+  // Last, and indented two spaces: it's the only multi-line field, so putting it after the
+  // single-line ones keeps the scannable part of the frontmatter at the top where a reader expects
+  // it, rather than pushing `tags:` fifty lines down behind a wall of CSS.
+  if (frontmatter.themeCss && frontmatter.themeCss.trim() !== '') {
+    lines.push('theme-css:');
+    for (const line of frontmatter.themeCss.trim().split('\n')) {
+      lines.push(line.trim() === '' ? '' : `  ${line}`);
+    }
   }
   lines.push('---');
   return lines.join('\n');

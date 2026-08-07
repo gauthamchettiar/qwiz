@@ -192,6 +192,21 @@
    * Tailwind's palette) and an option the player got RIGHT rendered as merely "selected" instead of
    * correct — while a correct option they didn't pick rendered green, right next to it. Any place
    * that needs one of several exclusive looks has to pick exactly one, not stack them. */
+  /** The `qwiz-option--*` state hook for a theme's CSS, alongside the Tailwind tone below.
+   *
+   * Kept separate from `choiceOptionTone` on purpose: that function answers "what does this look
+   * like", and is bound by the one-class-string rule above. This answers "what IS this", which is
+   * what a stylesheet outside this app needs in order to restyle it at all. See
+   * docs/play-classes.md — these names are a published API, so renaming one breaks themes people
+   * have already written. */
+  function choiceOptionState(optionIndex: number, correct: boolean): string {
+    if (isLocked && revealAnswers) {
+      if (correct) return 'qwiz-option--correct';
+      return selected.has(optionIndex) ? 'qwiz-option--wrong' : '';
+    }
+    return selected.has(optionIndex) ? 'qwiz-option--selected' : '';
+  }
+
   function choiceOptionTone(optionIndex: number, correct: boolean): string {
     if (isLocked && revealAnswers) {
       if (correct) return 'border-positive-line bg-positive-surface';
@@ -794,7 +809,7 @@
   </div>
 {/snippet}
 
-<div class="space-y-4">
+<div class="qwiz-question space-y-4">
   <!-- Leads the locked question rather than trailing it: on the run's post-answer screen this is
        the whole reason the screen exists, and burying the outcome under the board the player just
        filled in made "did I get it right?" something they had to work out for themselves from the
@@ -804,7 +819,9 @@
   {/if}
 
   {#if !isFillInBlanks}
-    <p class="whitespace-pre-wrap text-base font-medium text-ink">{question.text}</p>
+    <p class="qwiz-question-text whitespace-pre-wrap text-base font-medium text-ink">
+      {question.text}
+    </p>
   {/if}
 
   {#each question.media as media, i (i)}
@@ -1031,11 +1048,14 @@
       onDropBlankBack={dropBlankBack}
     />
   {:else}
-    <div class={choiceOptionsLayoutClass(question)}>
+    <div class="qwiz-options {choiceOptionsLayoutClass(question)}">
       {#each pq.optionOrder as optionIndex (optionIndex)}
         {@const option = question.options[optionIndex]}
         <label
-          class="flex cursor-pointer items-start gap-2 rounded-md border p-3 transition-colors {choiceOptionTone(
+          class="qwiz-option {choiceOptionState(
+            optionIndex,
+            option.correct
+          )} flex cursor-pointer items-start gap-2 rounded-md border p-3 transition-colors {choiceOptionTone(
             optionIndex,
             option.correct
           )}"
@@ -1061,7 +1081,7 @@
               onchange={() => toggleOption(optionIndex)}
             />
           {/if}
-          <div class="min-w-0 flex-1">
+          <div class="qwiz-option-label min-w-0 flex-1">
             <OptionContent content={option.content} />
           </div>
           {#if isLocked && revealAnswers}

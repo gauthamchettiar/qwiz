@@ -18,7 +18,6 @@ import {
   gistApiUrl,
   isQwizPath,
   rawFileUrl,
-  treeApiUrl,
   NETWORK_ERROR_MESSAGE,
   type FetchSubject,
   type RepoRef
@@ -87,8 +86,8 @@ async function request(url: string, subject: FetchSubject): Promise<Fetched<Resp
   return { ok: true, data: response };
 }
 
-/** Raw text of one file. Used for every `.qwiz` and every `.qwizgroup`, always against
- * `raw.githubusercontent.com`, which has no rate limit — the API is only ever spent on discovery. */
+/** Raw text of one file. Used for every `.qwiz` read from a repository, always against
+ * `raw.githubusercontent.com`, which has no rate limit — the API is only ever spent on a gist. */
 export async function fetchText(
   url: string,
   subject: FetchSubject = 'file'
@@ -165,65 +164,6 @@ export async function fetchGistQwizFiles(gistId: string): Promise<Fetched<GistFi
     return { ok: false, error: "Couldn't read the .qwiz file out of that gist." };
   }
   return { ok: true, data: usable };
-}
-
-export interface RepoTree {
-  /** Every blob path in the repository, unfiltered — callers pick out `.qwiz` and `.qwizgroup`. */
-  paths: string[];
-  /** GitHub caps very large trees. A caller must surface this rather than quietly showing a
-   * partial list of someone's quizzes. */
-  truncated: boolean;
-}
-
-/** The whole repository tree in one recursive call — the entire API budget for a repo with no
- * manifest, and the only reason this app ever touches `api.github.com` for a repository. */
-export async function fetchRepoTree(ref: RepoRef): Promise<Fetched<RepoTree>> {
-  const response = await request(treeApiUrl(ref), 'repo');
-  if (!response.ok) return response;
-
-  let payload: { tree?: { path?: string; type?: string }[]; truncated?: boolean };
-  try {
-    payload = (await response.data.json()) as typeof payload;
-  } catch {
-    return { ok: false, error: 'GitHub sent back something Qwiz could not read.' };
-  }
-
-  const paths = (payload.tree ?? [])
-    .filter((entry) => entry.type === 'blob' && typeof entry.path === 'string')
-    .map((entry) => entry.path as string);
-
-  return { ok: true, data: { paths, truncated: payload.truncated === true } };
-}
-
-export interface FetchedRepoFile {
-  path: string;
-  content: string;
-}
-
-export interface FetchedRepoFiles {
-  files: FetchedRepoFile[];
-  /** Paths that couldn't be read. A single bad file never kills the page — the group renders what
-   * it has and says how many it skipped, the way a `.qwiz` with one broken question still reports
-   * the rest. */
-  skipped: string[];
-}
-
-export async function fetchRepoFiles(
-  ref: RepoRef,
-  paths: readonly string[]
-): Promise<FetchedRepoFiles> {
-  const results = await mapWithLimit(paths, CONCURRENCY, async (path) => {
-    const fetched = await fetchText(rawFileUrl(ref, path), 'file');
-    return fetched.ok ? { path, content: fetched.data } : null;
-  });
-
-  const files: FetchedRepoFile[] = [];
-  const skipped: string[] = [];
-  results.forEach((result, index) => {
-    if (result) files.push(result);
-    else skipped.push(paths[index]);
-  });
-  return { files, skipped };
 }
 
 /** A single file, by repo-relative path. */

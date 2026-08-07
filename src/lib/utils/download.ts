@@ -14,8 +14,7 @@ export function downloadTextFile(filename: string, content: string): void {
   downloadBlobFile(filename, new Blob([content], { type: 'text/plain' }));
 }
 
-/** The same, for something already assembled as a Blob — a group's `.zip`, say. */
-export function downloadBlobFile(filename: string, blob: Blob): void {
+function downloadBlobFile(filename: string, blob: Blob): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

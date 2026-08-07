@@ -103,3 +103,61 @@ describe('TOKEN_CLASS', () => {
     }
   });
 });
+
+// The theme block is the one place a `.qwiz` document contains a different language. The
+// concatenation invariant matters here more than anywhere: the CSS in a theme is the longest
+// unbroken run of text in the format, so a tokenizer that dropped a space would drift the caret
+// visibly rather than subtly.
+describe('the theme block', () => {
+  const SOURCE = [
+    '---',
+    'title: Tokyo Night',
+    'theme: arcade',
+    'theme-css:',
+    '  /* the author’s own look',
+    '     --- a rule of dashes, which must not close the frontmatter */',
+    '  :root {',
+    '    color-scheme: dark;',
+    '    --color-surface: #1a1b26;',
+    '  }',
+    'category: geography',
+    '---',
+    '',
+    'What is the capital of Japan?',
+    '{',
+    '=Tokyo',
+    'Osaka',
+    '}'
+  ].join('\n');
+
+  const lines = highlightQwiz(SOURCE);
+  const kindsOf = (index: number) => lines[index].map((t) => t.kind);
+
+  it('reproduces every line exactly', () => {
+    expect(lines.map((tokens) => tokens.map((t) => t.text).join(''))).toEqual(SOURCE.split('\n'));
+  });
+
+  it('colours the key as frontmatter, not as css', () => {
+    expect(kindsOf(3)).toContain('frontmatterKey');
+  });
+
+  it('colours css comments as comments, dashes and all', () => {
+    expect(kindsOf(4)).toEqual(['comment']);
+    expect(kindsOf(5)).toEqual(['comment']);
+  });
+
+  it('colours a declaration as key/value, and a selector as structure', () => {
+    expect(kindsOf(6)).toEqual(['variant']);
+    expect(kindsOf(7)).toEqual(['plain', 'settingKey', 'punctuation', 'settingValue']);
+    expect(kindsOf(8)).toEqual(['plain', 'settingKey', 'punctuation', 'settingValue']);
+  });
+
+  it('leaves the block at the first unindented line, which is a frontmatter field again', () => {
+    expect(kindsOf(10)).toContain('frontmatterKey');
+  });
+
+  it('goes back to ordinary qwiz highlighting after the fence', () => {
+    expect(lines[11].map((t) => t.kind)).toEqual(['punctuation']);
+    expect(lines[15][0].kind).toBe('marker');
+  });
+});

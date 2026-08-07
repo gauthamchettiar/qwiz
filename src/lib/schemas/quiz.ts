@@ -23,6 +23,17 @@ export const quizSchema = z.object({
   /** Free-form labels for organizing and filtering. Lowercased and deduped on entry. */
   tags: z.array(z.string()),
   settings: quizScriptSettingsSchema,
+  /** The play preset this quiz is styled with, by name — see `lib/themes/playPresets.ts`. A name
+   * rather than a stylesheet, so the file carries no code and stays small. */
+  themePreset: z.string().optional(),
+  /** CSS the author wrote themselves, applied on top of the preset. Arbitrary code, which is why
+   * a player who didn't write it is asked before any of it runs. */
+  themeCss: z.string().optional(),
+  /** Whether the VISITOR has agreed to run this quiz's own CSS — not part of the document, and
+   * never serialized by `qwizSourceFromQuiz`. A quiz written in this browser's builder is `full`
+   * (you wrote it); one that arrived from outside starts unset and is asked once, on the welcome
+   * screen. Only ever consulted for `themeCss`; a preset is our code and always applies. */
+  themeTrust: z.enum(['none', 'full']).optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
   questions: z.array(quizQuestionSchema)

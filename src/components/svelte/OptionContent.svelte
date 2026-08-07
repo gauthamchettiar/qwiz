@@ -11,7 +11,11 @@
 </script>
 
 {#if content.kind === 'text'}
-  <p class="text-sm text-ink">{content.text}</p>
+  <!-- No `text-ink`: `body` already sets it (global.css), so declaring it again here was
+       redundant AND load-bearing in the wrong direction — it broke colour inheritance, so a quiz
+       theme colouring `.qwiz-option` left the option's own text at the app's default. Letting it
+       inherit is what makes `color` on any ancestor work the way CSS says it should. -->
+  <p class="text-sm">{content.text}</p>
 {:else if content.kind === 'image'}
   <img
     src={content.url}

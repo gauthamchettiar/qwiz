@@ -42,10 +42,11 @@ test('the whole-document editor closes through Discard, not Escape', async ({ pa
   await builder.gotoCreate();
 
   await builder.fileCodeButton.click();
-  // `.font-mono` picks out the code editor specifically: an unscoped `textarea` locator would
-  // match the header's always-mounted (hidden) import textarea, and the Description textarea
-  // once the plain fields are back.
-  const codeEditor = page.locator('main textarea.font-mono');
+  // By accessible name, not by class: an unscoped `textarea` locator would match the header's
+  // always-mounted (hidden) import textarea, the Description field once the plain fields are back,
+  // and the theme panel's CSS editor. This is the WHOLE-document editor, which is a different one
+  // from a question card's.
+  const codeEditor = page.getByRole('textbox', { name: 'Quiz .qwiz source' });
   await expect(codeEditor).toBeVisible();
   await expect(builder.titleInput).toBeHidden();
 

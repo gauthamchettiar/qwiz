@@ -38,11 +38,8 @@ export interface GistStub {
 }
 
 export interface RepoStub {
-  /** Repo-relative path to file contents. Doubles as the tree listing, so a spec declares its
-   * fixture repo once rather than keeping a file map and a path list in sync by hand. */
+  /** Repo-relative path to file contents. */
   files: Record<string, string>;
-  /** Set when the spec is about GitHub capping a very large tree. */
-  truncated?: boolean;
 }
 
 function json(body: unknown) {
@@ -80,33 +77,10 @@ export async function stubGist(page: Page, gistId: string, stub: GistStub): Prom
   });
 }
 
-/** Serves a repository: the recursive tree endpoint for discovery, and every file over the raw
- * host. `ref` is whatever the app asks for, so this works for both a pinned ref and the `HEAD`
+/** Serves a repository's files over the raw host — the only host the app ever reads a repo file
+ * from. `ref` is whatever the app asks for, so this works for both a pinned ref and the `HEAD`
  * that a ref-less link resolves to. */
-export async function stubRepo(
-  page: Page,
-  owner: string,
-  repo: string,
-  stub: RepoStub
-): Promise<void> {
-  await page.route(API, async (route) => {
-    const url = new URL(route.request().url());
-    if (!url.pathname.startsWith(`/repos/${owner}/${repo}/git/trees/`)) {
-      return route.fulfill({
-        status: 404,
-        contentType: 'application/json',
-        headers: CORS_HEADERS,
-        body: '{}'
-      });
-    }
-    return route.fulfill(
-      json({
-        tree: Object.keys(stub.files).map((path) => ({ path, type: 'blob' })),
-        truncated: stub.truncated === true
-      })
-    );
-  });
-
+export async function stubRepo(page: Page, stub: RepoStub): Promise<void> {
   await page.route(RAW, async (route) => {
     const url = new URL(route.request().url());
     // /{owner}/{repo}/{ref}/{path…}
@@ -165,16 +139,4 @@ export async function stubOffline(page: Page): Promise<void> {
   for (const pattern of [API, RAW, GIST_RAW]) {
     await page.route(pattern, (route) => route.abort('failed'));
   }
-}
-
-/** Counts requests that would have cost against GitHub's 60-per-hour unauthenticated budget.
- * `raw.githubusercontent.com` is deliberately NOT counted — it isn't metered, and the whole
- * manifest-first design exists to keep this number at zero for a repo that publishes a
- * `.qwizgroup`. That claim is the feature's headline, so it gets asserted rather than commented. */
-export function countApiCalls(page: Page): () => number {
-  let calls = 0;
-  page.on('request', (request) => {
-    if (new URL(request.url()).hostname === 'api.github.com') calls += 1;
-  });
-  return () => calls;
 }

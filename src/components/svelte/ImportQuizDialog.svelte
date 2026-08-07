@@ -2,7 +2,7 @@
   import { Upload, FileUp, FolderGit2, Sparkles } from '@lucide/svelte';
   import { importQwizSource } from '@/lib/utils/importQwiz';
   import { parseGistRef, parseRepoRef, isQwizPath } from '@/lib/utils/githubRef';
-  import { groupUrl, repoQuizUrl } from '@/lib/utils/remoteSource';
+  import { repoQuizUrl } from '@/lib/utils/remoteSource';
   import Dialog from './Dialog.svelte';
   import Button from './Button.svelte';
   import ErrorList from './ErrorList.svelte';
@@ -18,15 +18,6 @@
   let dragging = $state(false);
   let githubRef = $state('');
 
-  /** Qwiz's own repository, which carries `examples/groups/` — one folder per grouping mode. It's
-   * loaded over the network like any other group rather than inlined at build time (the way
-   * "Load a sample" inlines `examples/*.qwiz` via `import.meta.glob`), and that's the point: this
-   * link is also the shortest demonstration that opening someone else's repository works.
-   *
-   * A consequence worth knowing: it resolves against the repository's DEFAULT BRANCH, so these
-   * examples have to be merged and pushed before the link does anything. */
-  const EXAMPLE_GROUP_URL = groupUrl({ owner: 'gauthamchettiar', repo: 'qwiz' }, 'examples/groups');
-
   function openDialog() {
     errors = [];
     code = '';
@@ -37,10 +28,10 @@
     dialog.open();
   }
 
-  /** Opens whatever was pasted, without fetching anything here: a gist and a single repo file go to
-   * the player, a repository or a folder goes to the group screen. Navigating rather than importing
-   * is the deliberate part — a quiz someone is looking at is not yet a quiz they've asked to keep,
-   * which is the same rule a shared link follows. */
+  /** Opens whatever was pasted, without fetching anything here: a gist goes straight to the player,
+   * and a repo link must name a single `.qwiz` file. Navigating rather than importing is the
+   * deliberate part — a quiz someone is looking at is not yet a quiz they've asked to keep, which
+   * is the same rule a shared link follows. */
   function openFromGitHub() {
     errors = [];
     const input = githubRef.trim();
@@ -60,8 +51,14 @@
       return;
     }
 
-    window.location.href =
-      repo.path && isQwizPath(repo.path) ? repoQuizUrl(repo, repo.path) : groupUrl(repo, repo.path);
+    if (!repo.path || !isQwizPath(repo.path)) {
+      errors = [
+        'Paste a link to a single .qwiz file — owner/repo/path/to/quiz.qwiz — or a gist link.'
+      ];
+      return;
+    }
+
+    window.location.href = repoQuizUrl(repo, repo.path);
   }
 
   async function readFile(file: File) {
@@ -190,15 +187,6 @@ pick_one: ..."
         <FolderGit2 size={15} /> Open
       </Button>
     </div>
-
-    <p class="text-xs text-ink-subtle">
-      Nothing to hand? <a
-        href={EXAMPLE_GROUP_URL}
-        class="font-medium text-accent-ink hover:underline"
-      >
-        Open the example groups
-      </a> — one folder for each way a set of quizzes can be grouped.
-    </p>
 
     <ErrorList {errors} />
   {/snippet}

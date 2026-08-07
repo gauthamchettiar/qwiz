@@ -25,7 +25,7 @@ test('a deleted or private gist explains that only public gists work', async ({ 
 });
 
 test('a missing file in a real repository says it may have moved', async ({ page }) => {
-  await stubRepo(page, 'owner', 'repo', { files: { 'other.qwiz': '---\ntitle: Other\n---' } });
+  await stubRepo(page, { files: { 'other.qwiz': '---\ntitle: Other\n---' } });
 
   const play = new PlayPage(page);
   await play.gotoRemote('/play?repo=owner%2Frepo&path=gone.qwiz', { start: false });
@@ -40,10 +40,10 @@ test('a rate-limited request names the limit and the way around it', async ({ pa
   await play.gotoRemote(`/play?gist=${GIST_ID}`, { start: false });
 
   const alert = page.getByRole('alert');
-  // The fix is the part a reader can't guess, and it's the feature's own headline: a repository
-  // publishing a .qwizgroup never touches the rate-limited API at all.
+  // The fix is the part a reader can't guess: only a gist spends the rate-limited API, a repo
+  // file link never does.
   await expect(alert).toContainText(/rate-limiting/);
-  await expect(alert).toContainText(/\.qwizgroup/);
+  await expect(alert).toContainText(/never does/);
 });
 
 test('GitHub being unreachable is reported as a connection problem', async ({ page }) => {

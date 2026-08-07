@@ -87,3 +87,50 @@ export function applyTheme(id: string): void {
       : id;
   document.documentElement.dataset.theme = resolved;
 }
+
+/* --------------------------------------------------------------------------------------------
+   A quiz's own styling, while it is being played
+   -------------------------------------------------------------------------------------------- */
+
+const QUIZ_THEME_STYLE_ID = 'qwiz-quiz-theme';
+
+/** What `data-theme` is parked on while a quiz's own styling is applied.
+ *
+ * No stylesheet matches it, and that is the entire point: with the attribute on `nord` or
+ * `dracula`, everything the quiz's theme doesn't explicitly declare would keep falling through to
+ * whichever theme the VISITOR happens to use, and the same quiz would look different for every
+ * player — pieces of Solarized showing through Arcade. Parking it here leaves the `@theme` defaults
+ * in global.css as the only thing underneath, which is one fixed baseline for everyone, and the
+ * quiz's stylesheet paints over that.
+ *
+ * It also settles a specificity problem for free: `:root[data-theme='dark']` (0,1,1) outranks a
+ * plain `:root` (0,1,0), so a theme setting colour tokens would otherwise lose to the app's own
+ * block for every dark-mode visitor and be silently half-applied. */
+const QUIZ_THEME_MODE = 'quiz';
+
+/** Applies a quiz's stylesheet, and takes the app's own theme out of the picture while it's up.
+ *
+ * The CSS is injected verbatim. Deciding whether it's allowed to run at all is the caller's job,
+ * and the visitor's decision — see `resolveThemeCss` and `themeTrust`.
+ */
+export function applyThemeCss(css: string): void {
+  if (typeof document === 'undefined') return;
+  let style = document.getElementById(QUIZ_THEME_STYLE_ID);
+  if (!style) {
+    style = document.createElement('style');
+    style.id = QUIZ_THEME_STYLE_ID;
+    // Appended last, so it wins ties against the app's own stylesheet at equal specificity.
+    document.head.append(style);
+  }
+  style.textContent = css;
+  document.documentElement.dataset.theme = QUIZ_THEME_MODE;
+}
+
+/** Removes a quiz's stylesheet and puts the visitor's own theme back. Called when a play screen
+ * unmounts, so leaving a quiz always returns the app to the way they keep it — styling is
+ * something you pass through, never something a quiz leaves behind. */
+export function clearThemeCss(): void {
+  if (typeof document === 'undefined') return;
+  document.getElementById(QUIZ_THEME_STYLE_ID)?.remove();
+  applyTheme(readTheme());
+}

@@ -8,10 +8,9 @@
  */
 
 /** The ref used whenever a link doesn't pin one. Git resolves `HEAD` to the repository's default
- * branch server-side, on both `raw.githubusercontent.com` and the trees API — which is what lets a
- * `.qwizgroup`-listed repo load with ZERO `api.github.com` calls, since there's no `GET /repos`
- * needed to discover whether that branch is `main`, `master` or something else entirely. Verified
- * against a repo whose default branch is none of those. */
+ * branch server-side on `raw.githubusercontent.com`, so a durable (ref-less) link keeps working
+ * after the default branch is renamed, with no `GET /repos` call needed to look it up. Verified
+ * against a repo whose default branch is neither `main` nor `master`. */
 export const DEFAULT_REF = 'HEAD';
 
 export interface GistRef {
@@ -126,39 +125,8 @@ export function isQwizPath(path: string): boolean {
   return path.toLowerCase().endsWith('.qwiz');
 }
 
-export const GROUP_MANIFEST_NAME = '.qwizgroup';
-
-export function isGroupManifestPath(path: string): boolean {
-  return path === GROUP_MANIFEST_NAME || path.endsWith(`/${GROUP_MANIFEST_NAME}`);
-}
-
-/** The directory part of a repo path, without a trailing slash. `''` for a file at the root — the
- * same value `RepoRef.path` uses to mean "the whole repo", so the two compose. */
-export function dirOf(path: string): string {
-  const index = path.lastIndexOf('/');
-  return index === -1 ? '' : path.slice(0, index);
-}
-
 export function fileNameOf(path: string): string {
   return path.slice(path.lastIndexOf('/') + 1);
-}
-
-/** Resolves a manifest entry's path (written relative to the manifest's own folder, so a group can
- * be moved wholesale without rewriting every line) against that folder. `./` and a leading `/` are
- * both tolerated; `..` is honoured, since a manifest legitimately might sit in a `groups/` folder
- * and point at quizzes a level up. Returns null if it climbs above the repo root. */
-export function resolveEntryPath(dir: string, entryPath: string): string | null {
-  const base = entryPath.startsWith('/') ? [] : dir.split('/').filter(Boolean);
-  for (const segment of entryPath.split('/')) {
-    if (segment === '' || segment === '.') continue;
-    if (segment === '..') {
-      if (base.length === 0) return null;
-      base.pop();
-      continue;
-    }
-    base.push(segment);
-  }
-  return base.length > 0 ? base.join('/') : null;
 }
 
 /** Percent-encodes each path segment but not the separators, so a quiz filed under
@@ -176,33 +144,8 @@ export function gistApiUrl(gistId: string): string {
   return `https://api.github.com/gists/${encodeURIComponent(gistId)}`;
 }
 
-/** One recursive call returns the whole tree, which is the entire discovery budget for a repo with
- * no manifest. `HEAD` works here exactly as it does on the raw host (see `DEFAULT_REF`), so this
- * needs no `GET /repos` call ahead of it to look up the default branch. */
-export function treeApiUrl(ref: RepoRef): string {
-  const gitRef = ref.ref ?? DEFAULT_REF;
-  return `https://api.github.com/repos/${ref.owner}/${ref.repo}/git/trees/${encodeURIComponent(gitRef)}?recursive=1`;
-}
-
-/** Stable identity for a repo+folder, used as a cache key and as the key progress is filed under.
- * Includes the ref only when one was pinned, so a durable (ref-less) link and its `?ref=main`
- * equivalent don't accumulate as two unrelated sets of progress. */
-export function repoKey(ref: RepoRef): string {
-  const base = `${ref.owner}/${ref.repo}`;
-  const withRef = ref.ref ? `${base}@${ref.ref}` : base;
-  return ref.path ? `${withRef}:${ref.path}` : withRef;
-}
-
-/** The canonical `github.com` link for a repo path, so a group screen can always offer "view the
- * source" — the app is a reader of someone else's files and should say where they live. */
-export function repoBrowseUrl(ref: RepoRef, path?: string): string {
-  const base = `https://github.com/${ref.owner}/${ref.repo}`;
-  if (!path) return base;
-  return `${base}/blob/${ref.ref ?? DEFAULT_REF}/${encodePath(path)}`;
-}
-
 /** What was being fetched, so a 404 can say something more useful than "not found". */
-export type FetchSubject = 'gist' | 'file' | 'repo';
+export type FetchSubject = 'gist' | 'file';
 
 /** The minimum of `Headers` this module needs, so a unit test can pass a plain object instead of
  * constructing a `Response`. */
@@ -228,8 +171,10 @@ function describeRateLimitReset(headers: HeaderReader, now: number): string {
  * they're separate rather than one generic "couldn't load".
  *
  * The rate-limit case is the one worth the extra clause. It's the only failure here that isn't the
- * link's fault and isn't permanent, and the fix — publish a `.qwizgroup`, which loads with no API
- * calls at all — is something the reader can't be expected to guess. */
+ * link's fault and isn't permanent, and the fix is something the reader can't be expected to
+ * guess: only a gist spends the rate-limited API (`fetchGistQwizFiles` calls `api.github.com`) — a
+ * link to a file in a public repository is read straight off the unmetered raw host and never
+ * touches it. */
 export function describeHttpFailure(
   status: number,
   headers: HeaderReader,
@@ -238,16 +183,13 @@ export function describeHttpFailure(
 ): string {
   if (status === 403 || status === 429) {
     if (headers.get('x-ratelimit-remaining') === '0' || status === 429) {
-      return `GitHub is rate-limiting this browser${describeRateLimitReset(headers, now)}. The limit is 60 requests an hour, shared by everything on this network. A repository with a .qwizgroup file loads without using the GitHub API at all.`;
+      return `GitHub is rate-limiting this browser${describeRateLimitReset(headers, now)}. The limit is 60 requests an hour, shared by everything on this network. Only loading a gist spends it — a link to a file in a public repository never does.`;
     }
     return "GitHub refused the request. If this is a private repository or gist, Qwiz can't read it — only public ones.";
   }
   if (status === 404) {
     if (subject === 'gist') {
       return "That gist doesn't exist, or it's private. Qwiz can only load public gists.";
-    }
-    if (subject === 'repo') {
-      return "That repository doesn't exist, or it's private. Qwiz can only load public repositories.";
     }
     return "That file isn't in this repository. It may have been moved, renamed, or not pushed yet.";
   }
@@ -257,8 +199,3 @@ export function describeHttpFailure(
 /** A rejected `fetch` — offline, DNS, or a CORS preflight refusal. Indistinguishable from each
  * other in the browser by design, so they share one message. */
 export const NETWORK_ERROR_MESSAGE = "Couldn't reach GitHub — check your connection and try again.";
-
-/** The tree API silently caps very large repositories, which would otherwise show up as a
- * quietly incomplete list of quizzes rather than as a problem. */
-export const TREE_TRUNCATED_MESSAGE =
-  'This repository is too large for Qwiz to scan in one go. Add a .qwizgroup file listing the quizzes you want to publish, and Qwiz will read that instead.';

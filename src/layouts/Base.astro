@@ -2,10 +2,11 @@
 import '@/styles/global.css';
 import ImportQuizDialog from '@/components/svelte/ImportQuizDialog.svelte';
 import ThemePicker from '@/components/svelte/ThemePicker.svelte';
-import NewMenu from '@/components/svelte/NewMenu.svelte';
+import Button from '@/components/svelte/Button.svelte';
 import Wordmark from '@/components/astro/Wordmark.astro';
 import BackLink from '@/components/svelte/BackLink.svelte';
 import HomeLink from '@/components/svelte/HomeLink.svelte';
+import { Plus } from '@lucide/svelte';
 
 interface Props {
   title?: string;
@@ -67,7 +68,7 @@ const {
     <div class="mx-auto max-w-3xl px-4 py-8">
       {
         minimal ? (
-          <header class="mb-6 flex items-center justify-between gap-2">
+          <header class="qwiz-chrome mb-6 flex items-center justify-between gap-2">
             <BackLink client:load />
             <div class="flex items-center gap-2">
               <ThemePicker client:load />
@@ -82,7 +83,9 @@ const {
             <div class="flex items-center gap-2">
               <ThemePicker client:load />
               <ImportQuizDialog client:load />
-              <NewMenu client:load />
+              <Button href="/local/create" variant="primary" size="sm">
+                <Plus size={15} class="shrink-0" /> New
+              </Button>
             </div>
           </header>
         )
