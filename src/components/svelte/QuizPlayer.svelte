@@ -587,7 +587,9 @@
              colour tokens, but a stylesheet that also moves things would come out half-applied and
              look broken rather than safe. A quiz you wrote yourself never reaches here — see
              `themeTrust` in QuizBuilder. -->
-        <div class="space-y-3 rounded-lg border border-warning-line bg-warning-surface p-4">
+        <div
+          class="qwiz-trust space-y-3 rounded-lg border border-warning-line bg-warning-surface p-4"
+        >
           <div class="flex items-start gap-2">
             <Palette size={16} class="mt-0.5 shrink-0 text-warning-ink-strong" />
             <div>
@@ -617,7 +619,7 @@
       <div class="flex items-center justify-between gap-3">
         <button
           type="button"
-          class="flex items-center gap-1 text-sm font-medium text-ink-soft hover:text-ink"
+          class="qwiz-back-to-summary flex items-center gap-1 text-sm font-medium text-ink-soft hover:text-ink"
           onclick={() => (reviewing = false)}
         >
           <ChevronLeft size={15} /> Back to summary
@@ -635,8 +637,12 @@
       {#each run as playQuestion, i (i)}
         {@const answer = answers[i]}
         {#if answer}
-          <div class="space-y-4 rounded-lg border border-line-subtle bg-surface-raised p-6">
-            <p class="text-xs font-medium text-ink-subtle">Question {i + 1} of {run.length}</p>
+          <div
+            class="qwiz-card qwiz-review space-y-4 rounded-lg border border-line-subtle bg-surface-raised p-6"
+          >
+            <p class="qwiz-progress text-xs font-medium text-ink-subtle">
+              Question {i + 1} of {run.length}
+            </p>
             <QuestionPlayer
               question={playQuestion.question}
               {playQuestion}
@@ -654,10 +660,12 @@
          carrying the verdict, then the per-question breakdown as a grid of chips. The old layout
          put four separate lines of centred text above a list of "Question N   1 / 1" rows, which
          read as a receipt and buried the one number anyone came for. -->
-    <div class="overflow-hidden rounded-xl border border-line-subtle bg-surface-raised">
+    <div
+      class="qwiz-results overflow-hidden rounded-xl border border-line-subtle bg-surface-raised"
+    >
       {#if showScoresAtEnd}
         <div
-          class="flex flex-col items-center gap-4 px-6 py-8 text-center sm:flex-row sm:gap-6 sm:text-left {summary.won
+          class="qwiz-results-head flex flex-col items-center gap-4 px-6 py-8 text-center sm:flex-row sm:gap-6 sm:text-left {summary.won
             ? 'bg-positive-surface'
             : 'bg-surface-hover'}"
         >
@@ -674,7 +682,9 @@
                 ? 'bg-positive-surface'
                 : 'bg-surface-hover'}"
             >
-              <span class="text-xl font-bold text-ink">{Math.round(summary.percentage)}%</span>
+              <span class="qwiz-results-percent text-xl font-bold text-ink"
+                >{Math.round(summary.percentage)}%</span
+              >
             </div>
           </div>
 
@@ -682,7 +692,7 @@
             <!-- A real heading, not styled text: it's the outcome of the whole run, and it's what
                  a screen reader should land on when the results appear. -->
             <h2
-              class="flex items-center justify-center gap-1.5 text-lg font-bold sm:justify-start {summary.won
+              class="qwiz-results-title flex items-center justify-center gap-1.5 text-lg font-bold sm:justify-start {summary.won
                 ? 'text-positive-ink-strong'
                 : 'text-ink'}"
             >
@@ -784,9 +794,9 @@
           </p>
         {/if}
       </div>
-      <div class="h-1.5 w-full overflow-hidden rounded-full bg-surface-hover">
+      <div class="qwiz-progressbar h-1.5 w-full overflow-hidden rounded-full bg-surface-hover">
         <div
-          class="h-full bg-accent transition-all"
+          class="qwiz-progressbar-fill h-full bg-accent transition-all"
           style={`width: ${((currentIndex + (locksAnswerImmediately && locked ? 1 : 0)) / run.length) * 100}%`}
         ></div>
       </div>

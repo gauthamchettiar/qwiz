@@ -102,7 +102,7 @@
   });
 </script>
 
-<Dialog bind:this={dialog} {title}>
+<Dialog bind:this={dialog} {title} class="qwiz-dialog">
   {#snippet body()}
     <p class="text-sm text-ink-subtle">{message}</p>
   {/snippet}

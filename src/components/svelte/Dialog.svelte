@@ -8,6 +8,7 @@
     title,
     titleExtra,
     size = 'md',
+    class: extraClass = '',
     body,
     footer
   }: {
@@ -17,6 +18,9 @@
     /** `lg` is for the theme editor, whose token list and live preview genuinely need the width —
      * a prop rather than a class on the caller so the two sizes stay a closed set. */
     size?: 'md' | 'lg';
+    /** Extra classes on the <dialog>. Carries the `qwiz-*` hook for dialogs that appear during a
+     * run (the leave confirmation), so a quiz's own styling reaches them too. */
+    class?: string;
     body: Snippet;
     footer: Snippet;
   } = $props();
@@ -41,7 +45,7 @@
   tabindex="-1"
   class="fixed inset-0 m-auto w-full {widths[
     size
-  ]} rounded-lg border border-line p-0 shadow-md backdrop:bg-ink/30 focus:outline-none"
+  ]} {extraClass} rounded-lg border border-line p-0 shadow-md backdrop:bg-ink/30 focus:outline-none"
 >
   <div class="flex items-center justify-between border-b border-line-faint px-5 py-4">
     <div class="flex items-center gap-3">

@@ -848,99 +848,107 @@
         {titleInvalid}
       />
 
-      <!-- Above Settings and shaped identically to it: both are occasional, quiz-wide things, and
-           a modal for one beside an inline panel for the other would have made them read as
-           different kinds of thing. -->
-      <div class="mt-3 space-y-1.5 border-t border-line-faint pt-3">
-        <ThemeFields bind:preset={themePreset} bind:css={themeCss} />
-      </div>
-
-      <div class="space-y-1.5">
-        <!-- See QuestionForm's own comment on this disclosure for why the every-key legend is
+      <!-- Everything below the plain fields is optional and quiz-wide, so the two live in one
+           ruled group rather than floating as separate stacks: Settings (how it plays) then Theme
+           (how it looks), each the same disclosure shape, separated by a hairline. Theme is last
+           because it's the one you reach for after the quiz already works. -->
+      <div class="mt-3 divide-y divide-line-faint border-t border-line-faint">
+        <div class="space-y-1.5 py-2">
+          <!-- See QuestionForm's own comment on this disclosure for why the every-key legend is
            gone. -->
-        <div class="flex items-center gap-1">
-          <button
-            type="button"
-            class="flex items-center gap-1 text-xs font-medium text-ink-subtle hover:text-ink-muted"
-            aria-expanded={settingsOpen}
-            aria-controls={settingsPanelId}
-            onclick={() => (settingsOpen = !settingsOpen)}
-          >
-            {#if settingsOpen}
-              <ChevronDown size={14} class="shrink-0" />
-            {:else}
-              <ChevronRight size={14} class="shrink-0" />
-            {/if}
-            Settings
-            {#if settingsList.length > 0}
-              <span class="rounded-full bg-surface-hover px-1.5 py-0.5 font-semibold text-ink-soft">
-                {settingsList.length}
-              </span>
-            {/if}
-          </button>
-          <SettingsDocsLink />
-        </div>
-        <div id={settingsPanelId} class="space-y-1.5" hidden={!settingsOpen}>
-          <SettingsLegend keys={QUIZ_SUGGESTED_SETTING_KEYS} rules={QUIZ_FRONTMATTER_RULES} />
-          {#each settingsList as setting (setting._key)}
-            {@const usedElsewhere = settingsList
-              .filter((s) => s._key !== setting._key)
-              .map((s) => s.key)}
-            {@const valueSuggestions = settingValueSuggestions(setting.key, QUIZ_FRONTMATTER_RULES)}
-            {@const validation = setting.key.trim()
-              ? validateSettingValue(setting.key, setting.value, QUIZ_FRONTMATTER_RULES)
-              : null}
-            <!-- Same shape as a question's settings row (see QuestionForm): no per-row "?", and
+          <div class="flex items-center gap-1">
+            <button
+              type="button"
+              class="flex items-center gap-1 text-xs font-medium text-ink-subtle hover:text-ink-muted"
+              aria-expanded={settingsOpen}
+              aria-controls={settingsPanelId}
+              onclick={() => (settingsOpen = !settingsOpen)}
+            >
+              {#if settingsOpen}
+                <ChevronDown size={14} class="shrink-0" />
+              {:else}
+                <ChevronRight size={14} class="shrink-0" />
+              {/if}
+              Settings
+              {#if settingsList.length > 0}
+                <span
+                  class="rounded-full bg-surface-hover px-1.5 py-0.5 font-semibold text-ink-soft"
+                >
+                  {settingsList.length}
+                </span>
+              {/if}
+            </button>
+            <SettingsDocsLink />
+          </div>
+          <div id={settingsPanelId} class="space-y-1.5" hidden={!settingsOpen}>
+            <SettingsLegend keys={QUIZ_SUGGESTED_SETTING_KEYS} rules={QUIZ_FRONTMATTER_RULES} />
+            {#each settingsList as setting (setting._key)}
+              {@const usedElsewhere = settingsList
+                .filter((s) => s._key !== setting._key)
+                .map((s) => s.key)}
+              {@const valueSuggestions = settingValueSuggestions(
+                setting.key,
+                QUIZ_FRONTMATTER_RULES
+              )}
+              {@const validation = setting.key.trim()
+                ? validateSettingValue(setting.key, setting.value, QUIZ_FRONTMATTER_RULES)
+                : null}
+              <!-- Same shape as a question's settings row (see QuestionForm): no per-row "?", and
                  the same 7rem key select. The wider `w-44` this used to have was enough on its
                  own to push the value field onto a second line on a phone, stranding the remove
                  "×" beside an otherwise empty row — quiz-wide keys are longer, but not so much
                  longer that the row should be laid out differently from the question's. -->
-            <div class="flex flex-wrap items-center gap-1.5">
-              <select
-                class="w-28 max-w-full shrink-0 rounded-md border border-line px-2 py-1 text-xs text-ink focus:border-line-strong focus:outline-none"
-                bind:value={setting.key}
-                onchange={() => selectSettingKey(setting)}
-                aria-label="Setting key"
-              >
-                <!-- Grouped, same as a question's — and it matters more here, since the quiz
+              <div class="flex flex-wrap items-center gap-1.5">
+                <select
+                  class="w-28 max-w-full shrink-0 rounded-md border border-line px-2 py-1 text-xs text-ink focus:border-line-strong focus:outline-none"
+                  bind:value={setting.key}
+                  onchange={() => selectSettingKey(setting)}
+                  aria-label="Setting key"
+                >
+                  <!-- Grouped, same as a question's — and it matters more here, since the quiz
                      block offers every key both tables have. -->
-                {#each groupSettingKeys( QUIZ_SUGGESTED_SETTING_KEYS.filter((k) => !usedElsewhere.includes(k)), QUIZ_FRONTMATTER_RULES ) as group (group.label)}
-                  <optgroup label={group.label}>
-                    {#each group.keys as k (k)}
-                      <option value={k}>{k}</option>
-                    {/each}
-                  </optgroup>
-                {/each}
-              </select>
-              <SuggestionInput
-                bind:value={setting.value}
-                suggestions={valueSuggestions}
-                placeholder="value"
-                class="min-w-[6rem] flex-1"
-              />
-              <button
-                type="button"
-                class="shrink-0 rounded p-2 text-ink-subtle hover:bg-surface-hover"
-                onclick={() => removeSetting(setting._key)}
-                aria-label="Remove setting"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            {#if validation?.error}
-              <!-- Lines up under the value field: the key select (7rem) plus its gap. -->
-              <p class="break-words text-xs text-negative-ink sm:pl-[7.375rem]">
-                {validation.error}
-              </p>
-            {/if}
-          {/each}
-          <button
-            type="button"
-            class="flex items-center gap-1 rounded-md border border-line px-2 py-1 text-xs text-ink-soft hover:bg-surface"
-            onclick={addSetting}
-          >
-            <Plus size={13} /> Add setting
-          </button>
+                  {#each groupSettingKeys( QUIZ_SUGGESTED_SETTING_KEYS.filter((k) => !usedElsewhere.includes(k)), QUIZ_FRONTMATTER_RULES ) as group (group.label)}
+                    <optgroup label={group.label}>
+                      {#each group.keys as k (k)}
+                        <option value={k}>{k}</option>
+                      {/each}
+                    </optgroup>
+                  {/each}
+                </select>
+                <SuggestionInput
+                  bind:value={setting.value}
+                  suggestions={valueSuggestions}
+                  placeholder="value"
+                  class="min-w-[6rem] flex-1"
+                />
+                <button
+                  type="button"
+                  class="shrink-0 rounded p-2 text-ink-subtle hover:bg-surface-hover"
+                  onclick={() => removeSetting(setting._key)}
+                  aria-label="Remove setting"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              {#if validation?.error}
+                <!-- Lines up under the value field: the key select (7rem) plus its gap. -->
+                <p class="break-words text-xs text-negative-ink sm:pl-[7.375rem]">
+                  {validation.error}
+                </p>
+              {/if}
+            {/each}
+            <button
+              type="button"
+              class="flex items-center gap-1 rounded-md border border-line px-2 py-1 text-xs text-ink-soft hover:bg-surface"
+              onclick={addSetting}
+            >
+              <Plus size={13} /> Add setting
+            </button>
+          </div>
+        </div>
+
+        <div class="space-y-1.5 py-2">
+          <ThemeFields bind:preset={themePreset} bind:css={themeCss} />
         </div>
       </div>
     </div>

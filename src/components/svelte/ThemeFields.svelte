@@ -2,6 +2,7 @@
   import { Check, ChevronDown, ChevronRight, Download, Upload } from '@lucide/svelte';
   import Button from './Button.svelte';
   import CodeEditor from './CodeEditor.svelte';
+  import ThemePreview from './ThemePreview.svelte';
   import { downloadTextFile } from '@/lib/utils/download';
   import { PLAY_PRESETS } from '@/lib/themes/playPresets';
 
@@ -96,12 +97,13 @@
     <span class="font-normal text-ink-subtle">{summary}</span>
   </button>
 
-  <div id={panelId} class="space-y-3" hidden={!open}>
-    <div class="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+  <div id={panelId} class="space-y-2 pt-1" hidden={!open}>
+    <div class="grid grid-cols-2 gap-1 sm:grid-cols-3">
       {#each PLAY_PRESETS as option (option.id)}
         <button
           type="button"
-          class="flex items-start gap-2 rounded-md border p-2.5 text-left {chosen === option.id
+          class="flex items-start gap-1.5 rounded-md border px-2 py-1.5 text-left {chosen ===
+          option.id
             ? 'border-accent-line bg-accent-surface'
             : 'border-line-subtle hover:bg-surface-hover'}"
           aria-pressed={chosen === option.id}
@@ -118,8 +120,7 @@
       {/each}
     </div>
     <p class="text-xs text-ink-subtle">
-      A preset is Qwiz's own styling, so it travels as a name — the file stays small, and whoever
-      plays the quiz sees it without being asked anything.
+      Presets travel by name and apply to everyone with nothing asked.
     </p>
 
     <div class="space-y-1.5">
@@ -134,22 +135,20 @@
         </Button>
       </div>
       <p class="text-xs text-ink-subtle">
-        Applied on top of the preset. Target the <code class="font-mono">.qwiz-*</code> classes —
-        <code class="font-mono">.qwiz-question-text</code>,
-        <code class="font-mono">.qwiz-option</code>,
-        <code class="font-mono">.qwiz-option--correct</code> and the rest are listed in the styling reference.
+        On top of the preset. Targets <code class="font-mono">.qwiz-*</code> classes — see the styling
+        reference.
       </p>
       <CodeEditor
         value={css ?? ''}
         language="css"
-        rows={8}
+        rows={6}
         ariaLabel="Custom CSS for this quiz"
         onInput={(next) => (css = next.trim() === '' ? undefined : next)}
       />
+      <ThemePreview preset={chosen} css={css ?? ''} />
       {#if css?.trim()}
         <p class="text-xs text-warning-ink-strong">
-          Anyone you send this quiz to is asked before your CSS runs — it can change anything on the
-          page, so they get to decide. The preset above never asks.
+          Anyone you send this to is asked before your CSS runs. The preset never asks.
         </p>
       {/if}
       {#if importError}

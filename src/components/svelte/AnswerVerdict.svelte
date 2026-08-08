@@ -73,21 +73,21 @@
      prefers-reduced-motion fallback of its own. -->
 <div
   in:scale={{ duration: 180, start: 0.96 }}
-  class="flex items-center gap-3 rounded-lg border p-3 {showVerdict
+  class="qwiz-verdict flex items-center gap-3 rounded-lg border p-3 {showVerdict
     ? tone.box
     : 'border-line-subtle bg-surface'}"
   role="status"
 >
   {#if showVerdict}
     <Icon size={22} class="shrink-0 {tone.icon_}" />
-    <p class="flex-1 text-base font-semibold {tone.title}">{tone.label}</p>
+    <p class="qwiz-verdict-label flex-1 text-base font-semibold {tone.title}">{tone.label}</p>
   {:else}
     <p class="flex-1 text-sm font-medium text-ink-soft">Answer submitted</p>
   {/if}
 
   {#if showScore}
     <span
-      class="shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold {showVerdict
+      class="qwiz-verdict-score shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold {showVerdict
         ? tone.pill
         : 'bg-surface-inverse text-ink-on-inverse'}"
     >
