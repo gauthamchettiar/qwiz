@@ -70,8 +70,10 @@ theme-css:
 ```
 
 `theme:` names one of Qwiz's built-in play presets — `arcade`, `trivia-night`, `game-show`,
-`paper`, `terminal` — each of which restyles the whole play screen, not just its colours. It
-travels as a **name**, so the file stays small and the stylesheet is always Qwiz's own.
+`paper`, `terminal`, `chalkboard`, `swiss`, `neon` or `high-contrast` — each of which restyles the
+whole play screen, not just its colours. It travels as a **name**, so the file stays small and the
+stylesheet is always Qwiz's own. A name Qwiz doesn't recognise is ignored rather than rejected, so
+a quiz naming a preset from a newer release still opens.
 
 `theme-css:` is an indented block of CSS the author wrote, applied on top of the preset. It targets
 the `.qwiz-*` classes documented in [`play-classes.md`](./play-classes.md). The block runs to the

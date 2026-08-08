@@ -232,6 +232,19 @@ test('home, builder and player', async ({ page }) => {
     questionActions(page)
   ]);
 
+  // The Theme panel, open, with a preset chosen so the preview underneath has something to show.
+  // Captured on the metadata card rather than the whole page: the panel is the subject, and a
+  // full-page shot would bury it under an untouched question list.
+  await builder.gotoEdit('shot-home-1');
+  await page.getByRole('button', { name: /^Theme ·/ }).click();
+  await page.getByRole('button', { name: /^Arcade/ }).click();
+  // Bounded by the toggle at the top and the preview at the bottom — `shotPadded` unions the
+  // boxes it's given, and those two are the panel's real extent.
+  await shotPadded(page, 'builder-theme', [
+    page.getByRole('button', { name: /^Theme ·/ }),
+    page.locator('[data-preview]')
+  ]);
+
   // View mode — the card as it sits in a stack, which is what the builder mostly looks like.
   await builder.gotoEdit('shot-home-1');
   await shotPadded(page, 'builder-view', [

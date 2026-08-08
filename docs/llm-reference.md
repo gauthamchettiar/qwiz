@@ -410,7 +410,8 @@ A quiz can be styled, so it looks the same for everyone who plays it. Two frontm
 | `theme`     | The name of a built-in preset, on one line                     |
 | `theme-css` | CSS the author wrote, as an **indented block**, applied on top |
 
-Presets: `arcade`, `trivia-night`, `game-show`, `paper`, `terminal`. Anything else is ignored and
+Presets: `arcade`, `trivia-night`, `game-show`, `paper`, `terminal`, `chalkboard`, `swiss`, `neon`,
+`high-contrast`. Anything else is ignored and
 the quiz plays unstyled, so an unfamiliar name is never an error.
 
 ```qwiz
